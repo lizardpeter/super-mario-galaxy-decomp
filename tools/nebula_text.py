@@ -1,0 +1,394 @@
+"""Builds the game's table of Nebula's own text from localization/NebulaText.tsv.
+
+    python tools/nebula_text.py            writes native/petari/src/Game/System/NebulaTextTable.inc
+    python tools/nebula_text.py --check    exits 1 when the .inc does not match the table, a text has no row, or a
+                                           cell does not read as its column's language (nebula_text_languages.py)
+    python tools/nebula_text.py --fonts <LayoutData/Font.arc, or the folder lumalink extract writes>
+                                           exits 1 when a game row of a disc's language has a character the disc's
+                                           message font lacks (it would draw as the font's alternate, '?')
+    python tools/nebula_text.py --fonts COLUMN[,COLUMN...]=FONT ...
+                                           the same for each font with the languages the game draws with it
+
+The table: UTF-8, tab-separated, one row per string id, one column per language folder (the header names them). An
+empty cell uses the language's fallback (NebulaText.cpp). In a cell, \\n is a line break and \\\\ a backslash. "L." rows
+are Setup's (installer/native/text.cpp, which finds any row by its English cell): the game's
+table leaves them out. "C." rows are the crash dialog's, written to runtime/src/crash_text_table.inc for the host.
+"Validator." rows are the mod validator's (crates/luma-validate, which reads this file at build and checks their named
+places): the game's table leaves them out too, so a game with no mod carries none of them. The font check keeps them,
+since the Mods screen draws them.
+"""
+import glob
+import importlib.util
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TABLE = os.path.join(ROOT, 'localization', 'NebulaText.tsv')
+OUTPUT = os.path.join(ROOT, 'native', 'petari', 'src', 'Game', 'System', 'NebulaTextTable.inc')
+CRASH_OUTPUT = os.path.join(ROOT, 'runtime', 'src', 'crash_text_table.inc')
+HOST_TEXT = ['runtime/src/ui/settings_*_page.cpp', 'runtime/src/ui/settings_model.cpp', 'runtime/src/render/host_window_win32.cpp',
+             'runtime/src/ui/native_settings.cpp', 'runtime/src/mod_import.cpp', 'runtime/src/mods.cpp', 'runtime/src/luma.cpp',
+             'runtime/src/mod_plugins.cpp']
+INSTALLER_TEXT = 'installer/native/*.cpp'
+# Capitals the menu does not show as text: pad names, a disc id, the home overlay and the DLSS footer the game replaces.
+HOST_NOT_SHOWN = {'SSAO', 'GTAO', 'SB4', 'SB5', '(BLUETOOTH)', '(BT)', '-OPTIONS', 'AIS', 'OL', 'LB/RB', 'RMGE01', 'S ARE', 'SHARE+OPTIONS',
+                  'VIEW+MENU OR MINUS+PLUS', 'DLSS READY', 'DLSS WAS NOT INSTALLED', 'DOWNLOAD NVIDIA DLSS (',
+                  'INSTALLING NVIDIA DLSS...', 'RESTART NOW? ENTER/Y YES  ESC/B LATER', 'HOME MENU', 'NO', 'YES',
+                  'RESET?', 'RETURN TO GAME',
+                  # an answer shown unavailable ('-' marks it; the APPLY row is its text)
+                  '-APPLY',
+                  # pieces joined at run time whose whole texts have rows: "INPUT: AUTO (<device>)", "THE GAME RUNS AT 60. INTERPOLATION ..."
+                  'INPUT: AUTO (', '. INTERPOLATION ADDS FRAMES BETWEEN',
+                  # the mods: unavailable buttons, hex digits, the game's id, the head of "ON (1 OF 2)"
+                  '-ABOUT', '-DETAILS', '-PICK', '0123456789ABCDEF', 'RMG', 'ON (',
+                  # HDR CALIBRATION's button while the picture is not HDR (the CALIBRATE row is its text)
+                  '-CALIBRATE'}
+
+
+def unescape(cell):
+    out = []
+    i = 0
+    while i < len(cell):
+        c = cell[i]
+        if c == '\\' and i + 1 < len(cell):
+            nxt = cell[i + 1]
+            if nxt == 'n':
+                out.append('\n')
+            elif nxt == '\\':
+                out.append('\\')
+            else:
+                raise ValueError('unknown escape \\%s in %r' % (nxt, cell))
+            i += 2
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+def c_wide(text):
+    parts = []
+    for ch in text:
+        code = ord(ch)
+        if ch == '\n':
+            parts.append('\\n')
+        elif ch in '"\\':
+            parts.append('\\' + ch)
+        elif 0x20 <= code < 0x7F:
+            parts.append(ch)
+        elif code <= 0xFFFF:
+            parts.append('\\u%04X' % code)
+        else:
+            raise ValueError('outside the 16-bit range: %r' % ch)
+    return 'u"' + ''.join(parts) + '"'
+
+
+def generate():
+    with open(TABLE, encoding='utf-8') as f:
+        lines = [line.rstrip('\n').rstrip('\r') for line in f if line.strip()]
+    header = lines[0].split('\t')
+    if header[0] != 'id':
+        raise ValueError('the first column must be "id"')
+    languages = header[1:]
+    rows = []
+    seen = set()
+    for number, line in enumerate(lines[1:], start=2):
+        cells = line.split('\t')
+        if len(cells) > len(header):
+            raise ValueError('line %d: %d cells, the header has %d' % (number, len(cells), len(header)))
+        cells += [''] * (len(header) - len(cells))
+        key = cells[0]
+        if not key or key in seen:
+            raise ValueError('line %d: missing or repeated id %r' % (number, key))
+        # An id is one word (a line break inside a cell starts a line that looks like a row).
+        if any(c.isspace() or c in '"\\' for c in key):
+            raise ValueError('line %d: id %r has a space, a quote or a backslash' % (number, key))
+        seen.add(key)
+        rows.append((key, [unescape(c) for c in cells[1:]]))
+    out = ['// Generated by tools/nebula_text.py from localization/NebulaText.tsv: edit the table and run the script.',
+           '// clang-format off',
+           'const s32 cNebulaTextLanguageNum = %d;' % len(languages),
+           'struct NebulaTextRow {',
+           '    const char* mId;',
+           '    const char16_t* mText[cNebulaTextLanguageNum];  // null: the language\'s fallback',
+           '};',
+           'const char* const cNebulaTextLanguages[cNebulaTextLanguageNum] = {',
+           '    ' + ', '.join('"%s"' % name for name in languages) + ',',
+           '};',
+           'const NebulaTextRow cNebulaTextRows[] = {']
+    for key, texts in rows:
+        if key.startswith(NOT_THE_GAMES):
+            continue
+        out.append('    {"%s",' % key)
+        out.append('     {' + ', '.join(c_wide(t) if t else 'nullptr' for t in texts) + '}},')
+    out.append('};')
+    out.append('// clang-format on')
+    return '\n'.join(out) + '\n'
+
+
+def c_narrow(text):
+    """The text as a C string in plain UTF-8 (the host compiles with /utf-8): quotes, backslashes and controls escaped."""
+    out = []
+    for ch in text:
+        if ch in '"\\':
+            out.append('\\' + ch)
+        elif ch == '\n':
+            out.append('\\n')
+        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+            out.append('\\%03o' % ord(ch))
+        else:
+            out.append(ch)
+    return '"' + ''.join(out) + '"'
+
+
+def generate_crash():
+    with open(TABLE, encoding='utf-8') as f:
+        lines = [line.rstrip('\r\n').split('\t') for line in f if line.strip()]
+    languages = lines[0][1:]
+    out = ['// Generated by tools/nebula_text.py from localization/NebulaText.tsv: edit the table and run the script.',
+           '// clang-format off',
+           'constexpr const char* kLanguages[] = {' + ', '.join('"%s"' % name for name in languages) + '};',
+           'constexpr const char* kRows[][%d] = {' % len(languages)]
+    for row in lines[1:]:
+        if row[0].startswith('C.'):
+            cells = [unescape(c) for c in row[1:]] + [''] * (len(languages) - len(row) + 1)
+            out.append('    {' + ', '.join(c_narrow(c) for c in cells) + '},')
+    out.append('};')
+    out.append('// clang-format on')
+    return '\n'.join(out) + '\n'
+
+
+def table_rows():
+    with open(TABLE, encoding='utf-8') as f:
+        return [line.rstrip('\r\n').split('\t') for line in f if line.strip()][1:]
+
+
+def host_id(text):
+    """NebulaSettingsMenu.cpp lookUp: a host text's id."""
+    out = 'S.'
+    i = 0
+    while i < len(text):
+        if text[i] not in '0123456789':
+            out += '_' if text[i] == ' ' else text[i]
+            i += 1
+            continue
+        while i < len(text) and (text[i] in '0123456789' or (text[i] == '.' and text[i + 1:i + 2].isdigit())):
+            i += 1
+        out += '#'
+    return out
+
+
+def host_missing(text, ids):
+    """NebulaSettingsMenu.cpp translate: the pieces of a host text with no row."""
+    if not text or host_id(text) in ids:
+        return []
+    at = text.rfind(' (') if text.endswith(')') else -1
+    if at >= 0:
+        return host_missing(text[:at].rstrip(' '), ids) + host_missing(text[at + 2:-1], ids)
+    for separator in ('. ', ': ', ', '):
+        at = text.find(separator)
+        if at >= 0:
+            return host_missing(text[:at].rstrip(' '), ids) + host_missing(text[at + 2:], ids)
+    return [text]
+
+
+def host_literals():
+    """The capitals the host hands the menu, as the sources spell them. Pieces joined at run time (a space at an end) and
+    %s cannot be checked."""
+    for pattern in HOST_TEXT:
+        for path in glob.glob(os.path.join(ROOT, pattern)):
+            if path.endswith('_tests.cpp'):
+                continue
+            with open(path, encoding='utf-8') as f:
+                source = re.sub(r'//.*', '', f.read())
+            source = re.sub(r'"\s*\n\s*"', '', source)  # adjacent literals are one text
+            for match in re.finditer(r'"((?:[^"\\\n]|\\.)*)"', source):
+                text = match.group(1)
+                if text.startswith(' (') and text.endswith(')'):
+                    text = text[2:-1]
+                if '%s' in text or text in HOST_NOT_SHOWN or text != text.strip():
+                    continue
+                if not re.search('[A-Z]{2}', text) or re.search('[a-z\\\\]', re.sub('%[a-z.0-9]+', '', text)):
+                    continue
+                yield re.sub('%%', '%', re.sub('%[.0-9]*[a-z]+', '0', text))
+
+
+# Rows the game's own table leaves out: the launcher's and Setup's, the crash dialog's, the mod validator's.
+NOT_THE_GAMES = ('L.', 'C.', 'Validator.')
+
+
+def coverage():
+    """What the table lacks: the host's texts, the installer's NebulaText.Of words, a cell that drops a {0}."""
+    rows = table_rows()
+    ids = {cells[0] for cells in rows}
+    english = {unescape(cells[1]) for cells in rows if len(cells) > 1}
+    missing = set()
+    for text in host_literals():
+        missing.update('host: ' + piece for piece in host_missing(text, ids))
+    for path in glob.glob(os.path.join(ROOT, INSTALLER_TEXT), recursive=True):
+        with open(path, encoding='utf-8-sig') as f:
+            for match in re.finditer(r'\bOf\(L"((?:[^"\\]|\\.)*)"', f.read()):
+                if match.group(1) not in english:
+                    missing.add('installer: ' + match.group(1))
+    for cells in rows:
+        wanted = sorted(set(re.findall(r'\{\d\}', cells[1]))) if cells[0].startswith('L.') else None
+        for cell in cells[2:]:
+            if wanted is not None and cell and sorted(set(re.findall(r'\{\d\}', cell))) != wanted:
+                missing.add('placeholders: %s: %s' % (cells[0], cell))
+    # Each cell against its column's language: writing system, arguments, a cell left in English
+    # (tools/nebula_text_languages.py).
+    spec = importlib.util.spec_from_file_location('nebula_text_languages', os.path.join(ROOT, 'tools', 'nebula_text_languages.py'))
+    languages = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(languages)
+    missing.update(languages.failing(languages.findings(TABLE)))
+    return sorted(missing)
+
+
+# The columns a disc carries, and the font every game text box can draw in (the others hold fewer characters).
+DISC_COLUMNS = {'UsEnglish', 'EuEnglish', 'UsFrench', 'EuFrench', 'UsSpanish', 'EuSpanish', 'EuGerman', 'EuItalian',
+                'EuDutch', 'JpJapanese'}
+MESSAGE_FONT = 'messagefont26.brfnt'
+# Drawn as the font's space where it has none (Game/Ui/ResFontBase.cpp GetGlyphIndex).
+AS_SPACE = {0xA0, 0x202F}
+
+
+def yaz0(data):
+    if data[:4] != b'Yaz0':
+        return data
+    size = int.from_bytes(data[4:8], 'big')
+    out = bytearray()
+    i = 16
+    while len(out) < size:
+        code = data[i]
+        i += 1
+        for bit in range(8):
+            if len(out) >= size:
+                break
+            if code & (0x80 >> bit):
+                out.append(data[i])
+                i += 1
+                continue
+            back = ((data[i] & 0xF) << 8 | data[i + 1]) + 1
+            count = data[i] >> 4
+            i += 2
+            if count == 0:
+                count = data[i] + 0x12
+                i += 1
+            else:
+                count += 2
+            for _ in range(count):
+                out.append(out[-back])
+    return bytes(out)
+
+
+def archive_files(data):
+    """An RARC archive's files: name -> bytes."""
+    def be(at, n=4):
+        return int.from_bytes(data[at:at + n], 'big')
+    data_at = be(12) + 0x20
+    nodes_at, entries_at, names_at = be(0x24) + 0x20, be(0x2C) + 0x20, be(0x34) + 0x20
+    files = {}
+    for k in range(be(0x20)):
+        count, first = be(nodes_at + k * 16 + 10, 2), be(nodes_at + k * 16 + 12)
+        for e in range(first, first + count):
+            at = entries_at + e * 20
+            if be(at + 4, 2) & 0x0200:
+                continue
+            name_at = names_at + be(at + 6, 2)
+            name = data[name_at:data.index(b'\x00', name_at)].decode('ascii', 'replace')
+            files[name] = data[data_at + be(at + 8):data_at + be(at + 8) + be(at + 12)]
+    return files
+
+
+def font_codes(font):
+    """The codes a BRFNT font has a glyph for (its CMAP blocks)."""
+    def be(at, n=4):
+        return int.from_bytes(font[at:at + n], 'big')
+    codes = set()
+    at = be(0x0C, 2)
+    for _ in range(be(0x0E, 2)):
+        kind, size = font[at:at + 4], be(at + 4)
+        if kind == b'CMAP':
+            first, last, method, info = be(at + 8, 2), be(at + 10, 2), be(at + 12, 2), at + 20
+            if method == 0:
+                codes.update(range(first, last + 1))
+            elif method == 1:
+                codes.update(c for c in range(first, last + 1) if be(info + 2 * (c - first), 2) != 0xFFFF)
+            else:
+                codes.update(be(info + 2 + 4 * k, 2) for k in range(be(info, 2)))
+        at += size
+    return codes
+
+
+def message_font_codes(font_arc):
+    if os.path.isdir(font_arc):
+        with open(os.path.join(font_arc, MESSAGE_FONT), 'rb') as f:
+            return font_codes(f.read()) | AS_SPACE
+    with open(font_arc, 'rb') as f:
+        return font_codes(archive_files(yaz0(f.read()))[MESSAGE_FONT]) | AS_SPACE
+
+
+def font_gaps(font_arc, columns=None):
+    """Each game row's characters, in `columns` (default: every column a disc carries), that the message font lacks.
+    `font_arc`: the archive, or the folder `lumalink extract` writes it to."""
+    codes = message_font_codes(font_arc)
+    with open(TABLE, encoding='utf-8') as f:
+        header = f.readline().rstrip('\r\n').split('\t')
+    gaps = []
+    for cells in table_rows():
+        if cells[0].startswith(('L.', 'C.')):
+            continue
+        for name, cell in zip(header[1:], cells[1:]):
+            if name not in (columns or DISC_COLUMNS):
+                continue
+            text = re.sub(r'\{[^}]*\}', '', unescape(cell))
+            lacking = sorted({ch for ch in text if ord(ch) >= 0x20 and ord(ch) not in codes})
+            if lacking:
+                gaps.append('%s %s: %s' % (cells[0], name, ' '.join('U+%04X' % ord(ch) for ch in lacking)))
+    return gaps
+
+
+def main():
+    if '--fonts' in sys.argv:
+        given = sys.argv[sys.argv.index('--fonts') + 1:]
+        if given and '=' not in given[0]:
+            gaps = font_gaps(given[0])
+        else:
+            # COLUMN[,COLUMN...]=FONT, one for each font the game draws those languages with.
+            gaps = []
+            with open(TABLE, encoding='utf-8') as f:
+                header = set(f.readline().rstrip('\r\n').split('\t')[1:])
+            for pair in given:
+                names, font_arc = pair.split('=', 1)
+                columns = set(names.split(','))
+                if columns - header:
+                    print('no such column: %s' % ', '.join(sorted(columns - header)))
+                    return 2
+                found = font_gaps(font_arc, columns)
+                print('%s: %d cells with a character the font lacks (%s)' % (', '.join(sorted(columns)), len(found), font_arc))
+                gaps += found
+        for line in gaps:
+            print(line)
+        return 1 if gaps else 0
+    text = generate()
+    if '--check' in sys.argv:
+        with open(OUTPUT, encoding='utf-8') as f:
+            current = f.read().replace('\r\n', '\n')
+        failed = current != text
+        with open(CRASH_OUTPUT, encoding='utf-8') as f:
+            failed = f.read().replace('\r\n', '\n') != generate_crash() or failed
+        if failed:
+            print('NebulaTextTable.inc or crash_text_table.inc is out of date: run python tools/nebula_text.py')
+        for line in coverage():
+            print(line.encode('ascii', 'backslashreplace').decode())
+            failed = True
+        return 1 if failed else 0
+    with open(OUTPUT, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text)
+    with open(CRASH_OUTPUT, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(generate_crash())
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

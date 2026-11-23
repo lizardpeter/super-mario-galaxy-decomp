@@ -1,0 +1,137 @@
+#include "Game/Map/LightPointCtrl.hpp"
+#include "Game/Render/FrameList.hpp"
+#include "Game/System/NebulaFrameClock.hpp"
+#include "Game/Map/LightFunction.hpp"
+#include "Game/Util/ActorMovementUtil.hpp"
+#include "Game/Util/MathUtil.hpp"
+#include "Game/LiveActor/LiveActor.hpp"
+#include "Game/Util/LiveActorUtil.hpp"
+
+namespace {
+    const s32 sDefaultBlendTime = NebulaFrameClock::stepsOfMilliseconds(500);
+    const f32 sDefaultDistRef = 15.0f;
+};  // namespace
+
+LightPointCtrl::LightPointCtrl()
+    : mStep(-1), mBlendTime(::sDefaultBlendTime), mCurrentActor(), mPreviousActor(), mCandidateActor(), mCandidateDistance(0.0f),
+      mCurrentInfo(), mTargetInfo(), mPreviousInfo() {
+    mCurrentInfo = new PointLightInfo();
+    mTargetInfo = new PointLightInfo();
+    mPreviousInfo = new PointLightInfo();
+
+    clearPointLight(mCurrentInfo);
+    clearPointLight(mTargetInfo);
+    clearPointLight(mPreviousInfo);
+}
+
+void LightPointCtrl::loadPointLight() {
+    LightFunction::loadPointLightInfo(mCurrentInfo);
+}
+
+void LightPointCtrl::update() {
+    if (mStep == -1) {
+        mCurrentActor = mCandidateActor;
+        tryBlendStart();
+    }
+
+    updatePointLight();
+
+    if (mStep == -1) {
+        mPreviousActor = mCurrentActor;
+        *mPreviousInfo = *mTargetInfo;
+        mCandidateActor = nullptr;
+    }
+}
+
+void LightPointCtrl::requestPointLight(const LiveActor* pActor, Vec3f pos, Color8 color, f32 intensity, s32 duration) {
+    {
+        requestPointLightBy(pActor, MR::calcDistanceToPlayer(pActor), pos, color, intensity, duration);
+    }
+}
+
+// The nearest to the player of those asking since the last choice (the distance each had when it asked: an actor's
+// from its place, a mod's light's from its centre).
+void LightPointCtrl::requestPointLightBy(const void* pKey, f32 distance, Vec3f pos, Color8 color, f32 intensity, s32 duration) {
+    if (mStep == -1 && (mCandidateActor == nullptr || distance < mCandidateDistance)) {
+        mCandidateActor = pKey;
+        mCandidateDistance = distance;
+        mTargetInfo->mPos = pos;
+        mTargetInfo->mColor = color.mRGBA;
+        mTargetInfo->mRefBrightness = MR::clamp(intensity, 0.95f, 0.999999f);
+        mTargetInfo->mRefDistance = ::sDefaultDistRef;
+        mTargetInfo->mDistAttnFn = LIGHT_FALLOFF_STEEP;
+        mBlendTime = duration >= 0 ? duration : ::sDefaultBlendTime;
+    }
+}
+
+void LightPointCtrl::updatePointLight() {
+    if (mCurrentActor == nullptr && mPreviousActor != nullptr) {
+        clearPointLight(mTargetInfo);
+    }
+
+    if (mCurrentActor == nullptr && mStep == -1) {
+        clearPointLight(mCurrentInfo);
+        return;
+    }
+
+    if (getStep() == -1) {
+        *mCurrentInfo = *mTargetInfo;
+        return;
+    }
+
+    // A blend of no time is at its target at once (0 / 0 would load a NaN light for a frame).
+    f32 t = mBlendTime > 0 ? MR::getEaseInOutValue(static_cast< f32 >(mStep) / mBlendTime, 0.0f, 1.0f, 1.0f) : 1.0f;
+    blendPointLight(mCurrentInfo, *mPreviousInfo, *mTargetInfo, t);
+
+    if (mStep < mBlendTime) {
+        mStep++;
+    } else {
+        mStep = -1;
+    }
+}
+
+void LightPointCtrl::clearPointLight(PointLightInfo* pInfo) {
+    Vec pos;
+    pos.x = 0.0f;
+    pos.y = 0.0f;
+    pos.z = 0.0f;
+    pInfo->mPos = pos;
+
+    NebulaColor8 color;
+    color.r = 0;
+    color.g = 0;
+    color.b = 0;
+    color.a = 255;
+    pInfo->mColor = color;
+
+    pInfo->mRefBrightness = 0.001f;
+    pInfo->mRefDistance = ::sDefaultDistRef;
+    pInfo->mDistAttnFn = LIGHT_FALLOFF_STEEP;
+    mBlendTime = ::sDefaultBlendTime;
+}
+
+void LightPointCtrl::blendPointLight(PointLightInfo* pDst, const PointLightInfo& rStart, const PointLightInfo& rEnd, f32 t) {
+    if (mCurrentActor == nullptr) {
+        pDst->mPos = rStart.mPos;
+    } else if (mPreviousActor == nullptr) {
+        pDst->mPos = rEnd.mPos;
+    } else {
+        MR::blendVec(&pDst->mPos, rStart.mPos, rEnd.mPos, t);
+    }
+
+    f32 start = mPreviousActor == nullptr ? 0.95f : rStart.mRefBrightness;
+    f32 end = mCurrentActor == nullptr ? 0.95f : rEnd.mRefBrightness;
+    pDst->mRefBrightness = MR::getLinerValue(t, start, end, 1.0f);
+    MR::blendColor(&pDst->mColor, rStart.mColor, rEnd.mColor, t);
+    pDst->mRefDistance = MR::getLinerValue(t, rStart.mRefDistance, rEnd.mRefDistance, 1.0f);
+}
+
+bool LightPointCtrl::tryBlendStart() {
+    if (mPreviousActor == mCurrentActor) {
+        return false;
+    }
+
+    mStep = 0;
+    return true;
+}
+

@@ -1,0 +1,33 @@
+#pragma once
+
+#include "Game/Screen/LayoutActor.hpp"
+
+class CountUpPaneRumbler;
+class CounterLayoutAppearer;
+
+class PlayerLeft : public LayoutActor {
+public:
+    /// @brief Creates a new `PlayerLeft`.
+    /// @param pName The pointer to the null-terminated name of the object.
+    PlayerLeft(const char* pName);
+
+    virtual void init(const TableIter& rIter) override;
+    virtual void appear() override;
+    virtual void control() override;
+
+    void forceAppear();
+    void disappear();
+    bool isWait() const;
+    void updateCounter();
+    bool isValidAppearSituation() const;
+    void exeHide();
+    void exeAppear();
+    void exeWait();
+    void exeDisappear();
+
+private:
+    s32 mPlayerLeft;
+    CounterLayoutAppearer* mLayoutAppearer;
+    CountUpPaneRumbler* mPaneRumbler;
+    bool mIsForceAppear;
+};

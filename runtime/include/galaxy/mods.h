@@ -1,0 +1,341 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Mods are folders in the mods folder (next to the settings). A mod can hold any of:
+//   riivolution/*.xml  a Riivolution mod as it sits on an SD card (file, folder, savegame and memory patches; options)
+//   files/             files laid out like the game's (/StageData/..., /MovieData/...). The game's own folder names at
+//                      the top of the mod (or of its only subfolder) count as files/ too.
+//   loose files        files with nothing else beside them (Mario.arc). Each replaces every game file with that name,
+//                      like a Riivolution path without a '/'.
+//   textures/          a texture pack (tex1_ names). A mod holding only tex1_ files is a pack.
+//   movies/            HD videos for the game's movies (movie_playback.h).
+// If a mod's text lacks the language being played, its text in a near language is shown (the same language from
+// another region, else English), unless its TEXT choice keeps the game's text.
+// The mods form one ordered list. When two change the same file or texture, the higher one wins (order 1 is the top).
+// A newly added mod goes on top. Texture packs and movies apply at once; file changes apply at the next start. The
+// order, on/off state and choices are saved in mods.ini next to the settings.
+#pragma once
+
+
+#include "galaxy/mod_plugins.h"
+#include "galaxy/luma.h"
+#include "galaxy/texture_categories.h"
+
+#include <cstdint>
+#include <filesystem>
+#include <map>
+#include <memory>
+#include <optional>
+#include <set>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace galaxy::assets {
+class AssetStore;
+}
+
+namespace galaxy::mods {
+
+// True when one part of a path from a mod is a plain name that stays inside its folder: no drive or stream (':'), no
+// separator, not only dots and spaces, and not a device name.
+[[nodiscard]] bool safe_path_part(std::string_view part);
+
+// A Riivolution option and its choices. `selected` is 0 for off, else the 1-based choice.
+struct ModOption {
+    std::string key;      // the option's id, else its section and name (Riivolution's config key)
+    std::string section;
+    std::string name;
+    std::vector<std::string> choices;
+    std::vector<bool> other_region;  // per choice: made for another region's release
+    unsigned selected = 0;
+    // For a .luma option: the choice ids, and whether the option has no Off.
+    std::vector<std::string> choice_ids;
+    bool must_choose = false;
+    // A .luma option's kind (luma::Option::kind; empty for Riivolution), and a text option's typed text (mods.ini
+    // text.<key>; empty: the manifest's default). Filled by the Mods page.
+    std::string kind;
+    std::string text;
+};
+
+// What two enabled mods both change: game files, textures, and settings (tunables, table cells, lines, constants;
+// see luma::setting_keys).
+struct ModOverlap {
+    std::string other;         // the other mod's id
+    bool other_above = false;  // the other mod is higher in the list, so it wins
+    unsigned files = 0;
+    unsigned textures = 0;
+    unsigned settings = 0;
+};
+
+// Everything a mod changes, used to find overlaps: game paths ("name:x.arc" for a bare file name), texture names, and
+// settings (luma::setting_keys, luma::merge_keys).
+struct ModChanges {
+    std::set<std::string> paths;
+    std::set<std::string> textures;
+    std::set<std::string> settings;
+};
+
+// One texture in a pack: its name hash (galaxy::textures::pack_file_key) and the category its folder name implies
+// (kCategoryCount when none).
+struct PackTexture {
+    std::uint64_t hash = 0;
+    std::uint8_t folder_category = galaxy::textures::kCategoryCount;
+};
+
+// The player's stored answer about one permission (docs/modding/concepts/permissions.md): yes or no, for the declaration whose
+// digest it was given for.
+struct PermissionAnswer {
+    bool granted = false;
+    std::string digest;
+};
+
+struct ModInfo {
+    std::string id;  // the folder name
+    std::filesystem::path path;
+    bool enabled = true;
+    unsigned order = 0;  // place in the list from the top (1 wins over 2)
+    bool riivolution = false;
+    bool files = false;
+    bool textures = false;
+    bool movies = false;
+    bool loose = false;
+    bool package = false;  // a .luma: luma.json plus layers of files
+    std::shared_ptr<const galaxy::luma::Manifest> luma;
+    bool luma_changes_game = false;  // it or its active layers set something read at game start (luma::manifest_sets_game)
+    std::vector<std::filesystem::path> luma_textures;  // textures/ of its active layers, in order
+    std::vector<std::filesystem::path> luma_movies;    // files/MovieData of its active layers, in order
+    std::vector<std::string> languages;       // language folders it changes (UsEnglish, EuFrench, ...)
+    bool own_text = true;                     // its text stands in for a language it lacks
+    unsigned code_patches = 0;                // patches to the original Wii code; never applied (`problem` says so)
+    std::vector<std::string> code_patch_notes;  // one per such patch, for the log: where it writes and what replaces it
+    unsigned changed_files = 0;               // game files it changes with its current choices
+    unsigned changed_textures = 0;            // textures its packs replace
+    std::vector<ModOverlap> overlaps;         // enabled mods changing the same files or textures
+    std::vector<ModOption> options;
+    // Its input actions (key options, services-input): id, the name in the player's language, the game control.
+    struct Action {
+        std::string id;
+        std::string name;
+        std::string follows;
+    };
+    std::vector<Action> actions;
+    std::string code_token;     // identifies this device's libraries of a .luma; empty when it has no code
+    bool code_allowed = false;  // the player allowed exactly these libraries
+    bool code_declined = false; // the player said Not now to exactly these libraries (code_no)
+    bool code_changed = false;  // an answer is stored for other libraries than these (asked again)
+    bool install_ask_never = false;  // install.ask=no: the player's DON'T ASK AGAIN to its install requests (J-SM4)
+    // The player's answers by permission name, as stored (mod_consent.h reads them against the manifest's declarations).
+    std::map<std::string, PermissionAnswer> permission_answers;
+    // The permissions whose services the mod's entry library imports without LUMA_OPTIONAL, from the validator's kept
+    // report (consent 1.3 `required`); empty until a check has read them. `native` is required without being listed.
+    std::vector<std::string> required_permissions;
+    // Texture pack details: its textures, counts per category and of this game's textures, and the categories turned
+    // off (category_bit). A pack's manifest.json gives its title, author and description.
+    std::shared_ptr<const std::vector<PackTexture>> pack_textures;
+    galaxy::textures::CategoryCounts category_textures{};
+    unsigned game_textures = 0;
+    bool categories_final = false;  // the game's textures were known when these were counted
+    std::uint32_t categories_off = 0;
+    std::string pack_title;
+    std::string pack_author;
+    std::string pack_description;
+    std::string problem;      // why it does nothing (another game, unreadable XML), or a conflict with the list
+    std::string own_problem;  // its own problem, before conflicts with other mods (settle_mods)
+    std::shared_ptr<const ModChanges> changes;
+    bool unreadable = false;  // a folder in the mod could not be fully read (`problem` says so when nothing else does)
+};
+
+// The kinds of change a mod makes, as the Mods page lists them ("FILES, SETTINGS, TEXTURES"). Empty when none.
+[[nodiscard]] std::string change_kinds(const ModInfo& mod);
+// True when a mod changes game files, code patches or saves. Those need a restart.
+[[nodiscard]] bool changes_game_files(const ModInfo& mod) noexcept;
+// The textures/ and movies/ folders of the enabled mods, lowest in the list first (the last one wins).
+[[nodiscard]] std::vector<std::filesystem::path> texture_folders(std::span<const ModInfo> mods);
+// The categories turned off for each folder of texture_folders, in the same order.
+[[nodiscard]] std::vector<std::uint32_t> texture_folder_categories_off(std::span<const ModInfo> mods);
+// Recounts a pack's textures by category once the game's textures are sorted. Returns true when anything changed.
+bool update_pack_categories(ModInfo& mod);
+// The game store (game.pak) the game's textures are sorted from. Sorting starts once a mod has a pack.
+void set_mods_store_file(const std::filesystem::path& store);
+[[nodiscard]] std::vector<std::filesystem::path> movie_folders(std::span<const ModInfo> mods);
+
+// Sets the mods folder, the file holding the player's choices, and the game id (boot.bin's six characters).
+void set_mods_folder(const std::filesystem::path& folder, const std::filesystem::path& settings_file,
+                     const std::string& game_id);
+[[nodiscard]] std::filesystem::path mods_folder();
+// The file given to set_mods_folder for the player's choices (empty before); its folder is the settings folder.
+[[nodiscard]] std::filesystem::path mods_settings_file();
+// Every mod's code is off for this run after a crash that named no mod with code on (take_safe_start); the Mods page
+// says so on each mod with code. A dev mod's stays on.
+void set_code_off_after_crash() noexcept;
+[[nodiscard]] bool code_off_after_crash() noexcept;
+// Safe start: every mod off for one start, the player's choices kept as they are. kAsked: --safe-start 1, Shift held
+// as Nebula starts (Windows), or the mods folder's .safe_start; kAfterCrash: the last run crashed while mods changed
+// the game, no mod's code was on and no mod was named (mod_crash.h).
+enum class SafeStart : std::uint8_t { kNo, kAsked, kAfterCrash };
+// The file whose presence asks for a safe start (in the mods folder; empty before set_mods_folder).
+[[nodiscard]] std::filesystem::path safe_start_file();
+// The crash record's file (mod_crash.h; in the mods folder, empty before set_mods_folder).
+[[nodiscard]] std::filesystem::path crash_file();
+// At the start, after set_mods_folder: whether this start is safe, and what the last run's crash left (the crash
+// record, taken: crashed_mod, code_off_after_crash). Both files are removed so the start after is neither. Remembered;
+// a later call returns the first call's answer.
+SafeStart take_safe_start(bool asked);
+// This run's safe start (kNo before take_safe_start).
+[[nodiscard]] SafeStart safe_start() noexcept;
+// The mod the last run's crash named (empty: none): off for this start, the player's choice kept unless `twice`. With
+// `twice` its code crashed the game at two of its starts running, and it stays off until the player turns it on (the
+// host saves the choice).
+struct CrashedMod {
+    std::string id;
+    bool twice = false;
+};
+[[nodiscard]] CrashedMod crashed_mod();
+// The start went well (the first scene's first frame): these mods, whose code ran at it, leave the list of mods that
+// crashed at their last start.
+void note_start_done(std::span<const std::string> code_mods);
+// The player's blocklist: mod ids that never start, in mods-blocked.txt beside the file of the player's
+// choices, kept whether or not the mod is in the folder (it is blocked again when it comes back). A blocked mod scans
+// off with the reason, cannot be turned on, and its page offers UNBLOCK. Any thread.
+[[nodiscard]] bool mod_blocked(std::string_view id);
+// Blocks or unblocks `id`, written at once; false when the file could not be written (nothing changes then).
+bool set_mod_blocked(const std::string& id, bool blocked);
+// The game id given to set_mods_folder (empty before).
+[[nodiscard]] std::string mods_game_id();
+// The mods found, with their saved choices (Riivolution defaults when nothing is saved): enabled mods in load order
+// (first wins), then disabled mods by name. An empty `game_id` means the one given to set_mods_folder.
+[[nodiscard]] std::vector<ModInfo> scan_mods(const std::string& game_id = {});
+// The library mods among `mods` (each gives functions to other mods: it ships code/<id>.lumi), by luma id. `idle` are
+// the ones whose luma.json says "library": true that no mod that runs needs, directly or through another needed
+// library: they are not loaded and their code does not count. A mod that gives functions without saying it is a
+// library runs like any other mod.
+struct Libraries {
+    std::set<std::string> all;
+    std::set<std::string> idle;
+};
+[[nodiscard]] Libraries libraries_of(const std::vector<ModInfo>& mods);
+// The ids of the mods that come with the game (install_shipped_mods names them at start). A library among them is
+// part of the game: it is always on, loads only while a mod that is on needs it, and is not listed on the Mods page.
+void set_shipped_mods(std::set<std::string> ids);
+// Dev mode (docs/modding/how-tos/reloading-a-mod-while-playing.md 4): the mods `lumalink run` plays with --mod-dev, on Windows, Linux and
+// macOS; Android and iOS have none (the ids are not taken). A dev mod is its maker's own build: its code and every
+// permission it declares count as allowed without asking (nothing is saved), a crash in the last run leaves its code
+// on, and its code reloads while the game runs (mod_plugins.h dev_frame). Set once at launch, before any scan.
+void set_dev_mods(std::vector<std::string> ids);
+[[nodiscard]] const std::vector<std::string>& dev_mods();
+[[nodiscard]] bool dev_mod(std::string_view id);
+// The harness's own game half (luma-test, placed by tools/lumacore/luma_test.py in a harness run, which sets
+// LUMA_HARNESS_PLAN): the test's instrument, not a player's mod. A start that turns mods or their code off (a safe start,
+// a missing part, a crash) leaves it on, or no such start could be run as a test (it gives the steps and ends the run).
+[[nodiscard]] bool harness_half(std::string_view id);
+[[nodiscard]] bool built_in(const ModInfo& mod);
+// A library acts for the mods that need it: each of `libraries` among `plugins` is given the permissions the player
+// gave the mods that need it (through a library they need, its own needs get them too), and asks the player for none
+// itself. A call it makes for one mod checks that mod's answer at the call (LumaLink's lumart_for_caller), so a mod the
+// player said no to gets nothing through it. plan_mod_changes calls it.
+void grant_libraries_for_users(std::vector<PluginFile>& plugins, const std::set<std::string>& libraries);
+// Saves order, on/off state and choices for the next start. Returns false when the file could not be written.
+bool save_mod_settings(std::span<const ModInfo> mods);
+// A text option's value as it may be kept (services-mods 8.4): UTF-8, no control character, at most `max_length` code
+// points.
+[[nodiscard]] bool text_option_fits(std::string_view text, std::uint32_t max_length) noexcept;
+// A number option whose kept value (mods.ini) is not one of its values: outside its range or off its steps. scan_mods
+// gives it its default and keeps one record for each mod, option and kept value this session; the mod log says each
+// once.
+struct OptionReset {
+    std::string mod_id;
+    std::string key;
+    std::string kept;
+    std::string fallback;
+};
+[[nodiscard]] std::vector<OptionReset> option_resets();
+// Recomputes how the mods relate after a change to the list: order, duplicates, requirements, saves, conflicts (each
+// mod's problem) and overlaps. scan_mods calls this last.
+void settle_mods(std::vector<ModInfo>& mods);
+// The Mods page's draft after settle_mods: a .luma mod on whose need is not in the list, off or not working,
+// or outside its range ("THIS MOD NEEDS: ...", "... A NEWER VERSION OF: ..."), or with a conflict on and working
+// ("THIS MOD CAN'T RUN WITH: ...") shows it as the player changes the list, before Apply. Not part of scan_mods: at
+// a start the validator says these (L801, L802) in the mod log and leaves the mods out.
+void mark_needs(std::vector<ModInfo>& mods);
+// Turns a mod on (moved to the top of the enabled mods) or off (placed among the disabled mods by name), then
+// renumbers the order.
+void set_mod_enabled(std::vector<ModInfo>& mods, std::size_t index, bool enabled);
+
+// The game's folder for a language (UsEnglish, EuFrench, JpJapanese, ...), from the region (game_id[3]) and the
+// language (1 English, 2 German, 3 French, 4 Spanish, 5 Italian, 6 Dutch; Japan and Korea have one each). Empty when
+// unknown.
+[[nodiscard]] std::string language_folder(const std::string& game_id, unsigned language);
+// The mods this run started with, as recorded by apply_mods, and what they changed.
+struct SessionMods {
+    std::vector<ModInfo> started_with;
+    std::vector<std::string> active;
+    unsigned files_changed = 0;
+    unsigned unsupported = 0;
+};
+[[nodiscard]] SessionMods session_mods();
+// What the enabled mods change at this start: each game path and the file that replaces it (the higher mod wins).
+// Recording it makes it this run's mods. `language` is the folder of the language played, `store` the game's files.
+struct ModPlan {
+    struct File {
+        std::string disc;
+        std::filesystem::path host;
+        std::string mod_id;  // the mod it comes from (files and merges; the cook's facts name it, mod-log 9)
+    };
+    std::vector<File> files;
+    // Additions to shared files (a layer's merge/ folder), bottom of the list first. `disc` is the file's path in the
+    // store, with ".json" added for table rows.
+    std::vector<File> merges;
+    // Materials that have a shader written for them. `disc` is the material name.
+    std::vector<File> materials;
+    // A .luma's patches by key (luma-format 5.1, `layers/<layer>/patches/<game path>.json`): bottom of the list first,
+    // then layer order, then file order, as the applier takes them (docs/modding/reference/table-keys.md: the last given wins).
+    struct Patch {
+        std::string mod_id;
+        std::string entry;  // the file in the mod, "layers/<layer>/patches/<game path>.json", to name it
+        std::string disc;   // the game path as written ("StageData/AstroGalaxy/jmp/Placement/Common/ObjInfo")
+        std::filesystem::path host;
+    };
+    std::vector<Patch> patches;
+    // A .luma's texture pack pictures (`layers/<layer>/textures/**.png`, `.dds`; `disc` empty): the cooker reads each as
+    // the pack reader does and names one it will not take.
+    std::vector<Patch> textures;
+    // Every mod whose content is used, by id, bottom of the list first (the applier's mod order).
+    std::vector<std::string> used;
+    // The .luma mods in use, bottom of the list first, for their shaders.
+    std::vector<std::filesystem::path> luma_folders;
+    std::vector<PluginFile> plugins;  // code of the .luma mods, top of the list first (the order they bind in)
+    ModRows rows;
+    std::vector<std::string> notes;  // what could not be applied, for the log
+    unsigned code_patches = 0;
+    std::filesystem::path save_folder;
+    bool save_clone = true;
+    std::filesystem::path save_start;  // files the mod's saves start from
+};
+// The language played, used to pick a .luma's translated text (same numbering as language_folder).
+void set_played_language(unsigned language) noexcept;
+// The language set_played_language gave (1, English, before it); any thread.
+[[nodiscard]] unsigned played_language() noexcept;
+// Builds the plan from the list scan_mods(game_id) returned at start, so the start scans only once. Call
+// set_played_language first.
+[[nodiscard]] ModPlan plan_mod_changes(const galaxy::assets::AssetStore& store, const std::string& game_id,
+                                         const std::string& language, std::vector<ModInfo> scanned);
+// plan_text is the plan as the cooker reads it (first line: the game id). plan_signature adds the files' sizes and
+// times, so a changed mod is cooked again.
+[[nodiscard]] std::string plan_text(const ModPlan& plan, const std::string& game_id);
+[[nodiscard]] std::string plan_signature(const ModPlan& plan, const std::string& game_id);
+// True when `mods` (the current choices) differ from what this run started with; a restart applies them.
+[[nodiscard]] bool mods_differ_from_session(std::span<const ModInfo> mods);
+
+// The layers with `"code": true` the mods' content is cooked with, by mod id, as their code chose them
+// (mods/.cooked/code-layers: one line a mod, its id then each name, tab-separated). The scan and the plan use a code
+// layer only when it is listed for its mod; a mod not listed has none on. Empty before set_mods_folder or when the file
+// is missing.
+using CodeLayers = std::map<std::string, std::vector<std::string>>;
+[[nodiscard]] CodeLayers code_layers_record();
+// Written whole, atomically. False: not written.
+bool write_code_layers_record(const CodeLayers& record);
+// The file that says this process was started again because a mod's code chose other layers (beside the record).
+// Written before that start-again; the next start reads it once and deletes it, and does not start again for layers.
+[[nodiscard]] std::filesystem::path code_layers_restart_file();
+
+}  // namespace galaxy::mods

@@ -1,0 +1,81 @@
+#pragma once
+
+#include "Game/System/NebulaCalendar.hpp"
+
+class GameDataHolder;
+class GameDataSomeScenarioAccessor;
+class TableIter;
+
+namespace GameDataFunction {
+    bool isDataMario();
+    bool hasPowerStar(const char*, s32);
+    bool hasGrandStar(int);
+    void setGameFlagPowerStarSuccess(const char*, s32, bool);
+    GameDataSomeScenarioAccessor makeGalaxyScenarioAccessor(const char*, s32);
+    bool isOnGalaxyScenarioFlagAlreadyVisited(const char*, s32);
+    void onGalaxyScenarioFlagAlreadyVisited(const char*, s32);
+    bool isAppearGalaxy(const char*);
+    s32 calcCurrentPowerStarNum();
+    s32 getPowerStarNumOwned(const char*);
+    // The galaxy's name as its scenario data spells it (found ASCII case folded), when the save keeps its stars; null
+    // for a galaxy with no stars or no scenario data.
+    const char* findStarGalaxyName(const char* pGalaxyName);
+    s32 getPowerStarNumMax();
+    s32 getPictureBookChapterCanRead();
+    u32 getPictureBookChapterAlreadyRead();
+    void setPictureBookChapterAlreadyRead(int);
+    void onGameEventFlag(const char*);
+    bool canOnGameEventFlag(const char*);
+    bool canOnAndIsOffGameEventFlag(const char*);
+    bool isOnGameEventFlag(const char*);
+    u32 getGameEventValue(const char*);
+    void setGameEventValue(const char*, u16);
+    bool isOnGameEventValueForBit(const char*, int);
+    void setGameEventValueForBit(const char*, int, bool);
+    s32 setupAlreadyDoneFlag(const char*, const TableIter&, u32*);
+    void updateAlreadyDoneFlag(int, u32);
+    void restoreGalaxyCometStatus(int, u16*, u16*);
+    void setRaceBestTime(const char*, u32);
+    s32 getRaceBestTime(const char*);
+    void addMissPoint(int);
+    void resetMissPoint();
+    bool isPointCollectForLetter();
+    void incPlayerMissNum();
+    s32 registerStorageSpinDriverPathDrawRange(const char*, int, int, int, f32*);
+    void updateStorageSpinDriverPathDrawRange(const char*, int, int, f32);
+    u32 getStarPieceNumGivingToTicoSeed(int);
+    u32 getStarPieceNumMaxGivingToTicoSeed(int);
+    void addStarPieceGivingToTicoSeed(int, int);
+    bool isPassedStoryEvent(const char*);
+    void followStoryEventByName(const char*);
+    s32 getPlayerLeft();
+    void addPlayerLeft(int);
+    bool isPlayerLeftSupply();
+    void offPlayerLeftSupply();
+    s32 getStockedStarPieceNum();
+    s32 getStarPieceNum();
+    void addStarPiece(int);
+    void setLast1upStarPieceNum(int);
+    s32 getLast1upStarPieceNum();
+    void resetAllGameData();
+    bool isOnJustGameEventFlag(const char*);
+    bool canOnJustGameEventFlag(const char*);
+    bool isOnJustAppearGalaxy(const char*);
+    bool isEqualJustPowerStarNum(int);
+    GameDataHolder* getCurrentGameDataHolder();
+    GameDataHolder* getSceneStartGameDataHolder();
+    s32 calcTicoGalaxyNum(const GameDataHolder*);
+    s32 calcGrandStarNum(const GameDataHolder*);
+    void resetGameDataGoToGalaxyFirst();
+    void resetGameDataGoToGalaxyRetry();
+    void onCompleteEndingCurrentPlayer();
+    bool isOnCompleteEndingMarioAndLuigi();
+    bool isLuigiLeftSupply();
+    void offLuigiLeftSupply();
+    bool isOnGameEventFlagNormalComet(const char*);
+    bool isOnGameEventFlagCoin100Comet(const char*);
+    void updateGalaxyCometStatus(int, u16, u16);
+    void addStockedStarPiece(int);
+    bool isPowerStarLeftInCometOnly();
+    s32 calcGreenStarNum(const GameDataHolder*);
+};  // namespace GameDataFunction

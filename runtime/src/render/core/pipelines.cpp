@@ -1,0 +1,829 @@
+// SPDX-License-Identifier: GPL-3.0-only
+#include "render/core/pipelines.h"
+
+#include "galaxy/atomic_file.h"
+#include "galaxy/cpu_count.h"
+#include "galaxy/windows_power.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <fstream>
+#include <stdexcept>
+
+#include "galaxy/render/program_table.h"
+#include "render/core/pipeline_cache_file.h"
+#include "render/core/pipeline_workers.h"
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#include <mach/mach.h>
+#if TARGET_OS_IPHONE
+#include <os/proc.h>
+#endif
+#elif !defined(_WIN32)
+#include <string>
+#endif
+#include <new>
+
+namespace galaxy::render::core {
+
+namespace {
+
+// The physical memory free now, bytes (0: not known): what the start's compiles may take a share of (pipeline_workers.h).
+std::uint64_t available_physical_bytes() noexcept {
+#if defined(_WIN32)
+    MEMORYSTATUSEX status{};
+    status.dwLength = sizeof(status);
+    return GlobalMemoryStatusEx(&status) != FALSE ? static_cast<std::uint64_t>(status.ullAvailPhys) : 0u;
+#elif defined(__APPLE__) && TARGET_OS_IPHONE
+    return static_cast<std::uint64_t>(os_proc_available_memory());  // what this app may still take before the system ends it
+#elif defined(__APPLE__)
+    vm_statistics64_data_t vm{};
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    if (host_statistics64(mach_host_self(), HOST_VM_INFO64, reinterpret_cast<host_info64_t>(&vm), &count) != KERN_SUCCESS) {
+        return 0u;
+    }
+    return (static_cast<std::uint64_t>(vm.free_count) + vm.inactive_count + vm.purgeable_count) * vm_page_size;
+#else
+    // Linux and Android: the kernel's estimate of what can be had without swapping.
+    std::ifstream meminfo("/proc/meminfo");
+    std::string line;
+    while (std::getline(meminfo, line)) {
+        unsigned long long kib = 0u;
+        if (std::sscanf(line.c_str(), "MemAvailable: %llu kB", &kib) == 1) {
+            return static_cast<std::uint64_t>(kib) * 1024u;
+        }
+    }
+    return 0u;
+#endif
+}
+
+thread_local bool tl_out_of_memory = false;
+thread_local bool tl_device_lost = false;
+
+std::int64_t steady_ticks() noexcept {
+    return std::chrono::steady_clock::now().time_since_epoch().count();
+}
+
+}  // namespace
+
+void note_pipeline_out_of_memory() noexcept {
+    tl_out_of_memory = true;
+}
+
+void note_pipeline_device_lost() noexcept {
+    tl_device_lost = true;
+}
+
+void Pipelines::initialize(gpu::Device* device, RootLayout root, void* backend) {
+    device_ = device;
+    root_ = root;
+    backend_ = backend;
+    quit_ = false;
+    started_ = std::chrono::steady_clock::now();
+    created_.store(0u, std::memory_order_relaxed);  // counts are this device's
+    failures_.store(0u, std::memory_order_relaxed);
+    misses_ = 0u;
+    reported_.store(false, std::memory_order_relaxed);
+    scene_drawn_.store(false, std::memory_order_relaxed);  // a new device's left forms wait for its own first scene
+    scene_shown_.store(false, std::memory_order_relaxed);
+    // Workers at the lowest priority (worker()): the list is prepared by whatever the game and render threads leave idle,
+    // and no frame waits for it. A draw whose pipeline is not made yet makes that one itself (create_now); idle workers
+    // cost nothing. How many: pipeline_workers.h, from the cores and the memory free now.
+    memory_failed_.clear();
+    memory_wait_until_.store(0, std::memory_order_relaxed);
+    memory_failures_.store(0u, std::memory_order_relaxed);
+    const unsigned cores = logical_cores();
+    const std::uint64_t available = available_physical_bytes();
+    const unsigned count = pipeline_worker_count(cores, available);
+    std::fprintf(stderr, "[pipelines] %u workers (%u logical processors, %llu MB of memory free)\n", count, cores,
+                 static_cast<unsigned long long>(available >> 20u));
+    workers_ = count;
+    for (unsigned i = 0; i < count; ++i) {
+        threads_.emplace_back([this] { worker(); });
+    }
+}
+
+void Pipelines::shutdown() noexcept {
+    {
+        std::lock_guard guard(lock_);
+        quit_ = true;
+        jobs_.clear();
+        left_jobs_.clear();
+    }
+    wake_.notify_all();
+    // A worker in a job finishes it at the normal priority: the caller (a device restore, the end) waits for it (N-1072).
+    for (std::thread& thread : threads_) {
+        galaxy::host::raise_waited_thread(thread);
+    }
+    for (std::thread& thread : threads_) {
+        thread.join();
+    }
+    threads_.clear();
+    // The forms stored before the cache's last write are the ones it holds.
+    std::vector<std::uint64_t> stored;
+    try {
+        stored = stored_forms();
+    } catch (...) {
+    }
+    destroy_all();
+    save_targets(stored);
+    // What the driver refused belongs to this device: the next one is asked again (N-4024).
+    refused_.clear();
+    refused_pairs_.clear();
+    memory_failed_.clear();
+    memory_wait_until_.store(0, std::memory_order_relaxed);
+    for (auto& root : directories_) {
+        if (Directory* directory = root.exchange(nullptr)) {
+            for (auto& page : directory->pages) { delete page.load(); }
+            delete directory;
+        }
+    }
+}
+
+std::atomic<gpu::Pipeline*>* Pipelines::cell(std::uint64_t id, unsigned variant, unsigned aux) {
+    const std::uint32_t key = key_of(variant, aux);
+    Page* page = page_of(id);
+    if (page == nullptr) {
+        const auto root = static_cast<std::size_t>(id >> (kPageBits + kDirectoryBits));
+        if (root >= directories_.size()) { throw std::out_of_range("pipeline ID outside the native namespaces"); }
+        std::lock_guard guard(lock_);
+        Directory* directory = directories_[root].load(std::memory_order_acquire);
+        if (directory == nullptr) {
+            directory = new Directory();
+            directories_[root].store(directory, std::memory_order_release);
+        }
+        auto& at = directory->pages[(id >> kPageBits) & (kDirectorySize - 1u)];
+        page = at.load(std::memory_order_acquire);
+        if (page == nullptr) { page = new Page(); at.store(page, std::memory_order_release); }
+    }
+    return &page->rows[id & kPageMask][key];
+}
+
+gpu::Pipeline* Pipelines::publish(std::atomic<gpu::Pipeline*>& at, gpu::Pipeline* built) noexcept {
+    gpu::Pipeline* expected = nullptr;
+    if (at.compare_exchange_strong(expected, built, std::memory_order_acq_rel)) {
+        created_.fetch_add(1u, std::memory_order_relaxed);
+        unsaved_.store(true, std::memory_order_release);
+        return built;
+    }
+    return expected;
+}
+
+namespace {
+
+// Two refusals in different states: the pair's code is what the driver cannot take.
+constexpr unsigned kPairRefusals = 2u;
+
+std::uint64_t pair_key(const PipelineEntry& entry) noexcept {
+    return entry.desc.vertex * 0x9E3779B97F4A7C15ull ^ entry.desc.pixel;
+}
+
+}  // namespace
+
+void Pipelines::refuse(std::uint64_t id, const PipelineEntry& entry, unsigned variant, unsigned aux) {
+    failures_.fetch_add(1u, std::memory_order_relaxed);
+    std::lock_guard guard(lock_);
+    refused_.insert(std::uint64_t{id} << 9u | key_of(variant, aux));
+    if (++refused_pairs_[pair_key(entry)] == kPairRefusals) {
+        std::fprintf(stderr, "[pipelines] programs %llx %llx refused twice: not asked for again\n",
+                     static_cast<unsigned long long>(entry.desc.vertex), static_cast<unsigned long long>(entry.desc.pixel));
+    }
+}
+
+void Pipelines::failed(std::uint64_t id, const PipelineEntry& entry, unsigned variant, unsigned aux, Failure why, const Job* job) {
+    if (why == Failure::device_lost) {
+        return;  // the device's loss, not the pipeline's: the renderer starts again on a new device
+    }
+    if (why == Failure::memory) {
+        memory_failures_.fetch_add(1u, std::memory_order_relaxed);
+        memory_wait_until_.store(steady_ticks() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                                      std::chrono::milliseconds(kPipelineMemoryWaitMs)).count(),
+                                 std::memory_order_relaxed);
+        bool again = false;
+        {
+            std::lock_guard guard(lock_);
+            again = ++memory_failed_[std::uint64_t{id} << 9u | key_of(variant, aux)] < kPipelineMemoryTries;
+            if (again && job != nullptr && !quit_) {
+                Job later = *job;
+                later.deferred = true;  // not counted in pending_ again: the start's drain does not wait for it
+                left_jobs_.push_back(std::move(later));
+            }
+        }
+        std::fprintf(stderr, "[pipelines] out of memory building %llx %llx variant %u aux %u: %s\n",
+                     static_cast<unsigned long long>(entry.desc.vertex), static_cast<unsigned long long>(entry.desc.pixel), variant,
+                     aux, again ? "the workers wait, then it is built again" : "refused");
+        if (again) {
+            return;
+        }
+        // The last try: refused, but not counted against the program pair (its code is not what failed).
+        failures_.fetch_add(1u, std::memory_order_relaxed);
+        std::lock_guard guard(lock_);
+        refused_.insert(std::uint64_t{id} << 9u | key_of(variant, aux));
+        return;
+    }
+    refuse(id, entry, variant, aux);
+}
+
+gpu::Pipeline* Pipelines::build_noting(const PipelineEntry& entry, unsigned variant, unsigned aux, Failure& why) {
+    tl_out_of_memory = false;
+    tl_device_lost = false;
+    gpu::Pipeline* const built = build(entry, variant, aux);
+    why = tl_device_lost ? Failure::device_lost : tl_out_of_memory ? Failure::memory : Failure::refused;
+    tl_out_of_memory = false;
+    tl_device_lost = false;
+    return built;
+}
+
+bool Pipelines::waiting_for_memory(std::uint64_t key) {
+    if (steady_ticks() >= memory_wait_until_.load(std::memory_order_relaxed)) {
+        return false;
+    }
+    std::lock_guard guard(lock_);
+    return memory_failed_.count(key) != 0u;
+}
+
+bool Pipelines::pair_refused(const PipelineEntry& entry) {
+    std::lock_guard guard(lock_);
+    const auto found = refused_pairs_.find(pair_key(entry));
+    return found != refused_pairs_.end() && found->second >= kPairRefusals;
+}
+
+gpu::Pipeline* Pipelines::create_now(std::uint64_t id, const PipelineEntry& entry, unsigned variant, unsigned aux) {
+    std::atomic<gpu::Pipeline*>* at = cell(id, variant, aux);
+    if (at == nullptr) {
+        return nullptr;
+    }
+    if (gpu::Pipeline* existing = at->load(std::memory_order_acquire); existing != nullptr) {
+        return existing;
+    }
+    {
+        std::lock_guard guard(lock_);
+        if (refused_.count(std::uint64_t{id} << 9u | key_of(variant, aux)) != 0u) {
+            return nullptr;
+        }
+    }
+    if (pair_refused(entry) || waiting_for_memory(std::uint64_t{id} << 9u | key_of(variant, aux))) {
+        return nullptr;
+    }
+    ++misses_;
+    // Where pipelines link from parts, the draw gets a quick link and a worker replaces it with the optimised one.
+    gpu::Pipeline* built = build_fast(entry, variant, aux);
+    const bool linked = built != nullptr;
+    Failure why = Failure::refused;
+    if (built == nullptr) {
+        built = build_noting(entry, variant, aux, why);
+    }
+    if (built == nullptr) {
+        failed(id, entry, variant, aux, why, nullptr);
+        return nullptr;
+    }
+    if (!linked && target_form(variant, aux)) {
+        try {
+            if (targets_open()) {
+                note_target_stored(form_key(entry, variant, aux));
+            }
+        } catch (...) {
+        }
+    }
+    gpu::Pipeline* const published = publish(*at, built);
+    if (linked && published == built) {
+        {
+            std::lock_guard guard(lock_);
+            if (!quit_) {
+                pending_.fetch_add(1u, std::memory_order_relaxed);
+                jobs_.push_back(Job{static_cast<std::uint32_t>(id), std::make_shared<const PipelineEntry>(entry), variant, aux, true});
+            }
+        }
+        wake_.notify_one();
+    }
+    return published;
+}
+
+std::uint8_t scene_aux(std::uint32_t state, bool layer_window) noexcept {
+    if ((state & NEBULA_STATE_COLOR_WRITE) == 0u) {
+        return 0u;
+    }
+    const std::uint32_t op = state & 3u;
+    if (op == NEBULA_BLEND_REPLACE) {
+        return (state & (1u << 10u)) != 0u ? 1u : 0u;  // depth tested
+    }
+    const std::uint32_t src = (state >> 2u) & 15u;
+    if (layer_window && (op == NEBULA_BLEND_SUBTRACT || (src != NEBULA_FACTOR_DST_COLOR && src != NEBULA_FACTOR_INV_DST_COLOR))) {
+        return 3u;
+    }
+    return 2u;
+}
+
+void Pipelines::prepare(const std::vector<Prepared>& entries, const std::vector<unsigned>& variants, bool motion, bool layer,
+                        bool one_pass) {
+    // The start's settings, which the targets file keeps (decide_warm): the first list's targets and passes. Set before its
+    // jobs are queued, so the worker that takes one sees it.
+    if (start_settings_.load(std::memory_order_relaxed) == 0u) {
+        std::uint64_t settings = 14695981039346656037ull;
+        const auto add_word = [&settings](std::uint64_t word) {
+            for (unsigned b = 0; b < 8u; ++b) {
+                settings = (settings ^ ((word >> (8u * b)) & 0xFFu)) * 1099511628211ull;
+            }
+        };
+        for (const unsigned variant : variants) {
+            add_word(variant);
+        }
+        add_word((motion ? 1u : 0u) | (layer ? 2u : 0u) | (one_pass ? 4u : 0u));
+        std::uint64_t none = 0u;
+        (void)start_settings_.compare_exchange_strong(none, settings != 0u ? settings : 1u, std::memory_order_release);
+    }
+    std::vector<Job> now;
+    std::vector<Job> later;
+    for (const Prepared& prepared : entries) {
+        const std::uint32_t id = prepared.id;
+        const PipelineEntry& entry = *prepared.entry;
+        const auto add = [&](unsigned variant, unsigned aux) { now.push_back(Job{id, prepared.entry, variant, aux}); };
+        for (const unsigned variant : variants) {
+            add(variant, 0u);
+            const bool scene = (variant & kSceneVariantTarget) == 0u && (variant & kSceneVariantSamplesMask) == 0u;
+            if (!motion || !scene) {
+                continue;
+            }
+            // The motion forms a scene draw of this state can take (draw_walker: scene_aux, which one pass for the scene
+            // turns into 4 unless it is the motion), out of a layer window and, with `layer`, in one; aux 0 is above.
+            const auto scene_form = [&](bool layer_window) -> unsigned {
+                const unsigned aux = scene_aux(entry.desc.state, layer_window);
+                return one_pass && aux != 1u ? 4u : aux;
+            };
+            const unsigned out_of_window = scene_form(false);
+            const unsigned in_window = layer ? scene_form(true) : out_of_window;
+            // With the wide variant listed, walk_scene_begin draws every scene wide unless the wide targets cannot be
+            // had (begin_wide_scene: memory, the camera pass): the narrow variant's motion forms are left for after the
+            // first scene, made then or by such a draw.
+            const bool left = (variant & kSceneVariantHdr) == 0u &&
+                              std::any_of(variants.begin(), variants.end(),
+                                          [](unsigned listed) { return (listed & kSceneVariantHdr) != 0u; });
+            const auto motion_form = [&](unsigned aux) {
+                if (aux == 0u) {
+                    return;
+                }
+                if (left) {
+                    later.push_back(Job{id, prepared.entry, variant, aux, false, true});
+                } else {
+                    add(variant, aux);
+                }
+            };
+            motion_form(out_of_window);
+            if (in_window != out_of_window) {
+                motion_form(in_window);
+            }
+        }
+    }
+    if (now.empty() && later.empty()) {
+        return;
+    }
+    {
+        std::lock_guard guard(lock_);
+        if (quit_) {
+            return;
+        }
+        pending_.fetch_add(static_cast<std::uint32_t>(now.size()), std::memory_order_relaxed);
+        for (Job& job : now) {
+            jobs_.push_back(std::move(job));
+        }
+        for (Job& job : later) {
+            left_jobs_.push_back(std::move(job));
+        }
+    }
+    wake_.notify_all();
+}
+
+void Pipelines::worker() {
+    // Below the frame's threads on every platform (windows_power.h); on Windows, started on battery, it also asks for
+    // efficiency, and on Apple what the compiler does in the system's service for this thread runs at the same class.
+    galaxy::host::lower_current_thread_priority();
+    for (;;) {
+        Job job;
+        {
+            std::unique_lock guard(lock_);
+            // After a build failed for lack of memory no worker starts one until the wait is over (pipeline_workers.h).
+            for (std::int64_t until = memory_wait_until_.load(std::memory_order_relaxed); !quit_ && steady_ticks() < until;
+                 until = memory_wait_until_.load(std::memory_order_relaxed)) {
+                (void)wake_.wait_until(guard, std::chrono::steady_clock::time_point(std::chrono::steady_clock::duration(until)),
+                                       [this] { return quit_; });
+            }
+            // The left forms only once the queue is empty and a scene has been shown (release_left).
+            const auto left_ready = [this] { return scene_shown_.load(std::memory_order_relaxed) && !left_jobs_.empty(); };
+            wake_.wait(guard, [&] { return quit_ || !jobs_.empty() || left_ready(); });
+            if (quit_) {
+                return;
+            }
+            std::deque<Job>& from = !jobs_.empty() ? jobs_ : left_jobs_;
+            job = std::move(from.front());
+            from.pop_front();
+        }
+        if (!warm_decided_.load(std::memory_order_acquire)) {
+            decide_warm();
+        }
+        try {
+            std::atomic<gpu::Pipeline*>* at = cell(job.id, job.variant, job.aux);
+            // A texture target's form, where the targets file is kept: its key in the file's sets (0, prepared as any other,
+            // when there is none or memory ran out finding it).
+            std::uint64_t form = 0u;
+            if (target_form(job.variant, job.aux)) {
+                try {
+                    form = targets_open() ? form_key(*job.entry, job.variant, job.aux) : 0u;
+                } catch (...) {
+                }
+            }
+            if (job.optimize) {
+                // The draw's pipeline was linked quickly: the optimised link takes its place for the draws after it (frames in
+                // flight keep the first, which lives until shutdown).
+                if (at != nullptr && !pair_refused(*job.entry)) {
+                    if (gpu::Pipeline* better = build(*job.entry, job.variant, job.aux); better != nullptr) {
+                        at->store(better, std::memory_order_release);
+                        note_target_stored(form);
+                    }
+                }
+            } else if (at != nullptr && at->load(std::memory_order_acquire) == nullptr && !pair_refused(*job.entry)) {
+                if (!job.deferred && left_to_cache(form)) {
+                    left_.fetch_add(1u, std::memory_order_relaxed);
+                    defer(job);  // a load from the cache then, at this thread's priority, not the draw's
+                } else {
+                    Failure why = Failure::refused;
+                    if (gpu::Pipeline* built = build_noting(*job.entry, job.variant, job.aux, why); built != nullptr) {
+                        note_target_stored(form);
+                        publish(*at, built);
+                    } else {
+                        failed(job.id, *job.entry, job.variant, job.aux, why, &job);
+                    }
+                }
+            }
+        } catch (const std::bad_alloc&) {
+            // Out of memory in our own code around the build: as the driver's (pipeline_workers.h).
+            try {
+                if (!job.optimize) {
+                    failed(job.id, *job.entry, job.variant, job.aux, Failure::memory, &job);
+                }
+            } catch (...) {
+            }
+        } catch (...) {
+            // A build that throws otherwise is a refusal of that pipeline; an exception out of a worker would end the process.
+            try {
+                if (!job.optimize) {
+                    refuse(job.id, *job.entry, job.variant, job.aux);
+                }
+            } catch (...) {
+            }
+        }
+        if (!job.deferred && pending_.fetch_sub(1u, std::memory_order_acq_rel) == 1u) {
+            drained();
+        }
+    }
+}
+
+void Pipelines::defer(const Job& job) noexcept {
+    try {
+        std::lock_guard guard(lock_);
+        if (!quit_) {
+            Job later = job;
+            later.deferred = true;
+            left_jobs_.push_back(std::move(later));
+        }
+        // Taken by a waiting worker only once a scene has been shown; before that, release_left wakes them.
+    } catch (...) {
+        // Out of memory for the entry: it stays to the draw that first needs it.
+    }
+    if (scene_shown_.load(std::memory_order_relaxed)) {
+        wake_.notify_one();
+    }
+}
+
+void Pipelines::release_left() noexcept {
+    try {
+        {
+            std::lock_guard guard(lock_);
+            scene_shown_.store(true, std::memory_order_relaxed);
+        }
+        wake_.notify_all();
+    } catch (...) {
+        // The lock failed: the left forms stay to the draws that first need them, and the next present asks again.
+    }
+}
+
+// The cache files (the driver's pipeline library or cache, both back ends) are written twice at most in a run, never on the
+// render thread and never in the middle of a frame's work: when the first queue drains (warm-up done, here, on the worker that
+// finished it), so the next boot loads it whatever way this one ends, and at exit (destroy_all). Each write is whole or absent:
+// a temporary file renamed over (replace_file), one writer at a time. Pipelines made later in the run, by what a scene change
+// registers or by a draw, join the file at exit.
+void Pipelines::drained() noexcept {
+    if (reported_.exchange(true, std::memory_order_relaxed)) {
+        return;
+    }
+    // The forms stored before the cache's write are the ones it holds.
+    std::vector<std::uint64_t> stored;
+    try {
+        stored = stored_forms();
+    } catch (...) {
+    }
+    {
+        // Every cache written from here holds the start's set: the targets file says so (decide_warm, a later run).
+        std::lock_guard guard(targets_lock_);
+        start_drained_ = true;
+    }
+    const std::size_t written = unsaved_.exchange(false, std::memory_order_acq_rel) ? save_cache() : 0u;
+    save_targets(stored);
+    {
+        const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started_).count();
+        std::fprintf(stderr, "[pipelines] %llu prepared by %u workers at %lld ms (%llu made by draws first, %llu refused, %llu texture "
+                     "target forms left to the cache), cache %zu bytes written\n",
+                     static_cast<unsigned long long>(created_.load(std::memory_order_relaxed)), workers_, static_cast<long long>(ms),
+                     static_cast<unsigned long long>(misses_.load(std::memory_order_relaxed)), static_cast<unsigned long long>(failures_.load(std::memory_order_relaxed)),
+                     static_cast<unsigned long long>(left_.load(std::memory_order_relaxed)), written);
+        if (const std::uint64_t memory = memory_failures_.load(std::memory_order_relaxed); memory != 0u) {
+            std::fprintf(stderr, "[pipelines] %llu builds failed for lack of memory (built again after a wait)\n",
+                         static_cast<unsigned long long>(memory));
+        }
+    }
+}
+
+// ---- The texture targets' forms (pipelines.h, targets_open).
+
+namespace {
+
+// The targets file: the magic, the hash of the cache data it goes with, the counts of the two sets, the writing run's programs
+// (program_set_identity) and start's settings (prepare), its flags (kTargetsComplete), four bytes kept zero, then the stored
+// forms' keys and the drawn forms' keys, eight bytes each. A file of the first form (01) has neither identity nor flags.
+constexpr char kTargetsMagic[8] = {'N', 'B', 'T', 'G', 'T', 'S', '0', '2'};
+constexpr char kTargetsMagicFirst[8] = {'N', 'B', 'T', 'G', 'T', 'S', '0', '1'};
+constexpr std::size_t kTargetsHeader = 8u + 8u + 4u + 4u + 8u + 8u + 4u + 4u;
+constexpr std::size_t kTargetsHeaderFirst = 8u + 8u + 4u + 4u;
+// The writing run's start's set had drained: the cache data named holds all of it.
+constexpr std::uint32_t kTargetsComplete = 1u;
+// More keys than the game has pipelines is a file from something else.
+constexpr std::uint32_t kTargetsMost = 1u << 20u;
+
+std::uint64_t mix(std::uint64_t hash, const void* data, std::size_t size) noexcept {
+    const auto* bytes = static_cast<const unsigned char*>(data);
+    for (std::size_t i = 0; i < size; ++i) {
+        hash = (hash ^ bytes[i]) * 1099511628211ull;
+    }
+    return hash;
+}
+
+}  // namespace
+
+bool Pipelines::targets_open() {
+    {
+        std::lock_guard guard(targets_lock_);
+        if (targets_tried_) {
+            return targets_on_;
+        }
+    }
+    // Opening the driver cache takes the backend's own locks: outside this one.
+    std::filesystem::path file;
+    std::uint64_t accepted = 0u;
+    const bool kept = cache_file_state(file, accepted);
+    std::lock_guard guard(targets_lock_);
+    if (targets_tried_) {
+        return targets_on_;
+    }
+    targets_tried_ = true;
+    if (!kept || file.empty()) {
+        return false;
+    }
+    targets_file_ = file;
+    targets_file_ += ".targets";
+    targets_on_ = true;
+    std::ifstream in(targets_file_, std::ios::binary | std::ios::ate);
+    if (!in) {
+        return true;
+    }
+    const auto length = static_cast<std::size_t>(in.tellg());
+    if (length < kTargetsHeaderFirst) {
+        return true;
+    }
+    std::vector<char> bytes(length);
+    in.seekg(0);
+    in.read(bytes.data(), static_cast<std::streamsize>(length));
+    const bool first = in && std::memcmp(bytes.data(), kTargetsMagicFirst, sizeof(kTargetsMagicFirst)) == 0;
+    if (!in || (!first && (length < kTargetsHeader || std::memcmp(bytes.data(), kTargetsMagic, sizeof(kTargetsMagic)) != 0))) {
+        return true;
+    }
+    const std::size_t header = first ? kTargetsHeaderFirst : kTargetsHeader;
+    std::uint64_t hash = 0u;
+    std::uint32_t stored = 0u, drawn = 0u;
+    std::memcpy(&hash, bytes.data() + 8u, 8u);
+    std::memcpy(&stored, bytes.data() + 16u, 4u);
+    std::memcpy(&drawn, bytes.data() + 20u, 4u);
+    if (stored > kTargetsMost || drawn > kTargetsMost ||
+        length != header + (std::size_t{stored} + std::size_t{drawn}) * 8u) {
+        return true;
+    }
+    // The first form is written again in the second (save_targets: a hash it does not name).
+    targets_hash_ = first ? 0u : hash;
+    if (!first) {
+        std::uint32_t flags = 0u;
+        std::memcpy(&file_programs_, bytes.data() + 24u, 8u);
+        std::memcpy(&file_settings_, bytes.data() + 32u, 8u);
+        std::memcpy(&flags, bytes.data() + 40u, 4u);
+        file_complete_ = (flags & kTargetsComplete) != 0u;
+    }
+    file_names_cache_ = accepted != 0u && hash == accepted;
+    const auto key_at = [&](std::size_t i) {
+        std::uint64_t key;
+        std::memcpy(&key, bytes.data() + header + i * 8u, 8u);
+        return key;
+    };
+    // What a target pass drew stands whatever the cache; what the cache holds only if it is the data the driver took.
+    for (std::size_t i = 0; i < drawn; ++i) {
+        target_drawn_.insert(key_at(std::size_t{stored} + i));
+    }
+    if (accepted != 0u && hash == accepted) {
+        for (std::size_t i = 0; i < stored; ++i) {
+            target_cached_.insert(key_at(i));
+            target_stored_.insert(key_at(i));
+        }
+    }
+    return true;
+}
+
+// Every field of the description and inputs, the target and aux, and the programs' bytes, so a program cooked again under the
+// same id (a game update) is another form, which no cache of an earlier build holds. 0: no programs.
+std::uint64_t Pipelines::form_key(const PipelineEntry& entry, unsigned variant, unsigned aux) {
+    const NebulaPipelineDesc& desc = entry.desc;
+    const unsigned samples_log2 = variant & kSceneVariantSamplesMask;
+    const unsigned program =
+        program_variant(desc.pixel, aux, (desc.state & NEBULA_STATE_PIXEL_SHADING) != 0u ? 0u : samples_log2);
+    const ProgramBytes vs = program_bytes(desc.vertex, program, false);
+    const ProgramBytes ps = program_bytes(desc.pixel, program, true);
+    if (vs.size == 0u || ps.size == 0u) {
+        return 0u;
+    }
+    // A program's bytes are hashed once a run: many pipelines share one.
+    const auto program_hash = [this](const ProgramBytes& bytes) {
+        {
+            std::lock_guard guard(targets_lock_);
+            if (const auto found = program_hashes_.find(bytes.data); found != program_hashes_.end()) {
+                return found->second;
+            }
+        }
+        const std::uint64_t hash = cache_bytes_hash(bytes.data, bytes.size);
+        std::lock_guard guard(targets_lock_);
+        program_hashes_.emplace(bytes.data, hash);
+        return hash;
+    };
+    std::uint64_t hash = 14695981039346656037ull;
+    hash = mix(hash, &desc.vertex, sizeof(desc.vertex));
+    hash = mix(hash, &desc.pixel, sizeof(desc.pixel));
+    hash = mix(hash, &desc.state, sizeof(desc.state));
+    hash = mix(hash, &desc.input_count, sizeof(desc.input_count));
+    hash = mix(hash, &desc.position_stride, sizeof(desc.position_stride));
+    for (const NebulaLayoutInput& input : entry.inputs) {
+        hash = mix(hash, &input.semantic, sizeof(input.semantic));
+        hash = mix(hash, &input.stream, sizeof(input.stream));
+        hash = mix(hash, &input.format, sizeof(input.format));
+        hash = mix(hash, &input.offset, sizeof(input.offset));
+        hash = mix(hash, &input.stride, sizeof(input.stride));
+    }
+    const std::uint64_t values[] = {program, variant, aux, program_hash(vs), program_hash(ps)};
+    hash = mix(hash, values, sizeof(values));
+    return hash != 0u ? hash : 1u;
+}
+
+void Pipelines::decide_warm() noexcept {
+    try {
+        const bool kept = targets_open();
+        const std::uint64_t settings = start_settings_.load(std::memory_order_acquire);
+        if (settings == 0u) {
+            return;  // a draw's own job before the first list: the next job decides
+        }
+        std::lock_guard guard(targets_lock_);
+        if (warm_decided_.load(std::memory_order_relaxed)) {
+            return;
+        }
+        const std::uint64_t programs = program_set_identity();
+        const bool warm = kept && file_names_cache_ && file_complete_ && programs != 0u && file_programs_ == programs &&
+                          file_settings_ == settings;
+        if (!warm && kept) {
+            targets_unsaved_ = true;  // written again for this run's programs and settings once its start's set drains
+        }
+        warm_.store(warm, std::memory_order_release);
+        warm_decided_.store(true, std::memory_order_release);
+        std::fprintf(stderr, "[pipelines] %s\n",
+                     warm ? "the driver's cache holds the start's set: loaded behind the game, nothing waits for it"
+                          : !kept ? "no cache file of the renderer's own: the start's set is prepared before play"
+                          : !file_names_cache_ ? "the driver's cache is new or was refused: the start's set is prepared before play"
+                          : file_programs_ != programs ? "the cache is another build's programs': the start's set is prepared before play"
+                          : file_settings_ != settings ? "the cache is other settings': the start's set is prepared before play"
+                                                       : "the cache was written before the start's set was whole: prepared before play");
+    } catch (...) {
+        warm_decided_.store(true, std::memory_order_release);
+    }
+}
+
+bool Pipelines::left_to_cache(std::uint64_t form) {
+    if (form == 0u) {
+        return false;
+    }
+    std::lock_guard guard(targets_lock_);
+    return target_cached_.count(form) != 0u && target_drawn_.count(form) == 0u;
+}
+
+void Pipelines::note_target_drawn(std::uint64_t id, const PipelineEntry& entry, unsigned variant, unsigned aux) {
+    Page* page = page_of(id);
+    if (page == nullptr || page->drawn[id & kPageMask].exchange(1u, std::memory_order_relaxed) != 0u) {
+        return;
+    }
+    try {
+        if (!targets_open()) {
+            return;
+        }
+        const std::uint64_t form = form_key(entry, variant, aux);
+        if (form == 0u) {
+            return;
+        }
+        std::lock_guard guard(targets_lock_);
+        if (target_drawn_.insert(form).second) {
+            targets_unsaved_ = true;
+        }
+    } catch (...) {
+        // Memory ran out: the form is prepared again next run, as before.
+    }
+}
+
+void Pipelines::note_target_stored(std::uint64_t form) noexcept {
+    if (form == 0u) {
+        return;
+    }
+    try {
+        std::lock_guard guard(targets_lock_);
+        if (target_stored_.insert(form).second) {
+            targets_unsaved_ = true;
+        }
+    } catch (...) {
+        // Memory ran out: the form is not named in the file, and is prepared next run.
+    }
+}
+
+std::vector<std::uint64_t> Pipelines::stored_forms() {
+    std::lock_guard guard(targets_lock_);
+    if (!targets_on_) {
+        return {};
+    }
+    return {target_stored_.begin(), target_stored_.end()};
+}
+
+// `stored` was taken before the cache's last write, so the data now on disk holds every one of them.
+void Pipelines::save_targets(const std::vector<std::uint64_t>& stored) noexcept {
+    try {
+        std::vector<char> bytes;
+        std::filesystem::path file;
+        {
+            std::lock_guard guard(targets_lock_);
+            // Written when a set grew or the cache file was written since: the file always names the data on disk.
+            const std::uint64_t hash = targets_on_ ? cache_file_hash() : 0u;
+            if (hash == 0u || (!targets_unsaved_ && hash == targets_hash_)) {
+                return;
+            }
+            const auto stored_count = static_cast<std::uint32_t>(stored.size());
+            const auto drawn_count = static_cast<std::uint32_t>(target_drawn_.size());
+            const std::uint64_t programs = program_set_identity();
+            const std::uint64_t settings = start_settings_.load(std::memory_order_acquire);
+            const std::uint32_t flags = start_drained_ ? kTargetsComplete : 0u;
+            bytes.assign(kTargetsHeader + (std::size_t{stored_count} + std::size_t{drawn_count}) * 8u, '\0');
+            char* at = bytes.data();
+            std::memcpy(at, kTargetsMagic, sizeof(kTargetsMagic));
+            std::memcpy(at + 8u, &hash, 8u);
+            std::memcpy(at + 16u, &stored_count, 4u);
+            std::memcpy(at + 20u, &drawn_count, 4u);
+            std::memcpy(at + 24u, &programs, 8u);
+            std::memcpy(at + 32u, &settings, 8u);
+            std::memcpy(at + 40u, &flags, 4u);
+            at += kTargetsHeader;
+            for (const std::uint64_t key : stored) {
+                std::memcpy(at, &key, 8u);
+                at += 8u;
+            }
+            for (const std::uint64_t key : target_drawn_) {
+                std::memcpy(at, &key, 8u);
+                at += 8u;
+            }
+            // Forms stored since `stored` was taken wait for the next write (the set only grows).
+            targets_unsaved_ = target_stored_.size() != stored.size();
+            targets_hash_ = hash;
+            file = targets_file_;
+        }
+        if (!replace_file(file, bytes.data(), bytes.size())) {
+            std::lock_guard guard(targets_lock_);
+            targets_unsaved_ = true;
+            targets_hash_ = 0u;
+        }
+    } catch (...) {
+    }
+}
+
+bool replace_file(const std::filesystem::path& file, const char* bytes, std::size_t size) noexcept {
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    return io::write_file_atomically(file, std::string_view(bytes, size));
+}
+
+}  // namespace galaxy::render::core

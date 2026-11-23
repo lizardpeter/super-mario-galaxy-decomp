@@ -1,0 +1,118 @@
+{
+  "harness": 1,
+  "name": "1643-library-fault",
+  "about": "guard-lib-user's after hook on MR::getRandom calls guard-lib's gl.fine (7), then gl.fault, which writes through a null pointer in guard-lib's code. The need walk: guard-lib-user needs guard-lib, so guard-lib-user is off and taken out at the next frame; the log, the mod log and the place name both mods and the place as guard-lib's file+offset; guard-lib stays and is told it was cut (it has no cut: the log says its state may be half done); guard-lib-other's call of gl.fine after it gives 7",
+  "proves": [
+    "kernel.guard.resume",
+    "kernel.guard.library",
+    "kernel.guard.need_walk"
+  ],
+  "mods": [
+    "../mods/guard-lib",
+    "../mods/guard-lib-user",
+    "../mods/guard-lib-other"
+  ],
+  "stage": {
+    "name": "EggStarGalaxy",
+    "scenario": 1
+  },
+  "steps": [
+    {
+      "at": 30,
+      "call": "MR::getRandom",
+      "signature": "s32(s32, s32)",
+      "args": [
+        0,
+        1643
+      ]
+    },
+    {
+      "call": "MR::getRandom",
+      "signature": "s32(s32, s32)",
+      "args": [
+        0,
+        1644
+      ],
+      "after": {
+        "fact": "takeout.guard-lib-user",
+        "exists": true
+      },
+      "fact": "after"
+    },
+    {
+      "after": {
+        "fact": "after",
+        "exists": true
+      },
+      "end": true
+    }
+  ],
+  "expect": [
+    {
+      "fact": "mod.guard-lib-user.fine",
+      "is": 7
+    },
+    {
+      "fact": "mod.guard-lib-user.entered",
+      "count": 1
+    },
+    {
+      "fact": "mod.guard-lib-user.survived",
+      "absent": true
+    },
+    {
+      "fact": "mod.guard-lib-user.again",
+      "absent": true
+    },
+    {
+      "log": "\\[mod guard-lib-user\\] GUARD: its call into guard-lib failed \\(after hook: MR::getRandom\\): a memory access it may not make at guard-lib/[a-z_]+\\.[a-z]+\\+0x[0-9a-f]+, address 0x[0-9a-f]+\\. It is off until the next start; what it was changing may be half done\\. guard-lib stays on\\."
+    },
+    {
+      "log": "\\[mod guard-lib\\] a fault in guard-lib's code cut gl\\.fault short \\(at guard-lib/[a-z_]+\\.[a-z]+\\+0x[0-9a-f]+, called by guard-lib-user\\)\\. It has no cut, so what that call was changing may be half done; it stays on\\."
+    },
+    {
+      "fact": "modlog",
+      "has": {
+        "mod": "guard-lib-user",
+        "source": "guard",
+        "level": "error",
+        "row": "Guard.CaughtIn"
+      },
+      "when": "any"
+    },
+    {
+      "fact": "modlog",
+      "has": {
+        "mod": "guard-lib",
+        "source": "guard",
+        "row": "Guard.CutUntold"
+      },
+      "when": "any"
+    },
+    {
+      "fact": "takeout.guard-lib-user",
+      "exists": true
+    },
+    {
+      "fact": "takeout.guard-lib",
+      "absent": true
+    },
+    {
+      "fact": "mod.guard-lib-other.fine",
+      "is": 7
+    },
+    {
+      "fact": "takeout.guard-lib-other",
+      "absent": true
+    },
+    {
+      "fact": "after",
+      "exists": true
+    }
+  ],
+  "faults": [
+    {
+      "mod": "guard-lib-user"
+    }
+  ]
+}

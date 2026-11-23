@@ -1,0 +1,119 @@
+#include "galaxy/ui/launcher_model.h"
+
+#include <iostream>
+#include <stdexcept>
+
+namespace {
+void check(bool value, const char* label) {
+    if (!value) throw std::runtime_error(label);
+}
+}
+
+int main() {
+    using galaxy::ui::LauncherAction;
+    using Model = galaxy::ui::LauncherModel;
+    try {
+        Model menu;
+        check(menu.view() == -1 && menu.poll() == -1, "closed until opened");
+        menu.open();
+        check(menu.view() == static_cast<int>(Model::kLauncherView), "opens on Play");
+        menu.key(LauncherAction::Previous, false);
+        check(menu.row == Model::RowQuit, "rows wrap backwards");
+        menu.key(LauncherAction::Next, true);
+        check(menu.row == Model::RowPlay, "navigation repeats and wraps");
+        menu.key(LauncherAction::Next, false);
+        check(menu.key(LauncherAction::Accept, true) == Model::Effect::None, "accept does not repeat");
+        check(menu.key(LauncherAction::Accept, false) == Model::Effect::OpenSettings && menu.visible,
+              "settings opens over the rows");
+        menu.key(LauncherAction::Back, false);
+        check(menu.row == Model::RowSettings && menu.visible, "back on the rows does nothing");
+
+        menu.offer_notice(false);
+        check(menu.view() == static_cast<int>(Model::kNoticePage | Model::kLauncherView),
+              "a notice shows its page at once");
+        menu.key(LauncherAction::Next, false);
+        menu.point(2);
+        check(menu.row == Model::RowSettings, "the notice's page keeps the row");
+        menu.key(LauncherAction::Accept, false);
+        check(menu.view() == static_cast<int>(Model::RowSettings | Model::kLauncherView) && menu.notice_held,
+              "its answer returns to the rows, the notice still held");
+        menu.offer_notice(false);
+        check(!menu.notice_page, "a notice shows its page once");
+        check(menu.click(5) == Model::Effect::None && menu.visible, "a click past the rows does nothing");
+        menu.click(Model::RowQuit);
+        check(menu.poll() == Model::kChoiceQuit && !menu.visible && menu.view() == -1, "quit closes");
+        check(menu.key(LauncherAction::Accept, false) == Model::Effect::None && menu.poll() == Model::kChoiceQuit,
+              "a closed screen takes no keys");
+
+        Model play;
+        play.offer_notice(false);
+        play.open();
+        check(play.notice_page, "a notice found before the screen opens shows first");
+        play.key(LauncherAction::Back, false);
+        play.point(1);
+        play.point(0);
+        play.key(LauncherAction::Accept, false);
+        check(play.poll() == Model::kChoicePlay && !play.visible, "play closes");
+        play.open();
+        check(play.poll() == -1 && play.row == Model::RowPlay && play.notice_page, "open starts again, notice first");
+
+        Model bench;
+        bench.open();
+        bench.key(LauncherAction::Next, false);
+        bench.key(LauncherAction::Next, false);
+        check(bench.row == Model::RowBenchmark, "benchmark is the row after settings");
+        check(bench.key(LauncherAction::Accept, false) == Model::Effect::None && bench.poll() == Model::kChoiceBenchmark &&
+                  !bench.visible,
+              "benchmark closes with its own choice");
+        bench.open();
+        bench.click(Model::RowBenchmark);
+        check(bench.poll() == Model::kChoiceBenchmark, "a click on benchmark chooses it");
+
+        Model three;
+        three.benchmark = false;
+        three.open();
+        check(three.view() == static_cast<int>(Model::kLauncherView | Model::kNoBenchmark), "no benchmark: the view says so");
+        three.key(LauncherAction::Previous, false);
+        check(three.row == 2u && three.row_at(three.row) == Model::RowQuit, "no benchmark: three rows, quit last");
+        three.click(2u);
+        check(three.poll() == Model::kChoiceQuit, "no benchmark: the third answer quits");
+        three.open();
+        check(three.click(3u) == Model::Effect::None && three.visible, "no benchmark: no fourth answer");
+
+        // An install that updates itself: the notice's Update and Later.
+        Model update;
+        update.offer_notice(true);
+        update.open();
+        check(update.view() == static_cast<int>(Model::kNoticePage | Model::kNoticeInstall | Model::NoticeUpdate | Model::kLauncherView),
+              "the notice opens on Update");
+        update.key(LauncherAction::Next, false);
+        check(update.view() == static_cast<int>(Model::kNoticePage | Model::kNoticeInstall | Model::NoticeLater | Model::kLauncherView),
+              "Next selects Later");
+        update.key(LauncherAction::Next, false);
+        check(update.notice_answer == Model::NoticeUpdate, "the two answers wrap");
+        check(update.key(LauncherAction::Accept, false) == Model::Effect::None && update.poll() == Model::kChoiceUpdate &&
+                  !update.visible,
+              "Update leaves the home screen with kChoiceUpdate");
+        Model later;
+        later.offer_notice(true);
+        later.open();
+        later.click(Model::NoticeLater);
+        check(later.poll() == -1 && later.view() == static_cast<int>(Model::kLauncherView), "Later goes to the rows");
+        Model backed;
+        backed.offer_notice(true);
+        backed.open();
+        check(backed.key(LauncherAction::Back, false) == Model::Effect::None && backed.poll() == -1 &&
+                  backed.view() == static_cast<int>(Model::kLauncherView),
+              "Back on the notice is Later");
+        Model tells;
+        tells.offer_notice(false);
+        tells.open();
+        check(tells.view() == static_cast<int>(Model::kNoticePage | Model::kLauncherView), "without install: Back only");
+        check(tells.key(LauncherAction::Accept, false) == Model::Effect::None && tells.poll() == -1, "its answer goes back");
+    } catch (const std::exception& failure) {
+        std::cerr << "launcher_model_tests: " << failure.what() << '\n';
+        return 1;
+    }
+    std::cout << "launcher_model_tests: ok\n";
+    return 0;
+}

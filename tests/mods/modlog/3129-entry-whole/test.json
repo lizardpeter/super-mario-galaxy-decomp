@@ -1,0 +1,77 @@
+{
+  "harness": 1,
+  "name": "3129-entry-whole",
+  "about": "Mods > Log > jl-repeat's entry opened by space: the window holds its whole text, one page",
+  "proves": [
+    "modlog.entry"
+  ],
+  "mods": [
+    "../mods/jl-repeat"
+  ],
+  "steps": [
+    {
+      "at": 120,
+      "settings": "mods"
+    },
+    {
+      "at": 140,
+      "key": "down"
+    },
+    {
+      "at": 160,
+      "key": "down"
+    },
+    {
+      "at": 180,
+      "key": "right"
+    },
+    {
+      "at": 210,
+      "key": "right"
+    },
+    {
+      "at": 240,
+      "key": "right"
+    },
+    {
+      "at": 270,
+      "key": "right"
+    },
+    {
+      "at": 300,
+      "key": "right"
+    },
+    {
+      "at": 330,
+      "key": "right"
+    },
+    {
+      "at": 380,
+      "key": "space"
+    },
+    {
+      "at": 440,
+      "key": "space"
+    },
+    {
+      "at": 600,
+      "end": true
+    }
+  ],
+  "expect": [
+    {
+      "fact": "modlog.entry",
+      "has": {
+        "mod": "jl-repeat",
+        "pages": 1
+      },
+      "when": "any",
+      "scope": "installation"
+    },
+    {
+      "fact": "modlog.entry",
+      "count": 1,
+      "scope": "installation"
+    }
+  ]
+}

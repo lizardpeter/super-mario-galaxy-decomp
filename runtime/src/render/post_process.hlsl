@@ -1,0 +1,547 @@
+// Presentation post-processing passes (post_process.cpp, vk/post_process_vk.cpp).
+//
+// The build (for fxc) and vk/post_process_vk.cpp compose one source per pass
+// from this file and the vendored libraries, defining exactly one PASS_* macro:
+//   POST_SECTION 1        common declarations
+//   SMAA.hlsl             (SMAA passes)  or  ffx_a.h, POST_SECTION 2, ffx_fsr1.h (FSR passes)
+//   POST_SECTION 3        entry points
+//
+// Every pass draws one full-target triangle. Pixel positions are relative to
+// the target viewport's origin, which present() places inside the letterboxed
+// content rectangle of the back buffer.
+
+#if POST_SECTION == 1
+
+cbuffer PostConstants : register(b0) {
+    // 1/w, 1/h, w, h of the pass input (SMAA_RT_METRICS).
+    float4 g_rt_metrics;
+    // FSR 1 constants (FsrEasuCon / FsrRcasCon).
+    uint4 g_con0;
+    uint4 g_con1;
+    uint4 g_con2;
+    uint4 g_con3;
+    // Resample: xy source size, zw target size in pixels. The AA passes: xy the part of the input that holds the picture,
+    // from its top left, in pixels (dynamic resolution draws the scene in a part of its targets); 0 the whole input.
+    float4 g_params;
+    // xy: viewport origin in render-target pixels. z: 0 an intermediate picture, 1 the last write into an 8-bit window
+    // (dithered), 2 the last write as HDR10 (FinalWriteHdr). w: with z = 2, the paper white (bits 0-8) and the display's
+    // peak (bits 9-22) in nits, its black level's step (bits 23-29) and the HDR calibration's pattern (bits 30-31)
+    // (post_process_settings.h post_output_word).
+    int4 g_origin;
+    // x: the target turned by 0-3 quarter turns clockwise; yz: the picture's width and height (PostConstants.turn; every
+    // last write's).
+    int4 g_turn;
+};
+
+SamplerState LinearSampler : register(s0);
+SamplerState PointSampler : register(s1);
+
+struct FullscreenOut {
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+FullscreenOut FullscreenTriangle(uint id) {
+    FullscreenOut o;
+    o.uv = float2(id == 1u ? 2.0 : 0.0, id == 2u ? 2.0 : 0.0);
+    o.pos = float4(o.uv.x * 2.0 - 1.0, 1.0 - o.uv.y * 2.0, 0.0, 1.0);
+    return o;
+}
+
+// The picture's integer pixel: the one inside the pass viewport, turned back where the target is turned.
+int2 ViewportPixel(float4 pos) {
+    const int2 p = int2(pos.xy) - g_origin.xy;
+    if (g_turn.x == 1) {
+        return int2(p.y, g_turn.z - 1 - p.x);
+    }
+    if (g_turn.x == 2) {
+        return int2(g_turn.y - 1 - p.x, g_turn.z - 1 - p.y);
+    }
+    if (g_turn.x == 3) {
+        return int2(g_turn.y - 1 - p.y, p.x);
+    }
+    return p;
+}
+
+// The last write to the window, 8 bits a channel from the scene's 10: a pixel between two levels takes one of them by a
+// triangular noise of a level either way, so a gradient has no steps. Pixels on a level stay. g_origin.z: this is that write.
+// PCG's hash (Jarzynski and Olano, "Hash Functions for GPU Rendering", 2020): one word to another, no two alike.
+uint NoiseHash(uint v) {
+    const uint state = v * 747796405u + 2891336453u;
+    const uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+// The pixel's three noises, one a channel: each the sum of two uniform values less one (triangular, -1 to 1, mean 0).
+// The six values are 10-bit fields of two hashes (the pixel's place, a word each way, then that hash again), where
+// eight hashes once gave 24 bits each: a level split 1024 ways is far finer than the noise needs.
+float3 TriangularNoise(int2 p) {
+    const uint first = NoiseHash(uint(p.x) | (uint(p.y) << 16u));
+    const uint second = NoiseHash(first);
+    const float3 a = float3(uint3(first >> 22u, (first >> 12u) & 1023u, (first >> 2u) & 1023u));
+    const float3 b = float3(uint3(second >> 22u, (second >> 12u) & 1023u, (second >> 2u) & 1023u));
+    return (a + b + 1.0) * (1.0 / 1024.0) - 1.0;
+}
+// HDR10 (SMPTE ST 2084 PQ, BT.2020) for a display in HDR mode; the CPU twin is hdr10_encode in post_process_settings.cpp.
+float PqEncode(float nits) {
+    const float y = pow(saturate(nits / 10000.0), 0.1593017578125);
+    return pow((0.8359375 + 18.8515625 * y) / (1.0 + 18.6875 * y), 78.84375);
+}
+float PqDecode(float code) {
+    const float p = pow(saturate(code), 1.0 / 78.84375);
+    return 10000.0 * pow(max(p - 0.8359375, 0.0) / (18.8515625 - 18.6875 * p), 1.0 / 0.1593017578125);
+}
+// The picture's range, in times the paper white, that the roll-off fits into the display's (kHdrHeadroom).
+static const float kHdrHeadroom = 8.0;
+// BT.2390 EETF on the brightest channel (the others follow it, so the hue stays): a display whose peak is under the source
+// range gets the highlights above the knee rolled into it, one with the range gets them untouched; then the black level
+// lift to the display's darkest visible level (true black goes there too, grey). hdr10_encode is the same on the CPU.
+float3 HdrRolloff(float3 nits, float paper, float display_peak, float display_black) {
+    const float source_peak = min(paper * kHdrHeadroom, 10000.0);
+    const float brightest = max(nits.r, max(nits.g, nits.b));
+    if (brightest <= 0.0) {
+        return float3(display_black, display_black, display_black);
+    }
+    float shown = brightest;
+    const bool roll = display_peak < source_peak;
+    if (roll || display_black > 0.0) {
+        const float source_code = PqEncode(source_peak);
+        float e = PqEncode(brightest) / source_code;
+        if (roll) {
+            e = min(e, 1.0);
+            const float max_lum = PqEncode(display_peak) / source_code;
+            const float knee = max(1.5 * max_lum - 0.5, 0.0);
+            if (e > knee) {
+                const float t = (e - knee) / (1.0 - knee);
+                const float t2 = t * t;
+                const float t3 = t2 * t;
+                e = (2.0 * t3 - 3.0 * t2 + 1.0) * knee + (t3 - 2.0 * t2 + t) * (1.0 - knee) + (-2.0 * t3 + 3.0 * t2) * max_lum;
+            }
+        }
+        if (display_black > 0.0) {
+            const float rest = max(1.0 - e, 0.0);
+            e += PqEncode(display_black) / source_code * (rest * rest * rest * rest);
+        }
+        shown = PqDecode(e * source_code);
+    }
+    return nits * (min(shown, display_peak) / brightest);
+}
+// hdr_star: whether `q` is inside a regular five-pointed star whose points reach 1 from its middle, one straight up.
+bool HdrStar(float2 q) {
+    const float pi = 3.14159265;
+    const float sector = pi * 0.4;
+    const float inner = 0.381966;
+    const float distance = length(q);
+    if (distance > 1.0) {
+        return false;
+    }
+    float angle = fmod(atan2(q.x, q.y) + pi * 2.0, sector);
+    if (angle > sector * 0.5) {
+        angle = sector - angle;
+    }
+    const float2 edge = float2(inner * cos(sector * 0.5) - 1.0, inner * sin(sector * 0.5));
+    const float2 at = float2(distance * cos(angle) - 1.0, distance * sin(angle));
+    return edge.x * at.y - edge.y * at.x >= 0.0;
+}
+// The HDR calibration's test box (post_process_settings.h kHdrBoxSide, kHdrBoxCentreY, kHdrStarRadius, kHdrStarDrop;
+// hdr_box and hdr_pattern_code are the same on the CPU): the star's or the surround's code value at the picture's pixel
+// `p`, negative outside the box.
+float HdrPatternCode(uint pattern, int2 p, float display_peak, float display_black) {
+    const int2 size = g_turn.yz;
+    const int side = int(0.34 * float(min(size.x, size.y)) + 0.5);
+    const int2 box = p - int2((size.x - side) / 2, int(0.30 * float(size.y) + 0.5) - side / 2);
+    if (pattern == 0u || pattern == 3u || side <= 0 || any(box < 0) || any(box >= side)) {
+        return -1.0;
+    }
+    const float radius = 0.40 * float(side);
+    const float half_side = float(side) * 0.5;
+    const bool lit = HdrStar(float2(float(box.x) + 0.5 - half_side, half_side + 0.0954915 * radius - float(box.y) - 0.5) / radius);
+    if (pattern == 1u) {
+        return lit ? PqEncode(display_peak) : 1.0;
+    }
+    return lit ? PqEncode(display_black) : 0.0;
+}
+// The last write as HDR10: the code values PQ stores, a triangular noise of a level either way at 10 bits.
+float3 FinalWriteHdr(float3 color, int2 p) {
+    const uint word = uint(g_origin.w);
+    const float paper = float(word & 511u);
+    const float display_peak = float((word >> 9u) & 16383u);
+    // hdr_black_nits: 2 * (step / 127)^2.
+    const float black_share = float((word >> 23u) & 127u) / 127.0;
+    const float display_black = 2.0 * black_share * black_share;
+    // The calibration's pattern: exact levels, no noise (a level either way would show the pattern below its own).
+    const float pattern = HdrPatternCode(word >> 30u, p, display_peak, display_black);
+    if (pattern >= 0.0) {
+        const float level = round(pattern * 1023.0) / 1023.0;
+        return float3(level, level, level);
+    }
+    const float3 linear709 = pow(max(color, 0.0), 2.2);
+    const float3 linear2020 = float3(dot(linear709, float3(0.627404, 0.329283, 0.043313)),
+                                     dot(linear709, float3(0.069097, 0.919540, 0.011362)),
+                                     dot(linear709, float3(0.016391, 0.088013, 0.895595)));
+    const float3 nits = HdrRolloff(linear2020 * paper, paper, display_peak, display_black);
+    if (max(nits.r, max(nits.g, nits.b)) <= 0.0) {
+        return float3(0.0, 0.0, 0.0);
+    }
+    const float3 code = float3(PqEncode(nits.r), PqEncode(nits.g), PqEncode(nits.b));
+    const float3 level = code * 1023.0;
+    return saturate((level + TriangularNoise(p)) / 1023.0);
+}
+float3 FinalWrite(float3 color, int2 p) {
+    if (g_origin.z == 0) {
+        return color;
+    }
+    if (g_origin.z == 2) {
+        return FinalWriteHdr(color, p);
+    }
+    if (g_origin.w != 0 && (uint(g_origin.w) >> 30u) == 3u) {
+        // A capture's view of the light past white (HdrPattern::Highlights): the picture in grey at half its light, and
+        // each pixel past the paper white coloured by its brightest channel in linear light: yellow up to 2 times the
+        // paper white, orange up to 4, red up to 8 (kHdrHeadroom), magenta above.
+        const float over = pow(max(max(color.r, max(color.g, color.b)), 0.0), 2.2);
+        const float grey = 0.5 * saturate(dot(color, float3(0.2126, 0.7152, 0.0722)));
+        float3 shown = float3(grey, grey, grey);
+        if (over > 1.0) {
+            shown = over <= 2.0 ? float3(1.0, 1.0, 0.0) : over <= 4.0 ? float3(1.0, 0.5, 0.0) : over <= 8.0 ? float3(1.0, 0.0, 0.0)
+                                                                                              : float3(1.0, 0.0, 1.0);
+        }
+        return shown;
+    }
+    if (g_origin.w != 0) {
+        // A capture of the HDR calibration (capture_output): its test box as the HDR10 signal's levels, in grey.
+        const uint word = uint(g_origin.w);
+        const float black_share = float((word >> 23u) & 127u) / 127.0;
+        const float pattern = HdrPatternCode(word >> 30u, p, float((word >> 9u) & 16383u), 2.0 * black_share * black_share);
+        if (pattern >= 0.0) {
+            const float grey = round(pattern * 255.0) / 255.0;
+            return float3(grey, grey, grey);
+        }
+    }
+    const float3 level = color * 255.0;
+    const float3 between = step(0.02, abs(level - round(level)));
+    // A real branch, not a select: a group of pixels all on levels (black, flat 8-bit colours) skips the two hashes.
+    float3 written = color;
+    [branch] if (max(between.r, max(between.g, between.b)) != 0.0) {
+        written = saturate((level + TriangularNoise(p) * between) / 255.0);
+    }
+    return written;
+}
+
+// The AA passes' picture: its size in input pixels, the input UV a viewport UV of 1 reaches (1 for the whole input), and
+// a UV held inside it (its last pixel centre; below, the input's own edge holds it).
+float2 PicturePart() { return g_params.x > 0.0 ? g_params.xy : g_rt_metrics.zw; }
+float2 PictureScale() { return g_params.x > 0.0 ? g_params.xy * g_rt_metrics.xy : float2(1.0, 1.0); }
+float2 InPicture(float2 uv) { return min(uv, (PicturePart() - 0.5) * g_rt_metrics.xy); }
+
+#if defined(PASS_SMAA_EDGES) || defined(PASS_SMAA_WEIGHTS) || defined(PASS_SMAA_BLEND) || defined(PASS_SMAA_BLEND_KEEP)
+#define SMAA_CUSTOM_SL 1
+#define SMAA_RT_METRICS g_rt_metrics
+#define SMAATexture2D(tex) Texture2D tex
+#define SMAATexturePass2D(tex) tex
+// The colour is read by point in the edge pass and at level zero in the blend pass: those reads stay in the picture.
+// The edges and weights past it are zero (their targets are cleared whole and written in the picture alone), so the
+// searches end at its edge and nothing blends across it; the lookups (area, search) are read as they are.
+#if defined(PASS_SMAA_BLEND) || defined(PASS_SMAA_BLEND_KEEP)
+#define SMAASampleLevelZero(tex, coord) tex.SampleLevel(LinearSampler, InPicture(coord), 0)
+#else
+#define SMAASampleLevelZero(tex, coord) tex.SampleLevel(LinearSampler, coord, 0)
+#endif
+#define SMAASampleLevelZeroPoint(tex, coord) tex.SampleLevel(PointSampler, coord, 0)
+#define SMAASampleLevelZeroOffset(tex, coord, offset) tex.SampleLevel(LinearSampler, coord, 0, offset)
+#define SMAASample(tex, coord) tex.Sample(LinearSampler, coord)
+#if defined(PASS_SMAA_EDGES)
+#define SMAASamplePoint(tex, coord) tex.Sample(PointSampler, InPicture(coord))
+#else
+#define SMAASamplePoint(tex, coord) tex.Sample(PointSampler, coord)
+#endif
+#define SMAASampleOffset(tex, coord, offset) tex.Sample(LinearSampler, coord, offset)
+#define SMAA_FLATTEN [flatten]
+#define SMAA_BRANCH [branch]
+#define SMAAGather(tex, coord) tex.Gather(LinearSampler, coord)
+#endif
+
+#if defined(PASS_FSR_EASU) || defined(PASS_FSR_EASU_HALF) || defined(PASS_FSR_RCAS) || defined(PASS_FSR_RCAS_SCALED)
+#define A_GPU 1
+#define A_HLSL 1
+#endif
+// EASU's packed 16-bit form: min16float, for a Direct3D device that reports 16-bit minimum precision (its taps then run
+// two to a 32-bit lane where the GPU packs them) and for Vulkan, where the SPIR-V marks it RelaxedPrecision (a GPU with
+// fast 16-bit arithmetic runs it so, one without at 32 bits).
+#if defined(PASS_FSR_EASU_HALF)
+#define A_HALF 1
+#endif
+
+#elif POST_SECTION == 2
+
+Texture2D inputTex : register(t0);
+
+#if defined(PASS_FSR_EASU)
+// The 2x2 texels about picture coordinate `p` in GatherRed/Green/Blue's order.
+AF4 SourceGather(AF2 p, uint channel) {
+    return channel == 0u ? inputTex.GatherRed(LinearSampler, p)
+         : channel == 1u ? inputTex.GatherGreen(LinearSampler, p)
+                         : inputTex.GatherBlue(LinearSampler, p);
+}
+AF4 FsrEasuRF(AF2 p) { return SourceGather(p, 0u); }
+AF4 FsrEasuGF(AF2 p) { return SourceGather(p, 1u); }
+AF4 FsrEasuBF(AF2 p) { return SourceGather(p, 2u); }
+#define FSR_EASU_F 1
+#endif
+
+#if defined(PASS_FSR_EASU_HALF)
+AH4 FsrEasuRH(AF2 p) { return AH4(inputTex.GatherRed(LinearSampler, p)); }
+AH4 FsrEasuGH(AF2 p) { return AH4(inputTex.GatherGreen(LinearSampler, p)); }
+AH4 FsrEasuBH(AF2 p) { return AH4(inputTex.GatherBlue(LinearSampler, p)); }
+#define FSR_EASU_H 1
+#endif
+
+#if defined(PASS_FSR_RCAS)
+// The input matches the target size; reads past the edge repeat the border.
+AF4 FsrRcasLoadF(ASU2 p) {
+    const int2 last = int2(g_params.xy) - 1;
+    return inputTex.Load(int3(clamp(int2(p), int2(0, 0), last), 0));
+}
+void FsrRcasInputF(inout AF1 r, inout AF1 g, inout AF1 b) {}
+#define FSR_RCAS_F 1
+#endif
+
+#if defined(PASS_FSR_RCAS_SCALED)
+// Enlarging and sharpening in one pass: each RCAS tap is the bilinear source sample at that
+// target pixel's centre, the value the resample pass would have stored there.
+AF4 FsrRcasLoadF(ASU2 p) {
+    const int2 last = int2(g_params.zw) - 1;
+    const float2 uv = (float2(clamp(int2(p), int2(0, 0), last)) + 0.5) / g_params.zw;
+    return inputTex.SampleLevel(LinearSampler, uv, 0);
+}
+void FsrRcasInputF(inout AF1 r, inout AF1 g, inout AF1 b) {}
+#define FSR_RCAS_F 1
+#endif
+
+#elif POST_SECTION == 3
+
+#if defined(PASS_SMAA_EDGES)
+Texture2D colorTex : register(t0);
+struct EdgesOut {
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD0;
+    float4 offset[3] : TEXCOORD1;
+};
+EdgesOut VSMain(uint id : SV_VertexID) {
+    const FullscreenOut f = FullscreenTriangle(id);
+    EdgesOut o;
+    o.pos = f.pos;
+    o.uv = f.uv * PictureScale();
+    SMAAEdgeDetectionVS(o.uv, o.offset);
+    return o;
+}
+float2 PSMain(EdgesOut i) : SV_Target {
+    return SMAALumaEdgeDetectionPS(i.uv, i.offset, colorTex);
+}
+#endif
+
+#if defined(PASS_SMAA_WEIGHTS)
+Texture2D edgesTex : register(t0);
+Texture2D areaTex : register(t1);
+Texture2D searchTex : register(t2);
+struct WeightsOut {
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD0;
+    float2 pixcoord : TEXCOORD1;
+    float4 offset[3] : TEXCOORD2;
+};
+WeightsOut VSMain(uint id : SV_VertexID) {
+    const FullscreenOut f = FullscreenTriangle(id);
+    WeightsOut o;
+    o.pos = f.pos;
+    o.uv = f.uv * PictureScale();
+    SMAABlendingWeightCalculationVS(o.uv, o.pixcoord, o.offset);
+    return o;
+}
+float4 PSMain(WeightsOut i) : SV_Target {
+    return SMAABlendingWeightCalculationPS(
+        i.uv, i.pixcoord, i.offset, edgesTex, areaTex, searchTex, float4(0.0, 0.0, 0.0, 0.0));
+}
+#endif
+
+#if defined(PASS_SMAA_BLEND) || defined(PASS_SMAA_BLEND_KEEP)
+Texture2D colorTex : register(t0);
+Texture2D blendTex : register(t1);
+struct BlendOut {
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD0;
+    float4 offset : TEXCOORD1;
+};
+BlendOut VSMain(uint id : SV_VertexID) {
+    const FullscreenOut f = FullscreenTriangle(id);
+    BlendOut o;
+    o.pos = f.pos;
+    o.uv = f.uv * PictureScale();
+    SMAANeighborhoodBlendingVS(o.uv, o.offset);
+    return o;
+}
+float4 PSMain(BlendOut i) : SV_Target {
+#if defined(PASS_SMAA_BLEND_KEEP)
+    // Into the picture it reads a copy of (the scene pass): a pixel without blending weights (SMAA's own test) would
+    // write its own colour back, so it keeps it unwritten.
+    float4 a;
+    a.x = SMAASample(blendTex, i.offset.xy).a;
+    a.y = SMAASample(blendTex, i.offset.zw).g;
+    a.wz = SMAASample(blendTex, i.uv).xz;
+    if (dot(a, float4(1.0, 1.0, 1.0, 1.0)) < 1e-5) {
+        discard;
+    }
+#endif
+#if defined(PASS_SMAA_BLEND)
+    // Every pixel, the centre's alpha unchanged: it can write a target that does not hold the scene (a traded one).
+    const float alpha = colorTex.Load(int3(i.pos.xy, 0)).a;
+#else
+    const float alpha = 1.0;
+#endif
+    return float4(SMAANeighborhoodBlendingPS(i.uv, i.offset, colorTex, blendTex).rgb, alpha);
+}
+#endif
+
+#if defined(PASS_FSR_EASU)
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    AF3 color;
+    FsrEasuF(color, AU2(ViewportPixel(i.pos)), g_con0, g_con1, g_con2, g_con3);
+    return float4(FinalWrite(color, ViewportPixel(i.pos)), 1.0);
+}
+#endif
+
+#if defined(PASS_FSR_EASU_HALF)
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    AH3 color;
+    FsrEasuH(color, AU2(ViewportPixel(i.pos)), g_con0, g_con1, g_con2, g_con3);
+    return float4(FinalWrite(AF3(color), ViewportPixel(i.pos)), 1.0);
+}
+#endif
+
+#if defined(PASS_FSR_RCAS) || defined(PASS_FSR_RCAS_SCALED)
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    AF3 color;
+    FsrRcasF(color.r, color.g, color.b, AU2(ViewportPixel(i.pos)), g_con0);
+    return float4(FinalWrite(color, ViewportPixel(i.pos)), 1.0);
+}
+#endif
+
+#if defined(PASS_FXAA)
+// Fast approximate AA (the FXAA quality-preset method, written for Nebula):
+// find the local luma edge, walk along it in both directions to its ends,
+// and resample the pixel across the edge by its position along the span;
+// a 3x3 contrast term softens single-pixel features. Needs no lookup
+// textures, so it is the fallback when SMAA is unavailable.
+Texture2D inputTex : register(t0);
+float FxaaLuma(float3 c) { return dot(c, float3(0.299, 0.587, 0.114)); }
+// Every read is held in the picture (InPicture).
+float FxaaLumaAt(float2 uv) { return FxaaLuma(inputTex.SampleLevel(LinearSampler, InPicture(uv), 0).rgb); }
+// The neighbour (x, y) texels away, its centre's own value.
+#define FxaaLumaOff(uv, x, y) FxaaLuma(inputTex.SampleLevel(PointSampler, InPicture((uv) + float2(x, y) * g_rt_metrics.xy), 0).rgb)
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    const float2 texel = g_rt_metrics.xy;
+    const float2 uv = (float2(ViewportPixel(i.pos)) + 0.5) * texel;
+    // The centre's alpha goes out unchanged: a target that does not hold the scene (a traded one) takes it too.
+    const float4 centre = inputTex.SampleLevel(PointSampler, uv, 0);
+    const float3 center = centre.rgb;
+    const float lc = FxaaLuma(center);
+    const float ln = FxaaLumaOff(uv, 0, -1);
+    const float ls = FxaaLumaOff(uv, 0, 1);
+    const float lw = FxaaLumaOff(uv, -1, 0);
+    const float le = FxaaLumaOff(uv, 1, 0);
+    const float lmax = max(lc, max(max(ln, ls), max(lw, le)));
+    const float lmin = min(lc, min(min(ln, ls), min(lw, le)));
+    const float range = lmax - lmin;
+    if (range < max(0.0312, lmax * 0.125)) return centre;
+    const float lnw = FxaaLumaOff(uv, -1, -1);
+    const float lne = FxaaLumaOff(uv, 1, -1);
+    const float lsw = FxaaLumaOff(uv, -1, 1);
+    const float lse = FxaaLumaOff(uv, 1, 1);
+    // Edge orientation from second differences of the 3x3 block: a horizontal edge changes down the columns.
+    const float horizontal = abs(lnw + lsw - 2.0 * lw) + 2.0 * abs(ln + ls - 2.0 * lc) + abs(lne + lse - 2.0 * le);
+    const float vertical = abs(lnw + lne - 2.0 * ln) + 2.0 * abs(lw + le - 2.0 * lc) + abs(lsw + lse - 2.0 * ls);
+    const bool horz = horizontal >= vertical;
+    // The neighbour across the edge with the larger contrast.
+    float l1 = horz ? ln : lw;
+    float l2 = horz ? ls : le;
+    const float g1 = abs(l1 - lc);
+    const float g2 = abs(l2 - lc);
+    const bool negative = g1 >= g2;
+    float across = horz ? texel.y : texel.x;
+    float lpair;
+    if (negative) { across = -across; lpair = l1; } else { lpair = l2; }
+    const float gradient = 0.25 * max(g1, g2);
+    const float lavg = 0.5 * (lpair + lc);
+    // Walk along the edge, half a pixel over towards the chosen neighbour.
+    float2 start = uv;
+    if (horz) start.y += 0.5 * across; else start.x += 0.5 * across;
+    const float2 along = horz ? float2(texel.x, 0.0) : float2(0.0, texel.y);
+    static const float kSteps[10] = {1.0, 1.0, 1.0, 1.5, 2.0, 2.0, 2.0, 4.0, 8.0, 8.0};
+    float2 pn = start - along;
+    float2 pp = start + along;
+    float en = FxaaLumaAt(pn) - lavg;
+    float ep = FxaaLumaAt(pp) - lavg;
+    bool dn = abs(en) >= gradient;
+    bool dp = abs(ep) >= gradient;
+    [loop] for (int s = 1; s < 10 && !(dn && dp); ++s) {
+        if (!dn) { pn -= along * kSteps[s]; en = FxaaLumaAt(pn) - lavg; dn = abs(en) >= gradient; }
+        if (!dp) { pp += along * kSteps[s]; ep = FxaaLumaAt(pp) - lavg; dp = abs(ep) >= gradient; }
+    }
+    const float distn = horz ? uv.x - pn.x : uv.y - pn.y;
+    const float distp = horz ? pp.x - uv.x : pp.y - uv.y;
+    const bool nearer_negative = distn < distp;
+    const float dist = min(distn, distp);
+    const float span = distn + distp;
+    // Blend only when the nearer end's luma moves away from the centre's side.
+    const bool centre_below = lc - lavg < 0.0;
+    const bool correct = ((nearer_negative ? en : ep) < 0.0) != centre_below;
+    float offset = correct ? 0.5 - dist / span : 0.0;
+    // Sub-pixel term from the 3x3 average.
+    const float l3x3 = (2.0 * (ln + ls + lw + le) + lnw + lne + lsw + lse) / 12.0;
+    const float sub = saturate(abs(l3x3 - lc) / range);
+    const float sub2 = (-2.0 * sub + 3.0) * sub * sub;
+    offset = max(offset, sub2 * sub2 * 0.75);
+    float2 final_uv = uv;
+    if (horz) final_uv.y += offset * across; else final_uv.x += offset * across;
+    return float4(inputTex.SampleLevel(LinearSampler, InPicture(final_uv), 0).rgb, centre.a);
+}
+#endif
+
+#if defined(PASS_RESAMPLE)
+// Box filter over each target pixel's source footprint: one bilinear tap per
+// axis when enlarging, up to eight evenly spaced bilinear taps per axis when
+// reducing, so a supersampled image averages every source pixel instead of
+// skipping rows and columns.
+Texture2D inputTex : register(t0);
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    const float2 source = g_params.xy;
+    const float2 target = g_params.zw;
+    const float2 scale = source / target;
+    const int2 taps = int2(clamp(ceil(scale - 0.001), 1.0, 8.0));
+    const float2 start = float2(ViewportPixel(i.pos)) * scale;
+    const float2 step = scale / float2(taps);
+    float3 sum = 0.0;
+    [loop] for (int y = 0; y < taps.y; ++y) {
+        [loop] for (int x = 0; x < taps.x; ++x) {
+            const float2 p = start + (float2(x, y) + 0.5) * step;
+            sum += inputTex.SampleLevel(LinearSampler, p / source, 0).rgb;
+        }
+    }
+    return float4(FinalWrite(sum / float(taps.x * taps.y), ViewportPixel(i.pos)), 1.0);
+}
+#endif
+
+#if defined(PASS_COPY)
+// The resample at the picture's own size: its one bilinear tap falls on the texel's centre and returns that texel.
+Texture2D inputTex : register(t0);
+FullscreenOut VSMain(uint id : SV_VertexID) { return FullscreenTriangle(id); }
+float4 PSMain(FullscreenOut i) : SV_Target {
+    const int2 p = ViewportPixel(i.pos);
+    return float4(FinalWrite(inputTex.Load(int3(p, 0)).rgb, p), 1.0);
+}
+#endif
+
+#endif

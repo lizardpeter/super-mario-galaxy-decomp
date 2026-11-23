@@ -1,0 +1,119 @@
+#include "Game/Screen/StarPointerController.hpp"
+#include "Game/Screen/StarPointerDirector.hpp"
+#include "Game/Util/PlayerInputUtil.hpp"
+#include "Game/Util/MathUtil.hpp"
+#include "Game/Util/ScreenUtil.hpp"
+#include "Game/Util/StarPointerUtil.hpp"
+#include "Game/System/NebulaFrameClock.hpp"
+
+namespace {
+    const s32 hIsOutScreenCounter = 5;
+};  // namespace
+
+PointerInfo::PointerInfo() : mPos(0.0f, 0.0f), mInScreen(), mViewDistZ() {
+}
+
+StarPointerController::StarPointerController()
+    : mPadChannel(-1), mScreenPos(0.0f, 0.0f), mOutScreenTime(), mNextPastPosition(), mNextPastPointNum(),
+      mScreenDist(), mScreenSpeed(), mScreenVel(0.0f, 0.0f), mWorldVel(0.0f, 0.0f, 0.0f), mWorldPos(0.0f, 0.0f, 0.0f) {
+    mNextPastPosition = new Vec2f[16];
+}
+
+bool StarPointerController::isOutScreenLong() const {
+    return mOutScreenTime > ::hIsOutScreenCounter;
+}
+
+void StarPointerController::initAndSetPort(s32 padChannel) {
+    mPadChannel = padChannel;
+}
+
+void StarPointerController::movement(bool isQueried) {
+    updateWorldPos(isQueried);
+    storePastPointingData();
+    updatePointerInfo();
+}
+
+// The point of the world under the pointer and its view depth, from the scene query (docs/engine/CONSOLE-FREE.md,
+// section 3) with the step's camera; a pointer outside the screen keeps its last point.
+void StarPointerController::updateWorldPos(bool isQueried) {
+    if (isQueried && MR::isInRange(mInfo.mPos.x, 0.0f, MR::getScreenWidth() - 1) &&
+        MR::isInRange(mInfo.mPos.y, 0.0f, MR::getScreenHeight() - 1)) {
+        MR::calcScenePointUnderScreen(&mWorldPos, mInfo.mPos, MR::getStarPointerViewMtx(), MR::getStarPointerProjMtx());
+        mInfo.mViewDistZ = calcViewDistanceZ(mWorldPos, MR::getStarPointerViewMtx());
+    }
+
+    mPastInfo = mInfo;
+    if (mPastInfo.mInScreen) {
+        mOutScreenTime = 0;
+    } else {
+        mOutScreenTime++;
+    }
+}
+
+void StarPointerController::storePastPointingData() {
+    s32 pastCount = MR::min(MR::getPointerPastCount(mPadChannel), 16);
+    mNextPastPointNum = pastCount;
+
+    for (s32 idx = 0; idx < pastCount; idx++) {
+        calcPastPointingPosOnScreen(&mNextPastPosition[idx], idx);
+    }
+}
+
+void StarPointerController::calcPastPointingPosOnScreen(Vec2f* pPos, s32 idx) const {
+    MR::getPointerPastPos(pPos, idx, mPadChannel);
+    pPos->x += 1.0f;
+    pPos->y += 1.0f;
+    pPos->x *= MR::getScreenWidth() * 0.5f;
+    pPos->y *= static_cast< s32 >(NebulaFrameClock::cScreenLines) * 0.5f;
+}
+
+void StarPointerController::updatePointerInfo() {
+    if (!MR::isPointerInScreen(mPadChannel)) {
+        Vec2f vec;
+        vec.x = mInfo.mPos.x;
+        vec.y = mInfo.mPos.y;
+
+        if (mInfo.mInScreen && 10.0f < mScreenVel.length()) {
+            forcePointerOut();
+        }
+
+        mInfo.mInScreen = false;
+        mScreenPos.set(vec);
+        updateAdditionalInfo();
+    } else {
+        mScreenPos.set(mInfo.mPos);
+        mInfo.mInScreen = true;
+        mInfo.mPos.set(mNextPastPosition[0]);
+        StarPointerFunction::forceInsideScreenEdge(&mInfo.mPos);
+        mScreenDist = MR::getPointerDistance(mPadChannel);
+        updateAdditionalInfo();
+    }
+}
+
+void StarPointerController::updateAdditionalInfo() {
+    mScreenVel.set(mInfo.mPos);
+    mScreenVel.sub(mScreenPos);
+    mScreenSpeed = mScreenVel.length();
+    mWorldVel.set< f32 >(mScreenVel.x, -mScreenVel.y, 0.0f);
+    Pos3f mtx;
+    NebulaMtxCopy(MR::getStarPointerViewMtx(), mtx);
+    NebulaMtxInverse(mtx, mtx);
+    NebulaMtxMultVecSR(mtx, &mWorldVel, &mWorldVel);
+    MR::normalizeOrZero(&mWorldVel);
+}
+
+void StarPointerController::forcePointerOut() {
+    if (!StarPointerFunction::isInScreen(mInfo.mPos, 0.0f, 0.0f)) {
+        return;
+    }
+
+    Vec2f vec;
+    vec.set(mInfo.mPos);
+    vec.sub(mScreenPos);
+    StarPointerFunction::forceOutsideScreenEdge(&mInfo.mPos, mInfo.mPos, vec, -20.0f, -20.0f);
+}
+
+f32 StarPointerController::calcViewDistanceZ(const Vec3f& rPos, MtxPtr pMtx) {
+    return MR::abs(rPos.x * pMtx[2][0] + rPos.y * pMtx[2][1] + rPos.z * pMtx[2][2] + pMtx[2][3]);
+}
+

@@ -1,0 +1,27 @@
+# Build trees
+/target/
+/build/
+/build-*/
+/out/
+/dist/
+/.vs/
+*.user
+
+# Anything derived from a game dump stays local (tools/audit_repo.ps1)
+/generated/
+
+# Local scratch and editor state
+/.env
+/.env.*
+/.claude/
+**/__pycache__/
+*.log
+*.tmp
+*.gxdump
+# The developer's diagnostics endpoint and public key (runtime/include/galaxy/diag_endpoint.h).
+runtime/include/galaxy/diag_endpoint_local.h
+# Wrangler's local state (tools/telemetry/worker): the account it signed in with, its cache.
+.wrangler/
+
+# The native plan tool's own state (tools/plan/plan.py): the status page (the live state is in D:/NebulaWork/plan/native)
+/docs/plan/native/STATUS.md

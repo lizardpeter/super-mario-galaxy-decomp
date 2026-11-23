@@ -1,0 +1,17 @@
+#include "Game/Screen/GalaxyCometScreenFilter.hpp"
+#include "Game/Scene/SceneFunction.hpp"
+#include "Game/Util/EventUtil.hpp"
+#include "Game/Util/LayoutUtil.hpp"
+#include "Game/Util/ObjUtil.hpp"
+#include "Game/System/LumaCore.hpp"
+
+GalaxyCometScreenFilter::GalaxyCometScreenFilter() : LayoutActor("コメット用画面塗り潰し", true) {
+    lumacore::setClass(this, lumacore::kClassId< GalaxyCometScreenFilter >);
+    MR::connectToScene(this, MR::MovementType_Layout, MR::CalcAnimType_Layout, MR::DrawBufferType_None, MR::DrawType_CometScreenFilter);
+    initLayoutManager("CometScreenFilter", 1);
+    appear();
+}
+
+void GalaxyCometScreenFilter::setCometType(const char* pCometName) {
+    MR::setCometAnimFromId(this, MR::getCometNameIdFromString(pCometName), 0);
+}

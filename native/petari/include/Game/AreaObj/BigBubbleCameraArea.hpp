@@ -1,0 +1,26 @@
+#pragma once
+
+#include "Game/AreaObj/CubeCamera.hpp"
+#include "Game/AreaObj/SwitchArea.hpp"
+
+class BigBubbleCameraArea : public CubeCameraArea {
+public:
+    BigBubbleCameraArea(int, const char*);
+
+    virtual bool isInVolume(const Vec3f&) const override;
+
+    virtual const char* getManagerName() const override {
+        return "CubeCamera";
+    }
+};
+
+class BigBubbleSwitchArea : public SwitchArea {
+public:
+    BigBubbleSwitchArea(int, const char*);
+
+    virtual bool isInVolume(const Vec3f&) const override;
+
+    virtual const char* getManagerName() const override {
+        return "SwitchArea";
+    }
+};

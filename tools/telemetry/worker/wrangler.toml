@@ -1,0 +1,35 @@
+name = "nebula-diag"
+main = "worker.mjs"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+# Sealed reports, one object each; a lifecycle rule deletes them after 180 days (README.md).
+[[r2_buckets]]
+binding = "REPORTS"
+bucket_name = "nebula-diag-reports"
+
+# Flood guard per address: 3 requests a minute (counted by Cloudflare per location, in memory for the 60 s period,
+# keyed by HMAC-SHA256(ADDRESS_SALT, address); the salt is a secret: README.md).
+[[ratelimits]]
+name = "PER_ADDRESS"
+namespace_id = "1001"
+simple = { limit = 3, period = 60 }
+
+# All addresses: DAILY_CAP stored reports a UTC day, and PER_ADDRESS_DAY per address (one SQLite-backed Durable Object
+# per day; free plan).
+[[durable_objects.bindings]]
+name = "DAILY"
+class_name = "DailyCap"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DailyCap"]
+
+[vars]
+DAILY_CAP = "1000"
+# Stored reports per address per UTC day (counted in the day's Durable Object under the salted key).
+PER_ADDRESS_DAY = "3"
+
+# No request logs: nothing about a sender is kept.
+[observability]
+enabled = false

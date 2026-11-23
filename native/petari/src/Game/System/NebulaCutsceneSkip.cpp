@@ -1,0 +1,418 @@
+#include "Game/System/NebulaCutsceneSkip.hpp"
+#include "Game/System/NebulaFrameClock.hpp"
+#include "Game/System/NebulaCutsceneSkipBound.hpp"
+#include "Game/System/Arenas.hpp"
+#include "Game/System/NebulaArena.hpp"
+#include <nebula_module.h>
+
+#include "Game/AudioLib/AudSystem.hpp"
+#include "Game/AudioLib/AudWrap.hpp"
+#include "Game/Demo/DemoDirector.hpp"
+#include "Game/Demo/DemoExecutor.hpp"
+#include "Game/Demo/DemoFunction.hpp"
+#include "Game/Demo/DemoTimeKeeper.hpp"
+#include "Game/Scene/GameSceneFunction.hpp"
+#include "Game/Scene/SceneObjHolder.hpp"
+#include "Game/Screen/NebulaSettingsMenu.hpp"
+#include "Game/Screen/SysInfoWindow.hpp"
+#include "Game/System/GameSequenceFunction.hpp"
+#include "Game/System/GameSystem.hpp"
+#include "Game/System/GameSystemSceneController.hpp"
+#include "Game/System/LumaMovie.hpp"
+#include "Game/System/NebulaText.hpp"
+#include "Game/Util/Array.hpp"
+#include "Game/Util/DemoUtil.hpp"
+#include "Game/Util/PlayerInputUtil.hpp"
+#include "Game/Util/PlacementId.hpp"
+#include "Game/Util/LayoutUtil.hpp"
+#include "Game/Util/SceneUtil.hpp"
+#include "Game/Util/ScreenUtil.hpp"
+#include "Game/Util/SingletonHolder.hpp"
+#include "Game/Util/StarPointerUtil.hpp"
+#include "Game/Util/StringUtil.hpp"
+#include <cstring>
+#include "Game/System/NebulaClock.hpp"
+#include "Game/System/NebulaHost.hpp"
+
+namespace {
+    enum State {
+        State_Idle,
+        State_Prompt,    // the scene holds still behind the Yes/No window
+        State_FadeOut,   // Yes: the held picture fades to black
+        State_Skipping,  // the cutscene runs on, unseen and unheard
+    };
+
+    const s32 cEndQuietFrames = 2;        // frames with no cutscene before the picture returns
+    const u32 cStepBudgetMicros = 9000;   // the extra steps' share of a frame, in microseconds of wall time (not of play)
+    const s32 cStepsPerFrameMax = 40;
+    const s32 cStallSteps = NebulaFrameClock::stepsOfSeconds(10);          // a demo's clock held this long waits on the player: the skip ends there
+
+    // The demos + skips, by their time sheets; EscapeDriverApr only in the launch star lessons.
+    const char* const cSkippableSheets[] = {
+        // The Comet Observatory's story
+        "RossetaTalk1", "RosettaDomeRecoverDemo", "RosettaToachProgressDemo", "RosettaSuperGStarDemo",
+        "RosettaGalaxyCoreDemo", "RosettaFinalBattleDemo", "RosettaKoopaExplainDemo", "RosettaLuigiDemo",
+        "RosettaAstroToadsDemo", "LuigiLostDemo", "ButlerReport", "RosettaReading", "EpDemo",
+        // Lessons the game starts itself
+        "TicoGuideDemo", "SpinGetDemo", "ReadStar", "ButlerDomeLecture1", "ButlerDomeLecture2", "ButlerMapLecture",
+        "ButlerStarPiece1", "ButlerStarPiece2", "ButlerGreenDriverExplain", "RosettaComet", "RosettaLightExplainDemo",
+        "CaptainEntry", "CageBroken", "EscapeDriverApr",
+        // Stars returning to the Observatory
+        "GalaxyPowerStarReturn", "DomeStarReturn", "GrandStarReturn1", "GrandStarReturn2", "GrandStarReturn3",
+        "GrandStarReturn4", "GrandStarReturn5", "GrandStarReturn6", "GalaxyGrandStarReturn",
+        // Bosses
+        "KoopaVs1Start", "KoopaVs1Down", "KoopaVs2Start", "KoopaVs2Down", "KoopaVs3Start", "KoopaMeetPeach",
+        "KoopaJrAppearTripod", "KoopaJrAppearOtaKing", "KoopaJrShipBattle", "MechanicKoopaExplosion", "BossBegomanEntry",
+        "SkeletalFishBossDemo", "MeraKingOpening", "StinkBugParent", "HoneyQueenFirst", "WormAppear",
+    };
+
+    // The bosses whose own code starts their scenes (no time sheet), by their placement names.
+    const char* const cSkippableStarters[] = {
+        "KoopaVs1", "KoopaVs2", "KoopaVs3", "TripodBoss", "TombSpider", "Polta", "DinoPackun", "DinoPackunVs2",
+        "BossKameck", "BossKameck2", "BossStinkBug", "Dodoryu", "IceMerameraKing", "SkeletalFishBoss", "BossBegoman",
+        "OtaKing", "KoopaJrShip",
+    };
+
+    State sState = State_Idle;
+    const DemoExecutor* sStallExecutor = nullptr;  // the demo clock last seen, and for how many steps it has held
+    s32 sStallStep = -1;
+    s32 sStallSteps = 0;
+    SysInfoWindow* sWindow = nullptr;
+    bool sNeedRelease = false;  // + was held when the last prompt or skip ended
+    bool sGuidanceWasActive = false;  // the pointer guidance, off while the question is up (it draws over it)
+    bool sSkipDemo = false;     // the skip runs a demo on (else it stops a movie)
+    bool sMovieSkip = false;
+    bool sEndRequested = false;
+    s32 sQuietFrames = 0;
+    NebulaCutsceneSkipBound sBound;  // a skip that has not ended by then shows the game as it is
+    s32 sFadeFrames = 0;
+    s32 sFrameSteps = 0;
+    s64 sFrameStart = 0;  // NebulaClock
+
+    bool isGameSceneRunning() {
+        GameSystem* pSystem = SingletonHolder< GameSystem >::get();
+        if (pSystem == nullptr || pSystem->mSceneController == nullptr) {
+            return false;
+        }
+        GameSystemSceneController* pController = pSystem->mSceneController;
+        return pController->isExistSceneObjHolder() && pController->isSceneInitializeState(SceneInitializeState_End) &&
+               pController->mCurrSceneControlInfo.mScene == SceneKind_Game;
+    }
+
+    const DemoDirector* getActiveDemo() {
+        if (!MR::isExistSceneObj(SceneObj_DemoDirector)) {
+            return nullptr;
+        }
+        const DemoDirector* pDirector = DemoFunction::getDemoDirector();
+        return pDirector->mIsActive && pDirector->mDemoName != nullptr ? pDirector : nullptr;
+    }
+
+    // A time-keep demo's executor: the director's own, or the one its name finds (a demo the game requested).
+    const DemoExecutor* getExecutor(const DemoDirector* pDirector) {
+        return pDirector->mExecutor != nullptr ? pDirector->mExecutor : DemoFunction::findDemoExecutor(pDirector->mDemoName);
+    }
+
+    bool isSkippableExecutor(const DemoExecutor* pExecutor) {
+        if (pExecutor == sStallExecutor && sStallSteps >= cStallSteps && pExecutor->mTimeKeeper != nullptr &&
+            pExecutor->mTimeKeeper->mCurrentStep + pExecutor->mTimeKeeper->mElapsedStep * 0x10000 == sStallStep) {
+            return false;  // the last skip left it waiting on the player
+        }
+        const char* pSheet = pExecutor->mSheetName;
+        if (pSheet == nullptr) {
+            return false;
+        }
+        for (u32 i = 0; i < sizeof(cSkippableSheets) / sizeof(cSkippableSheets[0]); i++) {
+            if (!MR::isEqualString(pSheet, cSkippableSheets[i])) {
+                continue;
+            }
+            if (!MR::isEqualString(pSheet, "EscapeDriverApr")) {
+                return true;
+            }
+            // Its lesson (MarioLancherLecture3Zone), not a level's launch star appearing.
+            const char* pZone = pExecutor->mInfo != nullptr ? MR::getZoneNameFromZoneId(pExecutor->mInfo->mZoneID) : nullptr;
+            return pZone != nullptr && strstr(pZone, "Lecture") != nullptr;
+        }
+        return false;
+    }
+
+    // Placed objects are named by the stage's table of Japanese names (PlacementInfoOrdered).
+    bool isSkippableStarter(const NameObj* pStarter) {
+        if (pStarter == nullptr || pStarter->mName == nullptr) {
+            return false;
+        }
+        for (u32 i = 0; i < sizeof(cSkippableStarters) / sizeof(cSkippableStarters[0]); i++) {
+            if (MR::isEqualString(pStarter->mName, MR::getJapaneseObjectName(cSkippableStarters[i]))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool isSkippableDemo(const DemoDirector* pDirector) {
+        const DemoExecutor* pExecutor = getExecutor(pDirector);
+        return pExecutor != nullptr ? isSkippableExecutor(pExecutor) : isSkippableStarter(pDirector->mDemoStarter);
+    }
+
+    // What + skips now. Asked only when + is pressed and while a skip runs.
+    bool isSkippableNow() {
+        if (!isGameSceneRunning() || GameSequenceFunction::isActiveSaveDataHandleSequence()) {
+            return false;
+        }
+        // A movie: the game's own always; a mod's when its cook says it may be skipped (luma::movie::isSkippable).
+        if (MR::isActiveMoviePlayer()) {
+            return luma::movie::isSkippable();
+        }
+        if (GameSceneFunction::isExecScenarioOpeningCamera()) {
+            return true;
+        }
+        const DemoDirector* pDirector = getActiveDemo();
+        return pDirector != nullptr && isSkippableDemo(pDirector);
+    }
+
+    // The log's name for what runs: a time sheet, or the starter's name.
+    void report(const char* pWhat) {
+        const bool isScene = isGameSceneRunning();
+        const DemoDirector* pDirector = isScene ? getActiveDemo() : nullptr;
+        const DemoExecutor* pExecutor = pDirector != nullptr ? getExecutor(pDirector) : nullptr;
+        nebula_log("cutscene skip: %s (%s%s%s%s)\n", pWhat, MR::isActiveMoviePlayer() ? "movie" : "",
+                 isScene && GameSceneFunction::isExecScenarioOpeningCamera() ? "opening camera" : "",
+                 pExecutor != nullptr && pExecutor->mSheetName != nullptr ? pExecutor->mSheetName : "",
+                 pExecutor == nullptr && pDirector != nullptr && pDirector->mDemoStarter != nullptr ? pDirector->mDemoStarter->mName : "");
+    }
+
+    // A time-keep demo whose clock has not moved for cStallSteps waits on the player (an action, not a page).
+    bool isStalled() {
+        const DemoDirector* pDirector = getActiveDemo();
+        const DemoExecutor* pExecutor = pDirector != nullptr ? getExecutor(pDirector) : nullptr;
+        if (pExecutor == nullptr || pExecutor->mTimeKeeper == nullptr) {
+            sStallExecutor = nullptr;
+            sStallSteps = 0;
+            return false;
+        }
+        const s32 step = pExecutor->mTimeKeeper->mCurrentStep + pExecutor->mTimeKeeper->mElapsedStep * 0x10000;
+        if (pExecutor != sStallExecutor || step != sStallStep) {
+            sStallExecutor = pExecutor;
+            sStallStep = step;
+            sStallSteps = 0;
+            return false;
+        }
+        return ++sStallSteps >= cStallSteps;
+    }
+
+    // The question in the played language (NebulaText; the game's own Yes and No answer it), its lines broken as
+    // the game's messages are (its text boxes do not wrap).
+    MR::GrowBuffer< char16_t > sQuestion;
+
+    const char16_t* promptText() {
+        return NebulaText::get(&sQuestion, "SkipCutsceneQuestion");
+    }
+
+    void mute(bool on) {
+        AudSystem* pSystem = AudWrap::getSystem();
+        if (pSystem != nullptr) {
+            pSystem->muteForCutsceneSkip(on);
+        }
+    }
+
+    void silenceSe(bool silent) {
+        AudSystem* pSystem = AudWrap::getSystem();
+        if (pSystem != nullptr) {
+            pSystem->silenceSeForCutsceneSkip(silent);
+        }
+    }
+
+    // A benchmark run holds its stage under full black until play (NebulaBenchmarkState::cover): what plays there is
+    // skipped unasked, its opening tour first (the run measures play).
+    bool isRunCovered() {
+        const NebulaHostServices* const pHost = nebula_host();
+        NebulaBenchmarkState run;
+        return pHost->benchmark_state != nullptr && pHost->benchmark_state(pHost->user, &run) != 0 && run.cover >= 255u &&
+               run.stopping == 0;
+    }
+
+    // The picture and sound fade back in as the game's own fades do.
+    void finishSkip(const char* pWhy) {
+        sState = State_Idle;
+        sMovieSkip = false;
+        sEndRequested = false;
+        sNeedRelease = true;
+        MR::openSystemWipeFade();
+        mute(false);
+        silenceSe(false);
+        nebula_log("cutscene skip: done after %d steps, %.1f s (%s)\n", sBound.steps(), (double)sBound.wallSeconds(), pWhy);
+    }
+};  // namespace
+
+namespace NebulaCutsceneSkip {
+    void init() {
+        // The window lasts as long as the process: made in the permanent arena, whatever is current.
+        NebulaArena::CurrentScope home(Arenas::permanent());
+        sWindow = MR::createSysInfoWindow();
+        sWindow->setBackAnswersNo(true);
+        sWindow->kill();
+    }
+
+    void update() {
+        if (sWindow == nullptr) {
+            return;
+        }
+
+        switch (sState) {
+        case State_Idle: {
+            // The HDR calibration's reference stage plays under the settings menu, a benchmark's stage under the run's
+            // cover: their opening tours are skipped unasked (the screen is black meanwhile).
+            const bool covered = NebulaSettingsMenu::isSceneLive() || isRunCovered();
+            if (covered && isSkippableNow()) {
+                sState = State_FadeOut;
+                sFadeFrames = 0;
+                mute(true);
+                MR::closeSystemWipeFade();
+                report(NebulaSettingsMenu::isSceneLive() ? "skipping under the HDR calibration" : "skipping under the benchmark's cover");
+                break;
+            }
+            if (!MR::isHeldPause(PLAYER_1)) {
+                sNeedRelease = false;
+            }
+            if (sNeedRelease || !MR::isPressedPause(PLAYER_1)) {
+                break;
+            }
+            sNeedRelease = true;
+            if (!isSkippableNow()) {
+                if (isGameSceneRunning()) {
+                    report("not offered");
+                }
+                break;
+            }
+            sState = State_Prompt;
+            mute(true);
+            sGuidanceWasActive = MR::isActiveStarPointerGuidance();
+            MR::deactiveStarPointerGuidance();
+            sWindow->appearYesNoWithText(promptText());
+            report("asked");
+            break;
+        }
+        case State_Prompt:
+            // + again answers No.
+            if (!MR::isHeldPause(PLAYER_1)) {
+                sNeedRelease = false;
+            } else if (!sNeedRelease && MR::isPressedPause(PLAYER_1)) {
+                sNeedRelease = true;
+                sWindow->decideNo();
+            }
+            MR::requestStarPointerModeSaveLoad(sWindow);
+            MR::updateStarPointerModeWhileSceneHeld();
+            sWindow->movement();
+            sWindow->calcAnim();
+            if (!MR::isDead(sWindow)) {
+                break;
+            }
+            if (sGuidanceWasActive) {
+                MR::activeStarPointerGuidance();
+            }
+            if (!sWindow->isSelectedYes() || !isSkippableNow()) {
+                sState = State_Idle;
+                mute(false);
+                nebula_log("cutscene skip: declined\n");
+                break;
+            }
+            sState = State_FadeOut;
+            sFadeFrames = 0;
+            MR::closeSystemWipeFade();
+            break;
+        case State_FadeOut:
+            // The scene still holds; the fade runs with the system's layouts.
+            MR::updateStarPointerModeWhileSceneHeld();
+            if (++sFadeFrames < 2 || MR::isSystemWipeActive()) {
+                break;
+            }
+            sState = State_Skipping;
+            sQuietFrames = 0;
+            sFrameSteps = 0;
+            sEndRequested = false;
+            sStallExecutor = nullptr;
+            sStallSteps = 0;
+            sMovieSkip = MR::isActiveMoviePlayer();
+            sSkipDemo = !sMovieSkip;
+            sBound.begin(NebulaClock::nowNs());
+            silenceSe(true);
+            report("skipping");
+            break;
+        case State_Skipping: {
+            const char* pEnd = nullptr;
+            if (sEndRequested) {
+                pEnd = "a question";
+            } else if (!isGameSceneRunning()) {
+                pEnd = "the scene ended";
+            } else if (GameSequenceFunction::isActiveSaveDataHandleSequence()) {
+                pEnd = "a save";
+            } else {
+                // The stall check first: it also says whether the scene's time sheet moved in this step.
+                const bool stalled = sSkipDemo && isStalled();
+                const bool sheetMoved = sSkipDemo && sStallExecutor != nullptr && sStallSteps == 0;
+                if (sBound.step(NebulaClock::nowNs(), sheetMoved)) {
+                    pEnd = "three minutes of play with no time sheet moving";
+                } else if (stalled) {
+                    pEnd = "waits on the player";
+                }
+            }
+            if (pEnd != nullptr) {
+                report("ends");
+                finishSkip(pEnd);
+                break;
+            }
+            if (sSkipDemo ? isSkippableNow() : (sMovieSkip || MR::isActiveMoviePlayer())) {
+                sQuietFrames = 0;
+            } else if (++sQuietFrames >= cEndQuietFrames) {
+                report("ends");
+                finishSkip("the cutscene ended");
+            }
+            break;
+        }
+        }
+    }
+
+    void draw() {
+        if (sWindow != nullptr && !MR::isDead(sWindow)) {
+            sWindow->draw();
+        }
+    }
+
+    bool isFreezingScene() {
+        return sState == State_Prompt || sState == State_FadeOut;
+    }
+
+    bool tryExtraStep() {
+        if (sState != State_Skipping || !sSkipDemo) {
+            sFrameSteps = 0;
+            return false;
+        }
+        if (sFrameSteps == 0) {
+            sFrameStart = NebulaClock::nowNs();
+        }
+        if (sFrameSteps >= cStepsPerFrameMax ||
+            (NebulaClock::nowNs() - sFrameStart) / 1000 >= cStepBudgetMicros) {
+            sFrameSteps = 0;
+            return false;
+        }
+        sFrameSteps++;
+        return true;
+    }
+
+    bool isSkipping() {
+        return sState == State_Skipping;
+    }
+
+    bool takeMovieSkip() {
+        if (sState != State_Skipping || !sMovieSkip) {
+            return false;
+        }
+        sMovieSkip = false;
+        return true;
+    }
+
+    void endForQuestion() {
+        if (sState == State_Skipping) {
+            sEndRequested = true;
+        }
+    }
+};  // namespace NebulaCutsceneSkip
