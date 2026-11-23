@@ -1,0 +1,28 @@
+#pragma once
+
+#include "Game/Screen/WipeLayoutBase.hpp"
+
+class WipeKoopa : public WipeLayoutBase {
+public:
+    WipeKoopa();
+
+    virtual void init(const TableIter&) override;
+    virtual void wipe(s32) override;
+    virtual void forceClose() override;
+    virtual void forceOpen() override;
+    virtual bool isOpen() const override;
+    virtual bool isClose() const override;
+    virtual bool isWipeIn() const override;
+    virtual bool isWipeOut() const override;
+
+    virtual s32 getWipeType() const override {
+        return 2;
+    }
+
+    void exeWait();
+    void exeWipeOut();
+    void exeClose();
+
+private:
+    s32 mFrame;
+};

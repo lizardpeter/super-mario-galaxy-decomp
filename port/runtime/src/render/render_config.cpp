@@ -1,0 +1,891 @@
+// The rendering settings: config.ini loading and saving, and the data folders beside config.ini.
+#include "galaxy/portable.h"
+#include "galaxy/render/render_config.h"
+#include "galaxy/render/post_process_settings.h"
+#include "galaxy/atomic_file.h"
+#include "galaxy/benchmark.h"
+#include "galaxy/launch_args.h"
+#include "galaxy/platform_paths.h"
+#include "galaxy/luma_system_platform.h"
+
+#include <algorithm>
+#include <array>
+#include <bit>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cerrno>
+#include <cctype>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <filesystem>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <mutex>
+#include <shared_mutex>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
+
+#if defined(_WIN32)
+#pragma comment(lib, "Shell32.lib")
+#endif
+
+namespace galaxy::render {
+
+namespace {
+
+// Guarded by s_lock.
+static RenderConfig s_config{};
+static RenderFeatureCaps s_feature_caps{};
+static std::shared_mutex s_lock;
+// Raised, under s_lock, with every write of s_config: a reader's kept copy is current while the number is the same.
+static std::atomic<std::uint64_t> s_config_generation{1u};
+// Last-write time of config.ini when this process last read or wrote it.
+static std::uint64_t s_config_write_time = 0u;
+// The gpu config.ini named when this process last read or wrote it (next_start_gpu).
+static std::array<char, 32> s_file_gpu{};
+// s_file_gpu was chosen in the game's menu (choose_next_start_gpu): saves write it, not what the file holds.
+static bool s_gpu_chosen_here = false;
+// The renderer config.ini named when this process last read or wrote it, and whether the menu chose it (as the gpu's).
+static unsigned s_file_renderer = 0u;
+static bool s_renderer_chosen_here = false;
+// No config.ini when the process started (render_config_first_start).
+static std::atomic<bool> s_first_start{false};
+
+static std::uint64_t file_write_time(const std::filesystem::path& path) noexcept {
+#if defined(_WIN32)
+    WIN32_FILE_ATTRIBUTE_DATA data{};
+    if (path.empty() || !GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data)) {
+        return 0u;
+    }
+    return (static_cast<std::uint64_t>(data.ftLastWriteTime.dwHighDateTime) << 32u) |
+        data.ftLastWriteTime.dwLowDateTime;
+#else
+    std::error_code error;
+    const auto time = path.empty() ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(path, error);
+    return path.empty() || error ? 0u : static_cast<std::uint64_t>(time.time_since_epoch().count());
+#endif
+}
+
+static std::string trim_text(std::string_view text) {
+    std::size_t begin = 0;
+    while (begin < text.size() && (text[begin] == ' ' || text[begin] == '\t')) ++begin;
+    std::size_t end = text.size();
+    while (end > begin && (text[end - 1] == ' ' || text[end - 1] == '\t' || text[end - 1] == '\r' || text[end - 1] == '\n')) --end;
+    return std::string(text.substr(begin, end - begin));
+}
+
+static unsigned parse_uint(const char* v, unsigned def) {
+    if (v == nullptr || *v == '\0') return def;
+    for (const unsigned char* p =
+             reinterpret_cast<const unsigned char*>(v); *p != '\0'; ++p) {
+        if (std::isdigit(*p) == 0) return def;
+    }
+    char* end = nullptr;
+    errno = 0;
+    const unsigned long r = std::strtoul(v, &end, 10);
+    return (end != v && *end == '\0' && errno != ERANGE &&
+            r <= std::numeric_limits<unsigned>::max())
+        ? static_cast<unsigned>(r)
+        : def;
+}
+
+static unsigned parse_window_dimension(const char* v, unsigned def) {
+    const unsigned parsed = parse_uint(v, 0u);
+    return parsed >= 1u &&
+            parsed <= static_cast<unsigned>(std::numeric_limits<int>::max())
+        ? parsed
+        : def;
+}
+
+static float parse_float(const char* v, float def) {
+    std::istringstream input(v);
+    input.imbue(std::locale::classic());
+    float value = 0.0f;
+    if (!(input >> value)) return def;
+    input >> std::ws;
+    return input.eof() && std::isfinite(value) && (value == 0.0f || value >= kMinFrameRate) ? value : def;
+}
+
+// max_fps: "unlimited" (kUnlimitedFrameRate), 0 (the display's rate) or a rate of at least kMinFrameRate.
+static float parse_frame_rate(const char* v, float def) {
+    std::string_view text(v);
+    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front()))) text.remove_prefix(1);
+    while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) text.remove_suffix(1);
+    return text == "unlimited" ? kUnlimitedFrameRate : parse_float(v, def);
+}
+
+// max_fps as config.ini holds it (parse_frame_rate reads it back exactly).
+static std::string frame_rate_text(float max_fps) {
+    if (unlimited_frame_rate(max_fps)) return "unlimited";
+    std::ostringstream text;
+    text.imbue(std::locale::classic());
+    text << std::setprecision(std::numeric_limits<float>::max_digits10) << max_fps;
+    return text.str();
+}
+
+static bool parse_bool(const char* v, bool def) {
+    if (std::strcmp(v, "1") == 0 || std::strcmp(v, "true") == 0) return true;
+    if (std::strcmp(v, "0") == 0 || std::strcmp(v, "false") == 0) return false;
+    return def;
+}
+
+// A choice given by index or by name (case-insensitive): names[i] selects i.
+
+template <std::size_t N>
+static unsigned parse_choice(const char* v, const char* const (&names)[N], unsigned def) {
+    if (v == nullptr || *v == '\0') return def;
+    const unsigned index = parse_uint(v, N);
+    if (index < N) return index;
+    for (std::size_t i = 0; i < N; ++i) {
+        if (::galaxy::text_iequal(v, names[i])) return static_cast<unsigned>(i);
+    }
+    return def;
+}
+
+// config.ini's aspect: a name (kAspectNames), or an index of the list before 3:2.
+static unsigned parse_aspect_mode(const char* v, unsigned def) {
+    static constexpr unsigned kBefore3To2[] = {0u, 1u, 3u, 4u, 5u, 6u};
+    if (v == nullptr || *v == '\0') return def;
+    const unsigned index = parse_uint(v, kAspectModeCount);
+    if (index < std::size(kBefore3To2)) return kBefore3To2[index];
+    for (unsigned i = 0; i < kAspectModeCount; ++i) {
+        if (::galaxy::text_iequal(v, kAspectNames[i])) return i;
+    }
+    return def;
+}
+
+static void apply_kv(RenderConfig& cfg, const char* key, const char* val) {
+    if (std::strcmp(key, "vsync_interval") == 0) cfg.vsync_interval      = std::clamp(parse_uint(val, cfg.vsync_interval), 0u, 2u);
+    else if (std::strcmp(key, "msaa_samples")   == 0) cfg.msaa_samples        = std::clamp(parse_uint(val, 1), 1u, 8u);
+    else if (std::strcmp(key, "max_fps")        == 0) cfg.max_fps             = parse_frame_rate(val, cfg.max_fps);
+    else if (std::strcmp(key, "texture_lod_bias") == 0) cfg.texture_lod_bias = std::clamp(parse_uint(val, 0), 0u, 8u);
+    else if (std::strcmp(key, "anisotropic_filtering") == 0) cfg.anisotropic_filtering = std::clamp(parse_uint(val, cfg.anisotropic_filtering), 1u, 16u);
+    else if (std::strcmp(key, "per_pixel_lighting") == 0) cfg.per_pixel_lighting = parse_bool(val, cfg.per_pixel_lighting);
+    else if (std::strcmp(key, "curved_surfaces") == 0) cfg.curved_surfaces = parse_bool(val, cfg.curved_surfaces);
+    else if (std::strcmp(key, "enhanced_lighting") == 0) cfg.enhanced_lighting = parse_bool(val, cfg.enhanced_lighting);
+    else if (std::strcmp(key, "ambient_occlusion") == 0) cfg.ambient_occlusion = parse_bool(val, cfg.ambient_occlusion);
+    else if (std::strcmp(key, "ambient_occlusion_ssao") == 0) cfg.ambient_occlusion_ssao = parse_bool(val, cfg.ambient_occlusion_ssao);
+    else if (std::strcmp(key, "wide_scene") == 0) cfg.wide_scene = parse_bool(val, cfg.wide_scene);
+    else if (std::strcmp(key, "bloom") == 0) cfg.bloom = std::min(parse_uint(val, cfg.bloom), kMaxBloom);
+    else if (std::strcmp(key, "post_process") == 0) cfg.post_process = parse_bool(val, cfg.post_process);
+    else if (std::strcmp(key, "internal_height") == 0) cfg.internal_height = normalized_internal_height(parse_uint(val, cfg.internal_height));
+    else if (std::strcmp(key, "dynamic_resolution") == 0) cfg.dynamic_resolution = parse_bool(val, cfg.dynamic_resolution);
+    else if (std::strcmp(key, "hud_output_resolution") == 0) cfg.hud_output_resolution = parse_bool(val, cfg.hud_output_resolution);
+    else if (std::strcmp(key, "hud_internal_resolution") == 0) cfg.hud_internal_resolution = parse_bool(val, cfg.hud_internal_resolution);
+    else if (std::strcmp(key, "hdr") == 0) cfg.hdr = parse_bool(val, cfg.hdr);
+    else if (std::strcmp(key, "paper_white") == 0) cfg.paper_white = std::clamp(parse_uint(val, cfg.paper_white), 80u, 500u);
+    else if (std::strcmp(key, "hdr_peak") == 0) cfg.hdr_peak = normalized_hdr_peak(parse_uint(val, cfg.hdr_peak));
+    else if (std::strcmp(key, "hdr_black") == 0) cfg.hdr_black = std::min(parse_uint(val, cfg.hdr_black), kHdrBlackSteps);
+    else if (std::strcmp(key, "aa") == 0) {
+        static constexpr const char* kNames[] = {"off", "smaa", "auto", "fxaa"};
+        cfg.aa_mode = parse_choice(val, kNames, cfg.aa_mode);
+    } else if (std::strcmp(key, "smaa_quality") == 0) {
+        static constexpr const char* kNames[] = {"low", "medium", "high", "ultra"};
+        cfg.smaa_quality = parse_choice(val, kNames, cfg.smaa_quality);
+    } else if (std::strcmp(key, "upscaler") == 0) {
+        static constexpr const char* kNames[] = {"bilinear", "fsr", "fsr3", "dlss", "xess", "sgsr2", "metalfx"};
+        cfg.upscaler = parse_choice(val, kNames, cfg.upscaler);
+    } else if (std::strcmp(key, "frame_generation") == 0) {
+        cfg.frame_generation = std::min(parse_uint(val, cfg.frame_generation), 5u);
+    } else if (std::strcmp(key, "temporal_quality") == 0) {
+        static constexpr const char* kNames[] = {
+            "native", "quality", "balanced", "performance", "ultra_performance", "ultra_quality"};
+        cfg.temporal_quality = parse_choice(val, kNames, cfg.temporal_quality);
+    } else if (std::strcmp(key, "spatial_quality") == 0) {
+        static constexpr const char* kNames[] = {
+            "manual", "quality", "balanced", "performance", "ultra_performance", "ultra_quality"};
+        cfg.spatial_quality = parse_choice(val, kNames, cfg.spatial_quality);
+    } else if (std::strcmp(key, "sharpness") == 0) {
+        cfg.sharpness = std::min(parse_uint(val, cfg.sharpness), 100u);
+    }
+    else if (std::strcmp(key, "texture_packs") == 0) cfg.texture_packs = parse_bool(val, cfg.texture_packs);
+    else if (std::strcmp(key, "texture_pack_preload") == 0) cfg.texture_pack_preload = parse_bool(val, cfg.texture_pack_preload);
+    else if (std::strcmp(key, "texture_dump") == 0) cfg.texture_dump = parse_bool(val, cfg.texture_dump);
+    else if (std::strcmp(key, "texture_pack_budget_mb") == 0) cfg.texture_pack_budget_mb = std::clamp(parse_uint(val, cfg.texture_pack_budget_mb), 64u, 65536u);
+    else if (std::strcmp(key, "window_width")   == 0) cfg.window_width        = parse_window_dimension(val, cfg.window_width);
+    else if (std::strcmp(key, "window_height")  == 0) cfg.window_height       = parse_window_dimension(val, cfg.window_height);
+    else if (std::strcmp(key, "display_mode") == 0) {
+        static constexpr const char* kNames[] = {"windowed", "borderless", "fullscreen"};
+        cfg.display_mode = parse_choice(val, kNames, cfg.display_mode);
+    } else if (std::strcmp(key, "monitor") == 0) {
+        cfg.monitor.fill('\0');
+        const std::size_t length = std::min(std::strlen(val), cfg.monitor.size() - 1u);
+        std::memcpy(cfg.monitor.data(), val, length);
+    } else if (std::strcmp(key, "gpu") == 0) {
+        cfg.gpu.fill('\0');
+        const std::size_t length = std::min(std::strlen(val), cfg.gpu.size() - 1u);
+        std::memcpy(cfg.gpu.data(), val, length);
+    } else if (std::strcmp(key, "renderer") == 0) {
+        // A renderer a start can choose; anything else (Metal, a misspelling) is the automatic choice.
+        const std::optional<RendererKind> kind = renderer_from_key(val);
+        cfg.renderer = kind && *kind != RendererKind::kMetal ? static_cast<unsigned>(*kind) : 0u;
+    }
+    else if (std::strcmp(key, "aspect") == 0) {
+        cfg.aspect_mode = parse_aspect_mode(val, cfg.aspect_mode);
+    }
+}
+
+static void parse_ini(FILE* f, RenderConfig& cfg) {
+    // A line longer than this is skipped whole, so its tail does not read as another setting.
+    constexpr std::size_t kMaxLine = 8192;
+    std::string line;
+    for (;;) {
+        line.clear();
+        bool overlong = false;
+        int c = 0;
+        while ((c = std::fgetc(f)) != EOF && c != '\n') {
+            if (line.size() < kMaxLine) {
+                line.push_back(static_cast<char>(c));
+            } else {
+                overlong = true;
+            }
+        }
+        if (c == EOF && line.empty() && !overlong) break;
+        if (overlong) continue;
+        const std::size_t eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        const std::string key = trim_text(std::string_view(line).substr(0, eq));
+        const std::string val = trim_text(std::string_view(line).substr(eq + 1));
+        if (key.empty() || key[0] == '#' || key[0] == ';') continue;
+        apply_kv(cfg, key.c_str(), val.c_str());
+    }
+}
+
+static void clamp_render_config(RenderConfig& cfg) {
+    // Every value into its range.
+    cfg.vsync_interval = std::clamp(cfg.vsync_interval, 0u, 2u);
+    if (!(cfg.max_fps == 0.0f || cfg.max_fps >= kMinFrameRate)) {  // NaN, negative, under kMinFrameRate
+        cfg.max_fps = RenderConfig{}.max_fps;
+    }
+    cfg.texture_lod_bias = std::min(cfg.texture_lod_bias, 8u);
+    cfg.anisotropic_filtering = std::clamp(cfg.anisotropic_filtering, 1u, 16u);
+    cfg.aa_mode = std::min(cfg.aa_mode, 3u);
+    cfg.smaa_quality = std::min(cfg.smaa_quality, 3u);
+#if defined(NEBULA_GPU_METAL)
+    // 6 MetalFX, the last of the names above. The other systems' temporal upscalers (FSR 3, DLSS, XeSS) are not on
+    // Apple devices: a configuration that names one runs the system's own.
+    cfg.upscaler = std::min(cfg.upscaler, 6u);
+    if (cfg.upscaler >= 2u && cfg.upscaler <= 4u) {
+        cfg.upscaler = 6u;
+    }
+#else
+    cfg.upscaler = std::min(cfg.upscaler, 5u);  // 5 SGSR 2; MetalFX (6) is the Metal renderer's
+#endif
+    cfg.frame_generation = std::min(cfg.frame_generation, 5u);
+    cfg.temporal_quality = std::min(cfg.temporal_quality, 5u);  // 5 ultra quality, the last of the names above
+    cfg.spatial_quality = std::min(cfg.spatial_quality, 5u);
+    cfg.internal_height = normalized_internal_height(cfg.internal_height);
+    cfg.sharpness = std::min(cfg.sharpness, 100u);
+    cfg.paper_white = std::clamp(cfg.paper_white, 80u, 500u);  // kPaperWhiteMin, kPaperWhiteMax (post_process_settings.h)
+    cfg.hdr_peak = normalized_hdr_peak(cfg.hdr_peak);
+    cfg.hdr_black = std::min(cfg.hdr_black, kHdrBlackSteps);
+    // Win32 client geometry is int while DXGI's is UINT: keep sizes representable in both.
+    constexpr unsigned kMaxWindowDimension =
+        static_cast<unsigned>(std::numeric_limits<int>::max());
+    cfg.window_width = std::clamp(cfg.window_width, 1u, kMaxWindowDimension);
+    cfg.window_height = std::clamp(cfg.window_height, 1u, kMaxWindowDimension);
+    cfg.display_mode = std::min(cfg.display_mode, kDisplayBorderless);
+    cfg.aspect_mode = std::min(cfg.aspect_mode, kAspectModeCount - 1u);
+    cfg.monitor.back() = '\0';
+    cfg.gpu.back() = '\0';
+    cfg.msaa_samples = std::bit_floor(std::clamp(cfg.msaa_samples, 1u, 8u));
+}
+
+static void sanitize_feature_status(RenderFeatureStatus& status) {
+    status.reason.back() = '\0';
+    if (!status.implemented ||
+        !status.runtime_supported ||
+        !status.renderer_ready) {
+        status.settings_exposed = false;
+    }
+}
+
+static void clamp_feature_caps(RenderFeatureCaps& caps) {
+    caps.adapter_description.back() = '\0';
+    if (!caps.streamline_bridge_built) {
+        caps.streamline.implemented = false;
+        caps.streamline.runtime_supported = false;
+        caps.streamline.renderer_ready = false;
+    }
+
+    sanitize_feature_status(caps.msaa);
+    sanitize_feature_status(caps.taa);
+    sanitize_feature_status(caps.streamline);
+    sanitize_feature_status(caps.reflex);
+    sanitize_feature_status(caps.dlss_super_resolution);
+    sanitize_feature_status(caps.dlss_frame_generation);
+
+    if (!caps.streamline.implemented ||
+        !caps.streamline.runtime_supported ||
+        !caps.streamline.renderer_ready) {
+        caps.reflex.settings_exposed = false;
+        caps.dlss_super_resolution.settings_exposed = false;
+        caps.dlss_frame_generation.settings_exposed = false;
+    }
+    if (!caps.reflex.implemented ||
+        !caps.reflex.runtime_supported ||
+        !caps.reflex.renderer_ready) {
+        caps.dlss_frame_generation.settings_exposed = false;
+    }
+}
+
+static std::filesystem::path config_path() {
+    const std::filesystem::path& named = galaxy::launch_args().settings;
+    const std::filesystem::path folder = named.empty() ? galaxy::nebula_data_directory() : named;
+    return folder.empty() ? folder : folder / "config.ini";
+}
+
+}  // namespace
+
+namespace {
+std::atomic<bool> s_present_waits_for_refresh{false};
+}  // namespace
+
+void set_present_waits_for_refresh(bool waits) noexcept {
+    s_present_waits_for_refresh.store(waits, std::memory_order_relaxed);
+}
+
+bool present_waits_for_refresh() noexcept { return s_present_waits_for_refresh.load(std::memory_order_relaxed); }
+
+RenderConfig get_render_config_chosen() {
+    // Each thread keeps the copy it took last and takes the lock only when a write has moved the generation.
+    thread_local std::uint64_t seen = 0u;
+    thread_local RenderConfig copy{};
+    if (s_config_generation.load(std::memory_order_acquire) != seen) {
+        s_lock.lock_shared();
+        copy = s_config;
+        seen = s_config_generation.load(std::memory_order_relaxed);
+        s_lock.unlock_shared();
+    }
+    return copy;
+}
+
+RenderConfig get_render_config() {
+    RenderConfig copy = get_render_config_chosen();
+    if (copy.vsync_interval == 0u && present_waits_for_refresh()) {
+        copy.vsync_interval = 1u;
+    }
+    return copy;
+}
+
+namespace {
+std::atomic<bool> s_frame_generation_running{false};
+std::atomic<bool> s_frame_generation_allowed{false};
+// When the game's latest frame generation report came (steady clock, ms; 0 none yet).
+std::atomic<std::int64_t> s_frame_generation_report_ms{0};
+constexpr std::int64_t kFrameGenerationReportMs = 100;
+
+std::int64_t steady_ms() noexcept {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+}  // namespace
+
+void set_frame_generation_running(bool running) noexcept {
+    s_frame_generation_running.store(running, std::memory_order_relaxed);
+}
+
+bool frame_generation_running() noexcept { return s_frame_generation_running.load(std::memory_order_relaxed); }
+
+void note_frame_generation_allowed(bool allowed) noexcept {
+    s_frame_generation_allowed.store(allowed, std::memory_order_relaxed);
+    s_frame_generation_report_ms.store(steady_ms(), std::memory_order_relaxed);
+}
+
+bool frame_generation_allowed() noexcept {
+    const std::int64_t at = s_frame_generation_report_ms.load(std::memory_order_relaxed);
+    return s_frame_generation_allowed.load(std::memory_order_relaxed) && at != 0 &&
+           steady_ms() - at < kFrameGenerationReportMs;
+}
+
+RenderTimingConfig resolve_frame_timing_config_from_environment() {
+    return RenderTimingConfig{};
+}
+
+const RenderTimingConfig& get_frame_timing_config() {
+    static const RenderTimingConfig config =
+        resolve_frame_timing_config_from_environment();
+    return config;
+}
+
+RenderFeatureStatus make_render_feature_status(
+    bool implemented,
+    bool runtime_supported,
+    bool renderer_ready,
+    bool settings_exposed,
+    const char* reason) {
+    RenderFeatureStatus status{};
+    status.implemented = implemented;
+    status.runtime_supported = runtime_supported;
+    status.renderer_ready = renderer_ready;
+    status.settings_exposed = settings_exposed;
+    if (reason != nullptr) {
+        std::snprintf(
+            status.reason.data(),
+            status.reason.size(),
+            "%s",
+            reason);
+    }
+    return status;
+}
+
+namespace {
+std::atomic<bool> s_curved_surfaces_offered{false};
+std::atomic<bool> s_dynamic_resolution_offered{false};
+}  // namespace
+
+void set_dynamic_resolution_offered(bool offered) noexcept {
+    s_dynamic_resolution_offered.store(offered, std::memory_order_relaxed);
+}
+
+bool dynamic_resolution_offered() noexcept {
+    return s_dynamic_resolution_offered.load(std::memory_order_relaxed);
+}
+
+void set_curved_surfaces_offered(bool offered) noexcept {
+    s_curved_surfaces_offered.store(offered, std::memory_order_relaxed);
+}
+
+bool curved_surfaces_offered() noexcept {
+    return s_curved_surfaces_offered.load(std::memory_order_relaxed);
+}
+
+void set_render_config(const RenderConfig& cfg) {
+    RenderConfig sanitized = cfg;
+    clamp_render_config(sanitized);
+    s_lock.lock();
+    s_config = sanitized;
+    s_config_generation.fetch_add(1u, std::memory_order_release);
+    s_lock.unlock();
+}
+
+RenderFeatureCaps get_render_feature_caps() {
+    s_lock.lock_shared();
+    const RenderFeatureCaps copy = s_feature_caps;
+    s_lock.unlock_shared();
+    return copy;
+}
+
+void set_render_feature_caps(const RenderFeatureCaps& caps) {
+    RenderFeatureCaps sanitized = caps;
+    clamp_feature_caps(sanitized);
+    s_lock.lock();
+    s_feature_caps = sanitized;
+    s_lock.unlock();
+}
+
+void load_render_config_from_file() {
+    RenderConfig cfg = get_render_config_chosen();
+    // A file without the keys is the automatic choice.
+    cfg.gpu.fill('\0');
+    cfg.renderer = 0u;
+
+    const std::filesystem::path path = config_path();
+    const std::uint64_t write_time = file_write_time(path);
+    std::error_code missing;
+    s_first_start.store(!path.empty() && !std::filesystem::exists(path, missing) && !missing, std::memory_order_relaxed);
+    if (!path.empty()) {
+        FILE* f = galaxy::open_path(path, "r");
+        if (f != nullptr) {
+            parse_ini(f, cfg);
+            std::fclose(f);
+        }
+    }
+    std::array<char, 32> file_gpu = cfg.gpu;
+    file_gpu.back() = '\0';
+
+    clamp_render_config(cfg);
+
+    s_lock.lock();
+    s_config = cfg;
+    s_config_generation.fetch_add(1u, std::memory_order_release);
+    s_config_write_time = write_time;
+    s_file_gpu = file_gpu;
+    s_file_renderer = cfg.renderer;
+    s_lock.unlock();
+}
+
+bool render_config_first_start() noexcept {
+    return s_first_start.load(std::memory_order_relaxed);
+}
+
+unsigned first_start_internal_height(bool shared_memory, unsigned output_lines) noexcept {
+    const unsigned height = shared_memory ? 480u : 1080u;
+    return output_lines > height ? height : 0u;
+}
+
+void apply_performance_preset(RenderConfig& cfg) noexcept {
+    cfg.internal_height = 480u;
+    cfg.upscaler = 0u;
+    // The display's own rate, held by dynamic resolution where the device falls behind (not a fixed 60: the game's step
+    // is the only fixed rate).
+    cfg.dynamic_resolution = true;
+    cfg.frame_generation = 0u;
+    cfg.aa_mode = 0u;
+    cfg.msaa_samples = 1u;
+    cfg.sharpness = 0u;
+    cfg.ambient_occlusion = false;
+    cfg.bloom = 0u;
+    cfg.enhanced_lighting = false;
+    cfg.per_pixel_lighting = false;
+    cfg.anisotropic_filtering = 1u;
+    cfg.hud_output_resolution = false;
+    cfg.hud_internal_resolution = true;
+    cfg.hdr = false;
+    cfg.max_fps = 0.0f;
+}
+
+void apply_benchmark_presenting(RenderConfig& cfg) noexcept {
+    cfg.vsync_interval = 0u;
+    cfg.frame_generation = 0u;
+    cfg.max_fps = kUnlimitedFrameRate;
+}
+
+bool reload_render_config_if_changed() {
+    const std::filesystem::path path = config_path();
+    const std::uint64_t write_time = file_write_time(path);
+    s_lock.lock_shared();
+    const std::uint64_t known = s_config_write_time;
+    s_lock.unlock_shared();
+    if (write_time == 0u || write_time == known) {
+        return false;
+    }
+    RenderConfig cfg = get_render_config_chosen();
+    FILE* f = galaxy::open_path(path, "r");
+    if (f == nullptr) {
+        return false;  // Being replaced; the next check reads it.
+    }
+    // The device was created on the session's GPU by its renderer; a new choice is for the next start.
+    const std::array<char, 32> session_gpu = cfg.gpu;
+    const unsigned session_renderer = cfg.renderer;
+    cfg.gpu.fill('\0');
+    cfg.renderer = 0u;
+    parse_ini(f, cfg);
+    std::fclose(f);
+    std::array<char, 32> file_gpu = cfg.gpu;
+    file_gpu.back() = '\0';
+    const unsigned file_renderer = cfg.renderer;
+    cfg.gpu = session_gpu;
+    cfg.renderer = session_renderer;
+    clamp_render_config(cfg);
+
+    s_lock.lock();
+    s_config = cfg;
+    s_config_generation.fetch_add(1u, std::memory_order_release);
+    s_config_write_time = write_time;
+    s_file_gpu = file_gpu;
+    s_gpu_chosen_here = false;  // an edit made outside the game is the newer choice
+    s_file_renderer = file_renderer;
+    s_renderer_chosen_here = false;
+    s_lock.unlock();
+    return true;
+}
+
+bool save_render_config_to_file() {
+    if (galaxy::bench::running()) {
+        return false;  // a benchmark's settings are its own, never the player's file
+    }
+    s_lock.lock_shared();
+    RenderConfig cfg = s_config;
+    std::array<char, 32> gpu = s_file_gpu;
+    unsigned renderer = s_file_renderer;
+    s_lock.unlock_shared();
+    clamp_render_config(cfg);
+    const std::filesystem::path path = config_path();
+    if (path.empty()) {
+        return false;
+    }
+    // The GPU and the renderer the menu chose; else those the file names now (an edit made outside the game since it
+    // last read it).
+    s_lock.lock_shared();
+    const bool gpu_chosen_here = s_gpu_chosen_here;
+    const bool renderer_chosen_here = s_renderer_chosen_here;
+    s_lock.unlock_shared();
+    if (!gpu_chosen_here || !renderer_chosen_here) {
+        if (FILE* f = galaxy::open_path(path, "r"); f != nullptr) {
+            RenderConfig file{};
+            parse_ini(f, file);
+            std::fclose(f);
+            if (!gpu_chosen_here) gpu = file.gpu;
+            if (!renderer_chosen_here) renderer = file.renderer;
+        }
+        gpu.back() = '\0';
+    }
+
+    std::ostringstream contents;
+    contents.imbue(std::locale::classic());
+    contents << "vsync_interval=" << cfg.vsync_interval << '\n'
+             << std::setprecision(std::numeric_limits<float>::max_digits10)
+             << "max_fps=" << frame_rate_text(cfg.max_fps) << '\n'
+             << "texture_lod_bias=" << cfg.texture_lod_bias << '\n'
+             << "anisotropic_filtering="
+             << std::clamp(cfg.anisotropic_filtering, 1u, 16u) << '\n'
+             << "curved_surfaces="
+             << (cfg.curved_surfaces ? 1u : 0u) << '\n'
+             << "per_pixel_lighting="
+             << (cfg.per_pixel_lighting ? 1u : 0u) << '\n'
+             << "enhanced_lighting="
+             << (cfg.enhanced_lighting ? 1u : 0u) << '\n'
+             << "ambient_occlusion="
+             << (cfg.ambient_occlusion ? 1u : 0u) << '\n'
+             << "bloom=" << std::min(cfg.bloom, kMaxBloom) << '\n'
+             << "wide_scene=" << (cfg.wide_scene ? 1u : 0u) << '\n'
+             << "ambient_occlusion_ssao=" << (cfg.ambient_occlusion_ssao ? 1u : 0u) << '\n'
+             << "aa=" << cfg.aa_mode << '\n'
+             << "smaa_quality=" << cfg.smaa_quality << '\n'
+             << "msaa_samples=" << cfg.msaa_samples << '\n'
+             << "upscaler=" << cfg.upscaler << '\n'
+             << "frame_generation=" << cfg.frame_generation << '\n'
+             << "temporal_quality=" << cfg.temporal_quality << '\n'
+             << "internal_height=" << cfg.internal_height << '\n'
+             << "dynamic_resolution=" << (cfg.dynamic_resolution ? 1u : 0u) << '\n'
+             << "spatial_quality=" << cfg.spatial_quality << '\n'
+             << "sharpness=" << cfg.sharpness << '\n'
+             << "hdr=" << (cfg.hdr ? 1u : 0u) << '\n'
+             << "paper_white=" << cfg.paper_white << '\n'
+             << "hdr_peak=" << cfg.hdr_peak << '\n'
+             << "hdr_black=" << cfg.hdr_black << '\n'
+             << "hud_output_resolution="
+             << (cfg.hud_output_resolution ? 1u : 0u) << '\n'
+             << "hud_internal_resolution="
+             << (cfg.hud_internal_resolution ? 1u : 0u) << '\n'
+             << "texture_packs=" << (cfg.texture_packs ? 1u : 0u) << '\n'
+             << "texture_pack_preload=" << (cfg.texture_pack_preload ? 1u : 0u) << '\n'
+             << "texture_dump=" << (cfg.texture_dump ? 1u : 0u) << '\n'
+             << "texture_pack_budget_mb=" << cfg.texture_pack_budget_mb << '\n'
+             << "window_width=" << cfg.window_width << '\n'
+             << "window_height=" << cfg.window_height << '\n'
+             << "display_mode=" << cfg.display_mode << '\n'
+             << "monitor=" << cfg.monitor.data() << '\n'
+             << "gpu=" << gpu.data() << '\n'
+             << "renderer=" << renderer_key(static_cast<RendererKind>(renderer)) << '\n'
+             << "aspect=" << kAspectNames[std::min(cfg.aspect_mode, kAspectModeCount - 1u)] << '\n';
+    if (!contents) {
+        return false;
+    }
+    if (!io::write_file_atomically(path, contents.str())) {
+        return false;
+    }
+    // This process's own write is not a change to take back in.
+    const std::uint64_t write_time = file_write_time(path);
+    s_lock.lock();
+    s_config_write_time = write_time;
+    s_file_gpu = gpu;
+    s_file_renderer = renderer;
+    s_lock.unlock();
+    return true;
+}
+
+std::string gpu_identity(unsigned vendor_id, unsigned device_id, unsigned subsys_id) {
+    char text[32]{};
+    std::snprintf(text, sizeof(text), "%04x:%04x:%08x", vendor_id & 0xFFFFu, device_id & 0xFFFFu, subsys_id);
+    return text;
+}
+
+std::string next_start_gpu() {
+    s_lock.lock_shared();
+    const std::array<char, 32> gpu = s_file_gpu;
+    s_lock.unlock_shared();
+    return gpu.data();
+}
+
+namespace {
+std::mutex s_gpu_choices_lock;
+std::vector<GpuChoice> s_gpu_choices;
+}  // namespace
+
+void record_gpu_choices(std::vector<GpuChoice> choices) noexcept {
+    const std::lock_guard<std::mutex> lock(s_gpu_choices_lock);
+    s_gpu_choices = std::move(choices);
+}
+
+std::vector<GpuChoice> gpu_choices() {
+    const std::lock_guard<std::mutex> lock(s_gpu_choices_lock);
+    return s_gpu_choices;
+}
+
+bool choose_next_start_gpu(const std::string& identity, RendererKind renderer) {
+    std::array<char, 32> gpu{};
+    if (identity.size() >= gpu.size() || renderer == RendererKind::kMetal) return false;
+    std::memcpy(gpu.data(), identity.data(), identity.size());
+    s_lock.lock();
+    s_file_gpu = gpu;
+    s_gpu_chosen_here = true;
+    s_file_renderer = static_cast<unsigned>(renderer);
+    s_renderer_chosen_here = true;
+    s_lock.unlock();
+    return save_render_config_to_file();
+}
+
+RendererKind next_start_renderer() {
+    s_lock.lock_shared();
+    const unsigned renderer = s_file_renderer;
+    s_lock.unlock_shared();
+    return static_cast<RendererKind>(renderer);
+}
+
+bool choose_next_start_renderer(RendererKind renderer) {
+    if (renderer == RendererKind::kMetal) return false;
+    s_lock.lock();
+    s_file_renderer = static_cast<unsigned>(renderer);
+    s_renderer_chosen_here = true;
+    s_lock.unlock();
+    return save_render_config_to_file();
+}
+
+RendererKind renderer_in_settings_file() {
+    RenderConfig file{};
+    if (const std::filesystem::path path = config_path(); !path.empty()) {
+        if (FILE* f = galaxy::open_path(path, "r"); f != nullptr) {
+            parse_ini(f, file);
+            std::fclose(f);
+        }
+    }
+    return static_cast<RendererKind>(file.renderer);
+}
+
+namespace {
+std::mutex s_adapter_lock;
+RenderAdapter s_adapter;
+}  // namespace
+
+RenderAdapter render_adapter() {
+    const std::lock_guard<std::mutex> lock(s_adapter_lock);
+    return s_adapter;
+}
+
+void record_render_driver(std::string version) noexcept {
+    // In the log beside the [gpu] adapter line: a test's pictures are approved for one adapter and driver.
+    std::printf("[gpu] driver=%s\n", version.empty() ? "unknown" : version.c_str());
+    std::fflush(stdout);
+    const std::lock_guard<std::mutex> lock(s_adapter_lock);
+    s_adapter.driver = std::move(version);
+}
+
+void record_render_adapter(const char* description, unsigned vendor_id, unsigned device_id,
+                           unsigned subsys_id) noexcept {
+    // LumaCore's system facts (services-system 3): this build's renderer and its device, whatever the config.
+#if defined(NEBULA_GPU_METAL)
+    constexpr std::uint32_t renderer = LUMA_SYSTEM_METAL;
+#elif defined(NEBULA_GPU_VULKAN)
+    constexpr std::uint32_t renderer = LUMA_SYSTEM_VULKAN;
+#else
+    constexpr std::uint32_t renderer = LUMA_SYSTEM_D3D12;
+#endif
+    galaxy::luma_system::set_renderer(renderer, description != nullptr ? description : "");
+    try {
+        {
+            const std::lock_guard<std::mutex> lock(s_adapter_lock);
+            s_adapter = {description != nullptr ? description : "", vendor_id, device_id, {}};
+        }
+        const std::filesystem::path config = config_path();
+        if (config.empty() || description == nullptr || galaxy::bench::running()) {
+            return;  // a benchmark writes nothing in the settings folder (adapter.ini included)
+        }
+        std::string name(description);
+        name.resize(std::min<std::size_t>(name.size(), 255u));
+        for (char& c : name) {
+            if (c == '\r' || c == '\n') c = ' ';
+        }
+        std::ostringstream contents;
+        contents.imbue(std::locale::classic());
+        contents << "description=" << name << '\n'
+                 << "vendor_id=" << vendor_id << '\n'
+                 << "device_id=" << device_id << '\n'
+                 << "id=" << gpu_identity(vendor_id, device_id, subsys_id) << '\n';
+        static_cast<void>(io::write_file_atomically(config.parent_path() / L"adapter.ini", contents.str()));
+    } catch (...) {
+    }
+}
+
+namespace {
+
+// A folder beside config.ini.
+std::filesystem::path data_folder(const char* folder) {
+    const std::filesystem::path config = config_path();
+    return config.empty() ? std::filesystem::path{} : config.parent_path() / folder;
+}
+
+std::mutex s_mod_folders_mutex;
+std::vector<std::filesystem::path> s_mod_folders;
+std::vector<std::uint32_t> s_mod_categories_off;
+std::atomic<std::uint64_t> s_mod_folders_generation{0};
+std::vector<std::filesystem::path> s_movie_folders;
+std::atomic<std::uint64_t> s_movie_folders_generation{0};
+std::string s_texture_pack_game_id = "RMGE01";  // TexturePacks::kGameId until the host sets the disc's
+
+}  // namespace
+
+std::filesystem::path texture_dump_directory() {
+    return data_folder("TextureDumps");
+}
+
+void set_texture_pack_mod_folders(std::vector<std::filesystem::path> folders, std::vector<std::uint32_t> categories_off) {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    s_mod_folders = std::move(folders);
+    categories_off.resize(s_mod_folders.size(), 0u);
+    s_mod_categories_off = std::move(categories_off);
+    s_mod_folders_generation.fetch_add(1u, std::memory_order_release);
+}
+
+void set_texture_pack_game_id(std::string id) {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    s_texture_pack_game_id = std::move(id);
+}
+
+std::string texture_pack_game_id() {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    return s_texture_pack_game_id;
+}
+
+std::vector<std::filesystem::path> texture_pack_mod_folders() {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    return s_mod_folders;
+}
+
+std::vector<std::uint32_t> texture_pack_mod_categories_off() {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    return s_mod_categories_off;
+}
+
+std::uint64_t texture_pack_mod_folders_generation() noexcept {
+    return s_mod_folders_generation.load(std::memory_order_acquire);
+}
+
+std::filesystem::path movie_directory() {
+    static const std::filesystem::path folder = data_folder("Movies");
+    return folder;
+}
+
+std::filesystem::path render_config_path() {
+    return config_path();
+}
+
+std::filesystem::path shader_cache_directory() {
+    const std::filesystem::path data = galaxy::nebula_data_directory();
+    return data.empty() ? std::filesystem::path("generated") / "shadercache" : data / "shadercache" / "RMGE01";
+}
+
+void set_movie_mod_folders(std::vector<std::filesystem::path> folders) {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    s_movie_folders = std::move(folders);
+    s_movie_folders_generation.fetch_add(1u, std::memory_order_release);
+}
+
+std::vector<std::filesystem::path> movie_mod_folders() {
+    const std::lock_guard<std::mutex> lock(s_mod_folders_mutex);
+    return s_movie_folders;
+}
+
+std::uint64_t movie_mod_folders_generation() noexcept {
+    return s_movie_folders_generation.load(std::memory_order_acquire);
+}
+
+}  // namespace galaxy::render

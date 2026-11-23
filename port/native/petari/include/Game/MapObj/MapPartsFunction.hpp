@@ -1,0 +1,43 @@
+#pragma once
+
+#include "Game/NameObj/NameObj.hpp"
+
+class LiveActor;
+class Nerve;
+class Spine;
+
+class MapPartsFunction : public NameObj {
+public:
+    MapPartsFunction(LiveActor* pHost, const char* pName);
+
+    virtual void init(const TableIter& /*rIter*/) override {
+    }
+
+    virtual void movement() override;
+
+    virtual bool isWorking() const;
+
+    virtual void start();
+
+    virtual void end() {
+    }
+
+    virtual bool receiveMsg(u32 /*msg*/) {
+        return false;
+    }
+
+    virtual void control() {
+    }
+
+    bool sendMsgToHost(u32 msg);
+    void initNerve(const Nerve* pNerve);
+    void setNerve(const Nerve* pNerve);
+    s32 getStep() const;
+    bool isStep(s32 step) const;
+    bool isNerve(const Nerve* pNerve) const;
+    bool isFirstStep() const;
+
+    Spine* mSpine;
+    LiveActor* mHost;
+    bool mIsActive;
+};

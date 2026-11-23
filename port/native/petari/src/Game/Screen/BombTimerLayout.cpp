@@ -1,0 +1,133 @@
+#include "Game/Screen/BombTimerLayout.hpp"
+#include "Game/System/NebulaFrameClock.hpp"
+#include "Game/LiveActor/Nerve.hpp"
+#include "Game/Util/LayoutUtil.hpp"
+#include "Game/Util/ObjUtil.hpp"
+#include "Game/System/LumaCore.hpp"
+
+namespace {
+    const s32 sDangerTransFrame = 600;
+};  // namespace
+
+namespace NrvBombTimerLayout {
+    NEW_NERVE(BombTimerLayoutNrvAppear, BombTimerLayout, Appear);
+    NEW_NERVE(BombTimerLayoutNrvWait, BombTimerLayout, Wait);
+    NEW_NERVE(BombTimerLayoutNrvDanger, BombTimerLayout, Danger);
+    NEW_NERVE(BombTimerLayoutNrvEnd, BombTimerLayout, End);
+};  // namespace NrvBombTimerLayout
+
+BombTimerLayout::BombTimerLayout(bool isConnectToScene)
+    : LayoutActor("ボムタイマーレイアウト", true), mTimeLimit(), mDangerTransFrame(::sDangerTransFrame), mFrame(), mIsSuspend() {
+    lumacore::setClass(this, lumacore::kClassId< BombTimerLayout >);
+    if (isConnectToScene) {
+        MR::connectToSceneLayout(this);
+    }
+}
+
+void BombTimerLayout::init(const TableIter& /*rIter*/) {
+    initLayoutManager("BombTimer", 2);
+    initNerve(GET_NERVE(BombTimerLayout, BombTimerLayoutNrvAppear));
+    kill();
+}
+
+void BombTimerLayout::appear() {
+    mFrame = 0;
+
+    LayoutActor::appear();
+    setNerve(GET_NERVE(BombTimerLayout, BombTimerLayoutNrvAppear));
+}
+
+void BombTimerLayout::setTimeLimit(u32 timeLimit) {
+    mTimeLimit = timeLimit;
+
+    updateTextBox();
+}
+
+void BombTimerLayout::suspend() {
+    mIsSuspend = true;
+}
+
+void BombTimerLayout::resume() {
+    mIsSuspend = false;
+}
+
+bool BombTimerLayout::isReadyToTimeUp() const {
+    return mFrame < mTimeLimit == false;
+}
+
+void BombTimerLayout::addFrame() {
+    if (isReadyToTimeUp()) {
+        return;
+    }
+
+    mFrame++;
+
+    updateTextBox();
+}
+
+bool BombTimerLayout::update() {
+    if (mIsSuspend) {
+        return false;
+    }
+
+    addFrame();
+
+    if (isReadyToTimeUp()) {
+        setNerve(GET_NERVE(BombTimerLayout, BombTimerLayoutNrvEnd));
+
+        return true;
+    }
+
+    return false;
+}
+
+u32 BombTimerLayout::getRestTime() const {
+    return mTimeLimit - mFrame;
+}
+
+void BombTimerLayout::updateTextBox() {
+    MR::setTextBoxNumberRecursive(this, "Counter", (getRestTime() + NebulaFrameClock::cStepsPerSecond - 1) / NebulaFrameClock::cStepsPerSecond);
+}
+
+void BombTimerLayout::exeAppear() {
+    if (MR::isFirstStep(this)) {
+        MR::startAnim(this, "Appear", 0);
+    }
+
+    update();
+
+    if (MR::isAnimStopped(this, 0)) {
+        setNerve(GET_NERVE(BombTimerLayout, BombTimerLayoutNrvWait));
+    }
+}
+
+void BombTimerLayout::exeWait() {
+    if (MR::isFirstStep(this)) {
+        MR::startAnim(this, "Wait", 0);
+    }
+
+    update();
+
+    if (getRestTime() < mDangerTransFrame) {
+        setNerve(GET_NERVE(BombTimerLayout, BombTimerLayoutNrvDanger));
+    }
+}
+
+void BombTimerLayout::exeDanger() {
+    if (MR::isFirstStep(this)) {
+        MR::startAnim(this, "Danger", 0);
+        MR::startAnim(this, "Blink", 1);
+    }
+
+    update();
+}
+
+void BombTimerLayout::exeEnd() {
+    if (MR::isFirstStep(this)) {
+        MR::startAnim(this, "End", 0);
+    }
+
+    if (MR::isAnimStopped(this, 0)) {
+        kill();
+    }
+}

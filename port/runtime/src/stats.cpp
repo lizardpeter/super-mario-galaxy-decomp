@@ -1,0 +1,213 @@
+#include "galaxy/stats.h"
+
+#include "galaxy/atomic_file.h"
+#include "galaxy/runtime_settings.h"
+
+#include <chrono>
+#include <condition_variable>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
+
+namespace galaxy::stats {
+namespace {
+// Counts arriving together (the game hands them over every few seconds) are written once.
+constexpr std::chrono::milliseconds kWriteDelay{1500};
+// Between tries after a write failed.
+constexpr std::chrono::seconds kRetryDelay{5};
+
+// Never destroyed: the writer thread may still wait on it while the process ends.
+struct State {
+    std::mutex mutex;
+    std::mutex io;  // one write at a time, in the order their contents were taken
+    std::condition_variable wake;
+    std::filesystem::path path;
+    bool loaded = false;
+    bool dirty = false;
+    bool writer = false;
+    std::map<std::string, std::uint64_t> counters;
+};
+
+State& state() {
+    static State* s = new State;
+    return *s;
+}
+
+std::filesystem::path file_path_locked(const State& s) {
+    if (!s.path.empty()) return s.path;
+    const std::filesystem::path folder = runtime_settings_folder();
+    return folder.empty() ? folder : folder / "stats.ini";
+}
+
+// `text`'s counters into `s` (merge): each the larger; how many changed.
+unsigned merge_locked(State& s, std::string_view text) {
+    unsigned changed = 0u;
+    while (!text.empty()) {
+        const std::size_t end = text.find('\n');
+        std::string_view line = text.substr(0, end);
+        text = end == std::string_view::npos ? std::string_view() : text.substr(end + 1u);
+        if (!line.empty() && line.back() == '\r') line.remove_suffix(1u);
+        const std::size_t eq = line.find('=');
+        if (eq == std::string_view::npos || !valid_name(line.substr(0, eq))) continue;
+        const std::string_view digits = line.substr(eq + 1u);
+        if (digits.empty() || digits.size() > 20u || digits.find_first_not_of("0123456789") != std::string_view::npos) continue;
+        std::uint64_t value = 0u;
+        bool fits = true;
+        for (const char c : digits) {
+            const std::uint64_t digit = static_cast<std::uint64_t>(c - '0');
+            fits = fits && value <= (UINT64_MAX - digit) / 10u;
+            value = fits ? value * 10u + digit : UINT64_MAX;
+        }
+        std::uint64_t& count = s.counters[std::string(line.substr(0, eq))];
+        if (value > count) {
+            count = value;
+            ++changed;
+        }
+    }
+    return changed;
+}
+
+std::string text_locked(const State& s) {
+    std::ostringstream out;
+    for (const auto& [name, value] : s.counters) out << name << '=' << value << '\n';
+    return out.str();
+}
+
+void load_locked(State& s) {
+    if (s.loaded) return;
+    s.loaded = true;
+    const std::filesystem::path file = file_path_locked(s);
+    std::ifstream in(file);
+    std::string line;
+    while (std::getline(in, line)) {
+        const std::size_t eq = line.find('=');
+        if (eq == std::string::npos || !valid_name(std::string_view(line).substr(0, eq))) continue;
+        try {
+            s.counters[line.substr(0, eq)] = std::stoull(line.substr(eq + 1u));
+        } catch (...) {
+        }
+    }
+    in.close();
+    // An import handed over by another process: merged and written now, then its file goes.
+    if (file.empty()) return;
+    const std::filesystem::path import = file.parent_path() / std::string(kImportFileName);
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(import, error)) return;
+    std::ifstream pending(import, std::ios::binary);
+    const std::string text((std::istreambuf_iterator<char>(pending)), std::istreambuf_iterator<char>());
+    pending.close();
+    if (merge_locked(s, text) == 0u || io::write_file_atomically(file, text_locked(s))) {
+        std::filesystem::remove(import, error);
+    }
+}
+
+// Writes what is waiting; false when the write failed (the counts stay waiting for the next try).
+bool write_waiting() {
+    State& s = state();
+    const std::lock_guard<std::mutex> io(s.io);
+    std::string contents;
+    std::filesystem::path path;
+    {
+        const std::lock_guard<std::mutex> lock(s.mutex);
+        if (!s.dirty) return true;
+        s.dirty = false;
+        contents = text_locked(s);
+        path = file_path_locked(s);
+    }
+    if (path.empty() || io::write_file_atomically(path, contents)) return true;
+    const std::lock_guard<std::mutex> lock(s.mutex);
+    s.dirty = true;
+    return false;
+}
+
+void writer_main() {
+    State& s = state();
+    for (;;) {
+        {
+            std::unique_lock<std::mutex> lock(s.mutex);
+            s.wake.wait(lock, [&s] { return s.dirty; });
+        }
+        std::this_thread::sleep_for(kWriteDelay);
+        // A failed write (the folder is locked for a moment) is tried again after a back-off, not in a spin.
+        if (!write_waiting()) std::this_thread::sleep_for(kRetryDelay);
+    }
+}
+}  // namespace
+
+bool valid_name(std::string_view name) noexcept {
+    if (name.empty() || name.size() > 32u) return false;
+    for (const char c : name) {
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_')) return false;
+    }
+    return true;
+}
+
+void add(std::string_view name, std::uint64_t delta) {
+    if (!valid_name(name) || delta == 0u) return;
+    State& s = state();
+    {
+        const std::lock_guard<std::mutex> lock(s.mutex);
+        load_locked(s);
+        std::uint64_t& count = s.counters[std::string(name)];
+        count = delta > UINT64_MAX - count ? UINT64_MAX : count + delta;
+        s.dirty = true;
+        if (!s.writer) {
+            s.writer = true;
+            std::thread(writer_main).detach();
+        }
+    }
+    s.wake.notify_all();
+}
+
+std::uint64_t get(std::string_view name) {
+    State& s = state();
+    const std::lock_guard<std::mutex> lock(s.mutex);
+    load_locked(s);
+    const auto it = s.counters.find(std::string(name));
+    return it == s.counters.end() ? 0u : it->second;
+}
+
+std::string text() {
+    State& s = state();
+    const std::lock_guard<std::mutex> lock(s.mutex);
+    load_locked(s);
+    return text_locked(s);
+}
+
+unsigned merge(std::string_view text) {
+    State& s = state();
+    unsigned changed = 0u;
+    {
+        const std::lock_guard<std::mutex> lock(s.mutex);
+        load_locked(s);
+        changed = merge_locked(s, text);
+        if (changed == 0u) return 0u;
+        s.dirty = true;
+        if (!s.writer) {
+            s.writer = true;
+            std::thread(writer_main).detach();
+        }
+    }
+    s.wake.notify_all();
+    return changed;
+}
+
+void flush() {
+    (void)write_waiting();
+}
+
+void set_path_for_tests(const std::filesystem::path& path) {
+    (void)write_waiting();
+    State& s = state();
+    const std::lock_guard<std::mutex> io(s.io);
+    const std::lock_guard<std::mutex> lock(s.mutex);
+    s.path = path;
+    s.loaded = false;
+    s.dirty = false;
+    s.counters.clear();
+}
+}  // namespace galaxy::stats

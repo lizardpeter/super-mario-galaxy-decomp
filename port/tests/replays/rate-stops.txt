@@ -1,0 +1,34 @@
+# The stops that tools/gate/replays_rates.py plays at a world rate of 1 and of 2 (the check `replays/rates`): a stop is here when the
+# step hashes of its two plays are the same at every step. One `Stage N` a line, a stop of the tour list; a line is added when a stop
+# is fixed and is never taken out (tools/gate/strictness.tsv).
+#
+# Not here, because their hashes differ at a rate of 2 on the build of S0.2.1 (landing A of the native plan), the first at step 2
+# (PhantomGalaxy 1, StarDustGalaxy 1) and at step 48 (SandClockGalaxy 1): the first actor that differs is a StarPieceShooter (the star
+# bit launcher, "発射用アクター") whose nerve's step is one lower at a rate of 2. The cause was not looked for further; the step that
+# finds it adds the three stops.
+#
+# Added at S0.2.5 (P-294): the launcher aimed at the pointer's world point, which came from the picture's depth answer, one a
+# picture (StarPieceShooter::calcShootGoalUsingPointingDepth); the pointer asks the scene in the step since S0.2.3, and the lens
+# flare's three actors, the other readers of the answers in these stops, are placed from the sun and the step's camera since S0.2.5.
+# No check of S0.2.5's landing plays this list: the long run's replays/rates is the first to judge the three.
+
+HoneyBeeKingdomGalaxy 1
+OceanRingGalaxy 1
+EggStarGalaxy 1
+KoopaBattleVs1Galaxy 1
+IceVolcanoGalaxy 1
+HellProminenceGalaxy 1
+TeresaMario2DGalaxy 1
+SurfingLv1Galaxy 1
+CannonFleetGalaxy 1
+OceanPhantomCaveGalaxy 4
+FactoryGalaxy 1
+BattleShipGalaxy 1
+CosmosGardenGalaxy 1
+HeavenlyBeachGalaxy 1
+KoopaBattleVs3Galaxy 1
+ReverseKingdomGalaxy 1
+TamakoroExLv1Galaxy 1
+PhantomGalaxy 1
+SandClockGalaxy 1
+StarDustGalaxy 1

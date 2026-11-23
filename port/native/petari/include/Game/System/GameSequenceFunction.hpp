@@ -1,0 +1,66 @@
+#pragma once
+
+#include "Game/Scene/SceneFactory.hpp"
+
+class GalaxyMoveArgument;
+class UserFile;
+
+namespace GameSequenceFunction {
+    void activateGalaxyCometScheduler();
+    void deactivateGalaxyCometScheduler();
+    void forceToNextStateGalaxyCometScheduler();
+    bool isGalaxyCometLand(const char*);
+    s32 getEncounterGalaxyCometPowerStarId(const char*);
+    const char* getEncounterGalaxyCometName(const char*);
+    bool isNeedMoviePlayerForStorySequenceEvent();
+    bool hasNextDemoForStorySequenceEvent();
+    s32 getExecutingStorySequenceEventNum();
+    bool isLuigiDisappearFromAstroGalaxy();
+    bool isLuigiHidingAnyGalaxy();
+    bool isActiveLuigiHideAndSeekEvent();
+    bool isEndLuigiHideAndSeekEvent();
+    void getLuigiHidingGalaxyNameAndStarId(const char**, s32*);
+    void onGameEventFlagGetLuigiLetter();
+    bool isReadyToStartScene();
+    void startScene();
+    void notifyToGameSequenceProgressToEndScene();
+    void requestChangeScene(SceneKind);
+    void requestGalaxyMove(const GalaxyMoveArgument&);
+    void requestCancelScenarioSelect();
+    void sendStageResultSequenceParam(const char*, s32, int, int);
+    bool hasStageResultSequence();
+    const char* getClearedStageName();
+    s32 getClearedPowerStarId();
+    int getClearedStarPieceNum();
+    int getClearedCoinNum();
+    bool hasPowerStarYetAtResultSequence();
+    bool isPowerStarAtResultSequence(const char*, s32);
+    bool isPowerStarGreenAtResultSequence();
+    bool isPowerStarRedAtResultSequence();
+    bool isGrandStarAtResultSequence();
+    bool hasRetryGalaxySequence();
+    bool isNeedToReflectStageResultSequenceStarPiece();
+    void reflectStageResultSequenceCoin();
+    void resetStageResultSequenceParam();
+    void startPreLoadSaveDataSequence();
+    // The save read again as the start reads it (SaveDataHandleSequence::startReload).
+    void startReloadSaveDataSequence();
+    void startGameDataLoadSequence(int, bool);
+    void startCreateUserFileSequence(int);
+    void startDeleteUserFileSequence(int);
+    void startCopyUserFileSequence(int, int);
+    void startSetMiiOrIconIdUserFileSequence(int, const void*, const u32*);
+    void storeMiiOrIconIdUserFileSequence(int, const void*, const u32*);
+    void storeCopyUserFileSequence(int, int);
+    void startSaveAllUserFileSequence();
+    bool isActiveSaveDataHandleSequence();
+    bool isSuccessSaveDataHandleSequence();
+    void restoreUserFile(UserFile*, int);
+    void restoreUserFile(UserFile*, int, bool);
+    void reserveUserName(const char16_t*);
+    void storeSceneStartGameDataHolder();
+    void updateGameDataAndSequenceAfterStageResultSequence();
+    void startGameDataSaveSequence(bool, bool);
+    // After startGameDataSaveSequence: the caller opens a system window once the save is done (SaveDataHandleSequence).
+    void setGameDataSaveWindowFollows();
+};  // namespace GameSequenceFunction

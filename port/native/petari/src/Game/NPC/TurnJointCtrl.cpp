@@ -1,0 +1,200 @@
+#include "Game/NPC/TurnJointCtrl.hpp"
+#include "Game/LiveActor/DynamicJointCtrl.hpp"
+#include "Game/LiveActor/LiveActor.hpp"
+#include "Game/Util/ActorMovementUtil.hpp"
+#include "Game/Util/JointController.hpp"
+#include "Game/Util/MathUtil.hpp"
+#include "Game/Util/MtxUtil.hpp"
+
+namespace {
+    void makeMtxRotVecDegree(MtxPtr pMtx, const Vec3f& rFrom, const Vec3f& rTo, f32 degree) {
+        Vec3f axis = rFrom.cross(rTo);
+        f32 dot = rFrom.dot(rTo);
+
+        if (MR::normalizeOrZero(&axis)) {
+            NebulaMtxIdentity(pMtx);
+        } else {
+            NebulaMtxRotAxisRad(pMtx, &axis, -MR::min(acos(dot), MR::abs(MR::toRadian(degree))));
+        }
+    }
+};  // namespace
+
+TurnJointCtrl::TurnJointCtrl(LiveActor* pActor)
+    : mActor(pActor), mCtrlRate(new JointCtrlRate()), mHorizontalDegreeMax(45.0f), mPositiveDegreeMax(22.5f), mNegativeDegreeMax(22.5f),
+      mStarePos(0.0f, 0.0f, 0.0f), mStareDist(1000.0f), mStareRate(0.04f), mCtrlFrames(60), mEnabled(true) {
+    mFace.mEnabled = false;
+    mFace.mBlendRate = 0.0f;
+    mFace.mJointController = nullptr;
+    mWaist.mEnabled = false;
+    mWaist.mBlendRate = 0.0f;
+    mWaist.mJointController = nullptr;
+
+    MR::extractMtxZDir(pActor->getBaseMtx(), &mStarePos);
+    mStarePos += pActor->mPosition;
+}
+
+void TurnJointCtrl::init(f32 horizontalDegreeMax, f32 positiveDegreeMax, f32 negativeDegreeMax) {
+    mHorizontalDegreeMax = horizontalDegreeMax;
+    mPositiveDegreeMax = positiveDegreeMax;
+    mNegativeDegreeMax = negativeDegreeMax;
+}
+
+void TurnJointCtrl::addFace(const char* pJointName, f32 blendRate, AXIS verticalTurnAxis, AXIS horizontalTurnAxis, AXIS frontAxis) {
+    mFace.mJointController =
+        MR::createJointController< TurnJointCtrl >(this, mActor, pJointName, &TurnJointCtrl::updateJointMtxCallBackFace, nullptr);
+    mFace.mBlendRate = blendRate;
+    mFace.mFrontAxis = frontAxis;
+    mFace.mVerticalTurnAxis = verticalTurnAxis;
+    mFace.mHorizontalTurnAxis = horizontalTurnAxis;
+    mFace.mEnabled = true;
+}
+
+void TurnJointCtrl::addWaist(const char* pJointName, f32 blendRate, AXIS verticalTurnAxis, AXIS horizontalTurnAxis, AXIS frontAxis) {
+    mWaist.mJointController =
+        MR::createJointController< TurnJointCtrl >(this, mActor, pJointName, &TurnJointCtrl::updateJointMtxCallBackWaist, nullptr);
+    mWaist.mBlendRate = blendRate;
+    mWaist.mFrontAxis = frontAxis;
+    mWaist.mVerticalTurnAxis = verticalTurnAxis;
+    mWaist.mHorizontalTurnAxis = horizontalTurnAxis;
+    mWaist.mEnabled = true;
+}
+
+void TurnJointCtrl::startCtrl(s32 frames) {
+    mEnabled = true;
+    mCtrlRate->startCtrl(frames);
+    mCtrlRate->update();
+}
+
+void TurnJointCtrl::endCtrl(s32 frames) {
+    mEnabled = false;
+    mCtrlRate->endCtrl(frames);
+    mCtrlRate->update();
+}
+
+void TurnJointCtrl::validate() {
+    startCtrl(0);
+}
+
+void TurnJointCtrl::invalidate() {
+    endCtrl(0);
+}
+
+void TurnJointCtrl::setStarePos(const Vec3f& rPos) {
+    if (!mEnabled && MR::isNearZero(mCtrlRate->mRate)) {
+        return;
+    }
+
+    if (MR::isNear(mActor, rPos, mStareDist)) {
+        if (MR::isNearZero(mCtrlRate->mRate)) {
+            mCtrlRate->startCtrl(mCtrlFrames);
+        }
+    } else {
+        if (MR::isNearZero(mCtrlRate->mRate - 1.0f)) {
+            mCtrlRate->endCtrl(mCtrlFrames);
+        }
+    }
+
+    MR::vecBlendSphere(mStarePos, rPos, &mStarePos, mStareRate);
+}
+
+void TurnJointCtrl::update() {
+    mCtrlRate->update();
+}
+
+void TurnJointCtrl::setCallBackFunction() {
+    if (!mEnabled && MR::isNearZero(mCtrlRate->mRate)) {
+        return;
+    }
+
+    if (mFace.mEnabled) {
+        mFace.mJointController->registerCallBack();
+    }
+
+    if (mWaist.mEnabled) {
+        mWaist.mJointController->registerCallBack();
+    }
+}
+
+bool TurnJointCtrl::updateJointMtxCallBackFace(Pos3f* pMtx, const JointControllerInfo& /*rInfo*/) {
+    return updateJointMtxCallBack(pMtx, mFace);
+}
+
+bool TurnJointCtrl::updateJointMtxCallBackWaist(Pos3f* pMtx, const JointControllerInfo& /*rInfo*/) {
+    return updateJointMtxCallBack(pMtx, mWaist);
+}
+
+void TurnJointCtrl::getMtxDir(Vec3f* pDir, const Pos3f* pMtx, AXIS axis) {
+    switch (axis) {
+    case X:
+        pMtx->getXDir(*pDir);
+        break;
+    case Y:
+        pMtx->getYDir(*pDir);
+        break;
+    case Z:
+        pMtx->getZDir(*pDir);
+        break;
+    }
+
+    MR::normalizeOrZero(pDir);
+}
+
+bool TurnJointCtrl::updateJointMtxCallBack(Pos3f* pMtx, const Ctrl& rCtrl) {
+    if (!mEnabled && MR::isNearZero(mCtrlRate->mRate)) {
+        return false;
+    }
+
+    Vec3f position;
+    pMtx->getTrans(position);
+    Vec3f direction(mStarePos);
+    direction.sub(position);
+
+    if (MR::normalizeOrZero(&direction)) {
+        return false;
+    }
+
+    Pos3f result = *pMtx;
+    Pos3f rotation;
+    result.setTrans(Vec3f(0.0f));
+
+    Vec3f verticalAxis;
+    Vec3f horizontalAxis;
+    Vec3f front;
+    Vec3f projected;
+    getMtxDir(&verticalAxis, pMtx, rCtrl.mVerticalTurnAxis);
+    MR::vecKillElement(direction, verticalAxis, &projected);
+
+    if (!MR::normalizeOrZero(&projected)) {
+        getMtxDir(&front, pMtx, rCtrl.mFrontAxis);
+        Vec3f cross;
+        cross.cross(direction, front);
+        MR::normalizeOrZero(&cross);
+        MR::vecBlendSphere(front, projected, &projected, rCtrl.mBlendRate);
+
+        if (verticalAxis.dot(cross) > 0.0f) {
+            const f32 rate = mCtrlRate->mRate;
+            ::makeMtxRotVecDegree(rotation, projected, front, mPositiveDegreeMax * rate);
+        } else {
+            const f32 rate = mCtrlRate->mRate;
+            ::makeMtxRotVecDegree(rotation, projected, front, mNegativeDegreeMax * rate);
+        }
+
+        NebulaMtxConcat(rotation, result, result);
+    }
+
+    getMtxDir(&horizontalAxis, pMtx, rCtrl.mHorizontalTurnAxis);
+    MR::vecKillElement(direction, horizontalAxis, &projected);
+
+    if (!MR::normalizeOrZero(&projected)) {
+        getMtxDir(&front, pMtx, rCtrl.mFrontAxis);
+        MR::vecBlendSphere(front, projected, &projected, rCtrl.mBlendRate);
+
+        const f32 rate = mCtrlRate->mRate;
+        ::makeMtxRotVecDegree(rotation, projected, front, mHorizontalDegreeMax * rate);
+        NebulaMtxConcat(rotation, result, result);
+    }
+
+    result.setTrans(position);
+    pMtx->set(result);
+    return true;
+}

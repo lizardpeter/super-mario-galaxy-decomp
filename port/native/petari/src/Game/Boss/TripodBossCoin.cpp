@@ -1,0 +1,66 @@
+#include "Game/Boss/TripodBossCoin.hpp"
+#include "Game/Boss/TripodBossAccesser.hpp"
+#include "Game/LiveActor/Nerve.hpp"
+#include "Game/MapObj/Coin.hpp"
+#include "Game/Util/PlacementUtil.hpp"
+#include "Game/Util/LiveActorUtil.hpp"
+#include "Game/Util/ObjUtil.hpp"
+#include "Game/System/LumaCore.hpp"
+
+namespace NrvTripodBossCoin {
+    NEW_NERVE(TripodBossCoinNrvNonActive, TripodBossCoin, NonActive);
+    NEW_NERVE(TripodBossCoinNrvActive, TripodBossCoin, Active);
+    NEW_NERVE(TripodBossCoinNrvEnd, TripodBossCoin, End);
+};  // namespace NrvTripodBossCoin
+
+TripodBossCoin::TripodBossCoin(const char* pName) : NameObj(pName), mCoin(), mSpine(), mJointID(-1) {
+    lumacore::setClass(this, lumacore::kClassId< TripodBossCoin >);
+    mPlacementMtx.identity();
+}
+
+void TripodBossCoin::init(const TableIter& rIter) {
+    MR::getPlacementMatrixFromRT(rIter, &mPlacementMtx);
+    MR::connectToSceneMapObjDecorationMovement(this);
+    MR::getPlacementArg0NoInit(rIter, &mJointID);
+
+    mCoin = static_cast< Coin* >(MR::createCoin(this, "コイン(三脚ボス用)"));
+    mCoin->initWithoutIter();
+
+    mSpine = new Spine(this, GET_NERVE(TripodBossCoin, TripodBossCoinNrvNonActive));
+
+    MR::addTripodBossPartsMovement(this);
+}
+
+void TripodBossCoin::movement() {
+    mSpine->update();
+}
+
+void TripodBossCoin::exeNonActive() {
+    if (MR::isStartedTripodBoss() && !MR::isStartDemoTripodBoss()) {
+        mSpine->setNerve(GET_NERVE(TripodBossCoin, TripodBossCoinNrvActive));
+    }
+}
+
+void TripodBossCoin::exeActive() {
+    Pos3f mtx;
+    mtx.set(mPlacementMtx);
+
+    MR::concatTripodBossAttachJointMatrix(&mtx, mJointID);
+
+    Vec3f coinTrans;
+    mtx.getTrans(coinTrans);
+
+    mCoin->mPosition.set(coinTrans);
+
+    if (mSpine->mStep == 0) {
+        mCoin->appearControlPose();
+    }
+
+    if (MR::isBrokenTripodBoss() || MR::isDead(mCoin)) {
+        mCoin->kill();
+        mSpine->setNerve(GET_NERVE(TripodBossCoin, TripodBossCoinNrvEnd));
+    }
+}
+
+void TripodBossCoin::exeEnd() {
+}

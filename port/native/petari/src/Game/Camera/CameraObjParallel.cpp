@@ -1,0 +1,52 @@
+#include "Game/Camera/CameraObjParallel.hpp"
+#include "Game/Camera/CameraLocalUtil.hpp"
+#include "Game/Camera/CameraParamChunk.hpp"
+#include "Game/Camera/CameraTargetObj.hpp"
+#include "Game/System/LumaCore.hpp"
+
+CameraObjParallel::CameraObjParallel(const char* pName) : Camera(pName), mAngleX(), mAngleY(), mDist(3000.0f) {
+    lumacore::setClass(this, lumacore::kClassId< CameraObjParallel >);
+}
+
+CameraTargetObj* CameraObjParallel::calc() {
+    CameraTargetObj* target = CameraLocalUtil::getTarget(this);
+
+    Pos3f mtx;
+    mtx.identity();
+
+    mtx.setYDir(target->getUpVec());
+    mtx.setZDir(target->getFrontVec());
+    mtx.setXDir(target->getSideVec());
+
+    Pos3f rotX;
+    rotX.makeRotate(Vec3f(1.0f, 0.0f, 0.0f), mAngleX);
+
+    Pos3f rotY;
+    rotY.makeRotate(Vec3f(0.0f, 1.0f, 0.0f), mAngleY);
+
+    mtx.concat(rotY);
+    mtx.concat(rotX);
+
+    Vec3f watchPoint;
+    CameraLocalUtil::makeWatchPoint(&watchPoint, this, target, 0.1f / 15.0f);
+    CameraLocalUtil::setWatchPos(this, watchPoint);
+
+    Vec3f offset;
+    mtx.getZDir(offset);
+
+    offset.set(watchPoint + offset * mDist);
+    CameraLocalUtil::setPos(this, offset);
+
+    Vec3f up;
+    mtx.getYDir(up);
+    CameraLocalUtil::setUpVec(this, up);
+
+    CameraLocalUtil::setWatchUpVec(this, target->getUpVec());
+
+    return target;
+}
+
+void CameraObjParallel::setParamFromChunk(const CameraParamChunk* pChunk) {
+    CameraGeneralParam* general = pChunk->mGeneralParam;
+    setParam(general->mDist, general->mAngleA, general->mAngleB);
+}

@@ -1,0 +1,217 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Crash reports: each kind of failure gets its code, the mod read last is named when it is recent, and the report
+// text carries the session's mods.
+
+#include "galaxy/crash_report.h"
+#include "galaxy/render/mtl/command_buffer_failure.h"
+
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <thread>
+
+using namespace galaxy::crash;
+
+namespace {
+
+int failures = 0;
+
+void expect(bool condition, const char* message) {
+    if (!condition) {
+        std::cerr << "FAILED: " << message << '\n';
+        ++failures;
+    }
+}
+
+std::string code_of(const Facts& facts) { return classify(facts).code; }
+
+}  // namespace
+
+// P-062: a GPU allocation that fails inside a frame reads as a device loss when the device is gone, or as memory
+// run out; the old texts ("scene target colour unavailable") read as neither and ended the game as a renderer error.
+// P-008: every error a Metal command buffer ends in is a device loss, the render core's recovery answers it.
+void metal_command_buffer_failures() {
+    // MTLCommandBufferError: internal 1, timeout 2, page fault 3, access revoked 4, not permitted 7, out of memory 8,
+    // invalid resource 9, memoryless 10, device removed 11, stack overflow 12.
+    for (const long code : {1L, 2L, 3L, 4L, 7L, 8L, 9L, 10L, 11L, 12L}) {
+        const std::string text = galaxy::render::mtl::command_buffer_failure_text(true, code, "Internal error");
+        expect(galaxy::crash::is_gpu_lost(text.c_str()), "a Metal command buffer error is a device loss");
+    }
+    const std::string other = galaxy::render::mtl::command_buffer_failure_text(false, 5L, "");
+    expect(galaxy::crash::is_gpu_lost(other.c_str()) && other.find("no description") != std::string::npos,
+           "an error of another domain too, with no description");
+}
+
+void allocation_failures() {
+    const std::string removed = galaxy::crash::gpu_allocation_failure("the scene target colour", true);
+    expect(galaxy::crash::is_gpu_lost(removed.c_str()), "a removed device's failed allocation is a device loss");
+    const std::string memory = galaxy::crash::gpu_allocation_failure("the scene target colour", false);
+    expect(!galaxy::crash::is_gpu_lost(memory.c_str()), "memory run out is not a device loss");
+    Facts facts;
+    facts.kind = Facts::Kind::Exception;
+    facts.text = memory;
+    expect(code_of(facts) == "NEB-R01", "memory run out is reported as such");
+    facts.text = removed;
+    expect(code_of(facts) == "NEB-G01", "a device loss that could not be borne is reported as one");
+}
+
+int main() {
+    allocation_failures();
+    metal_command_buffer_failures();
+    expect(galaxy::crash::translated("The game crashed", "EuGerman") == "Das Spiel ist abgest\xC3\xBCrzt", "a row in a language");
+    expect(galaxy::crash::translated("The game crashed", "UsEnglish") == "The game crashed", "English is the words given");
+    expect(galaxy::crash::translated("no such row", "EuGerman") == "no such row", "no row: the words given");
+    expect(galaxy::crash::translated("The game crashed", "Klingon") == "The game crashed", "no such folder: the words given");
+    expect(galaxy::crash::translated_report("NEB-C01: The game crashed\n\nsome detail\n\nNebula crashed", "EuItalian") ==
+               "NEB-C01: Il gioco si \xC3\xA8 bloccato\n\nsome detail\n\nNebula si \xC3\xA8 bloccato",
+           "a report keeps its code and its details");
+
+    Facts fault;
+    fault.kind = Facts::Kind::Fault;
+    fault.in_game = true;
+    fault.text = "exception 0x40000005 at smg_game.dll+0x1234";
+    expect(code_of(fault) == "NEB-C01", "a crash in the game's code");
+
+    Facts overflow = fault;
+    overflow.stack_overflow = true;
+    expect(code_of(overflow) == "NEB-C03", "the game's stack overflowed");
+
+    Facts with_mods = fault;
+    with_mods.mods_change_game = true;
+    expect(code_of(with_mods) == "NEB-M01", "a game crash with mods that change the game");
+
+    Facts recent = with_mods;
+    recent.last_mod_read = "Kaizo: /StageData/RedBlueExGalaxy/RedBlueExGalaxyMap.arc";
+    recent.last_mod_seconds = 2.5;
+    const Report named = classify(recent);
+    expect(std::string(named.code) == "NEB-M02", "a mod's file read just before the crash");
+    expect(std::strstr(named.detail, "RedBlueExGalaxyMap.arc") != nullptr, "the mod's file is named");
+    Facts old_read = recent;
+    old_read.last_mod_seconds = 600.0;
+    expect(code_of(old_read) == "NEB-M01", "a mod read long before is not named");
+
+    // A plugin's code ahead of a mod's file: the fault is where the code was.
+    Facts plugin = recent;
+    plugin.plugin_mod = "coin-bank";
+    plugin.in_plugin = true;
+    const Report in_plugin = classify(plugin);
+    expect(std::string(in_plugin.code) == "NEB-M03", "a crash in a plugin's code");
+    expect(std::strstr(in_plugin.detail, "in the code of the mod coin-bank") != nullptr, "the plugin's mod is named");
+    plugin.in_plugin = false;
+    expect(std::strstr(classify(plugin).detail, "a call the code of the mod coin-bank made") != nullptr,
+           "the game's code a plugin called");
+    Facts nebula_fault;
+    nebula_fault.plugin_mod = "coin-bank";
+    nebula_fault.in_plugin = true;
+    expect(code_of(nebula_fault) == "NEB-M03", "a fault outside the game's code, in a plugin");
+
+    Facts game_fatal;
+    game_fatal.kind = Facts::Kind::GameFatal;
+    game_fatal.text = "fatal: a stage table has no entry";
+    expect(code_of(game_fatal) == "NEB-C02", "the game's own fatal stop");
+
+    Facts host_fault;
+    host_fault.kind = Facts::Kind::Fault;
+    host_fault.in_game = false;
+    host_fault.mods_change_game = true;
+    expect(code_of(host_fault) == "NEB-N01", "a crash in Nebula itself is not blamed on mods");
+
+    Facts texture = host_fault;
+    texture.activity = Activity::TexturePack;
+    texture.activity_file = "C:/mods/Pack/textures/tex1_64x64_abc_14.png";
+    const Report pack = classify(texture);
+    expect(std::string(pack.code) == "NEB-T01" && std::strstr(pack.detail, "tex1_64x64_abc_14.png") != nullptr,
+           "a texture pack image");
+    Facts movie = host_fault;
+    movie.activity = Activity::Movie;
+    movie.activity_file = "C:/mods/Movies/movies/PrologueA.mp4";
+    expect(code_of(movie) == "NEB-V01", "a replacement movie");
+
+    Facts gpu;
+    gpu.kind = Facts::Kind::Startup;
+    gpu.text = "renderer: [RendererD3D12] Present HRESULT=887A0005";
+    expect(code_of(gpu) == "NEB-G01", "the graphics card was lost mid-game");
+    Facts renderer;
+    renderer.kind = Facts::Kind::Exception;
+    renderer.text = "[RendererD3D12] CreateCommittedResource HRESULT=0x40070057";
+    expect(code_of(renderer) == "NEB-G02", "another renderer error");
+    Facts memory;
+    memory.kind = Facts::Kind::Exception;
+    memory.text = "class std::bad_alloc";
+    expect(code_of(memory) == "NEB-R01", "out of memory");
+    Facts exception;
+    exception.kind = Facts::Kind::Exception;
+    exception.text = "map/set too long";
+    expect(code_of(exception) == "NEB-N02", "an uncaught exception");
+    Facts aborted;
+    aborted.kind = Facts::Kind::Abort;
+    expect(code_of(aborted) == "NEB-N03", "abort");
+
+    const auto startup = [](const char* text) {
+        Facts f;
+        f.kind = Facts::Kind::Startup;
+        f.text = text;
+        return code_of(f);
+    };
+    expect(startup("cannot open D:/Nebula/content/game.pak") == "NEB-S01", "missing content");
+    expect(startup("D:/x/game.pak: boot.bin points past the partition") == "NEB-S02", "damaged content");
+    expect(startup("cannot load the game module smg_game.dll") == "NEB-S03", "missing module");
+    {
+        // The two lines the host's load_failure writes (game_module.h, tested in mods_tests.cpp): each says its case.
+        Facts missing;
+        missing.kind = Facts::Kind::Startup;
+        missing.text = "cannot load the game module libsmg_game_plain.dylib: the file is not there (Contents/MacOS)";
+        const Report gone = classify(missing);
+        expect(std::string(gone.code) == "NEB-S03" && std::string(gone.title) == "A part of Nebula is missing",
+               "a module file that is not there");
+        Facts refused;
+        refused.kind = Facts::Kind::Startup;
+        refused.text = "cannot load the game module libsmg_game_plain.dylib: the system refused it: dlopen(x): code signature invalid";
+        const Report no = classify(refused);
+        expect(std::string(no.code) == "NEB-S03" && std::string(no.title) == "The system refused a part of Nebula" &&
+                   std::strstr(no.detail, "code signature invalid") != nullptr,
+               "a module file the system refused: the reason is in the detail");
+    }
+    expect(startup("the game module's API version differs from the host's (15)") == "NEB-S03", "module version");
+    expect(startup("the renderer did not start: no adapter") == "NEB-S04", "no renderer");
+    expect(startup("the settings did not load: bad value") == "NEB-S05", "settings");
+    expect(startup("unknown option --x") == "NEB-S06", "options");
+    expect(startup("a span does not continue the last") == "NEB-N04", "another startup stop");
+
+    // The disc thread's note and the activity of this thread.
+    char line[256];
+    double seconds = -1.0;
+    expect(!last_mod_read(line, sizeof(line), &seconds), "no mod read yet");
+    std::thread([] { note_mod_read("Kaizo", "/StageData/A.arc"); }).join();
+    expect(last_mod_read(line, sizeof(line), &seconds) && std::string(line) == "Kaizo: /StageData/A.arc" &&
+               seconds >= 0.0 && seconds < 5.0,
+           "the last mod read");
+    char file[256];
+    expect(current_activity(file, sizeof(file)) == Activity::None && file[0] == '\0', "no activity");
+    {
+        ScopedActivity activity(Activity::Movie, "C:/m/PrologueA.mp4");
+        expect(current_activity(file, sizeof(file)) == Activity::Movie && std::string(file) == "PrologueA.mp4",
+               "the thread's activity");
+        Activity other = Activity::TexturePack;
+        std::thread([&] { other = current_activity(nullptr, 0); }).join();
+        expect(other == Activity::None, "another thread's activity is its own");
+    }
+    expect(current_activity(file, sizeof(file)) == Activity::None, "the activity ends with its scope");
+
+    set_session_mods("  Kaizo (Riivolution, game files)\n", true);
+    char text[2048];
+    const std::size_t length = format_report(named, "exception 0x40000005", text, sizeof(text));
+    const std::string report(text, length);
+    expect(report.starts_with("NEB-M02: A mod's file crashed the game\n"), "the report's first line");
+    expect(report.find("Mods this session:\n  Kaizo (Riivolution, game files)") != std::string::npos, "the mods");
+    expect(report.find("Technical details:\nexception 0x40000005") != std::string::npos, "the technical line");
+    char tiny[8];
+    expect(format_report(named, "", tiny, sizeof(tiny)) == 7u && tiny[7] == '\0', "a short buffer is cut");
+
+    if (failures != 0) {
+        std::cerr << failures << " crash report test(s) failed\n";
+        return 1;
+    }
+    std::cout << "crash report tests passed\n";
+    return 0;
+}

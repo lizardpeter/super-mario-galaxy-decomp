@@ -1,0 +1,80 @@
+#include "Game/Demo/DemoCtrlBase.hpp"
+#include "Game/Demo/DemoParamCommonDataTable.hpp"
+#include "Game/LiveActor/LiveActor.hpp"
+#include "Game/Util/ActorCameraUtil.hpp"
+#include "Game/Util/DemoUtil.hpp"
+#include "Game/Util/EffectUtil.hpp"
+#include "Game/Util/LiveActorUtil.hpp"
+#include "Game/Util/ObjUtil.hpp"
+#include "Game/Util/SoundUtil.hpp"
+
+DemoCtrlBase::DemoCtrlBase(LiveActor* pActor, const char* pName) : mActor(pActor), mCameraInfo(), mDemoName(pName), mCurrentFrame(-1), mWasInvalidClipping() {
+}
+
+void DemoCtrlBase::init(const TableIter& rIter) {
+    MR::initActorCamera(mActor, rIter, &mCameraInfo);
+}
+
+void DemoCtrlBase::end() {
+    MR::endDemo(mActor, mDemoName);
+
+    if (!mWasInvalidClipping) {
+        MR::validateClipping(mActor);
+    }
+
+    MR::endActorCamera(mActor, mCameraInfo, false);
+
+    if (MR::Demo::isExistCameraShaking(mDemoName)) {
+        MR::stopShakingCamera(mActor);
+    }
+
+    mCurrentFrame = -1;
+}
+
+void DemoCtrlBase::update() {
+    if (mCurrentFrame >= 0 && (MR::getActorCameraFrames(mActor, mCameraInfo) <= 0 || mCurrentFrame >= 0)) {
+        if (MR::Demo::isExistPadRumble(mDemoName)) {
+            MR::tryRumblePad(mActor, MR::Demo::getPadRumble(mDemoName), PLAYER_1);
+        }
+
+        s32 frames = MR::getActorCameraFrames(mActor, mCameraInfo);
+        s32 curFrame = mCurrentFrame + 1;
+        mCurrentFrame = curFrame;
+
+        if (curFrame == frames) {
+            end();
+        }
+    }
+}
+
+bool DemoCtrlBase::isDone() const {
+    return mCurrentFrame < 0;
+}
+
+bool DemoCtrlBase::isExistEndFrame() const {
+    return MR::getActorCameraFrames(mActor, mCameraInfo) > 0;
+}
+
+bool DemoCtrlBase::tryStart() {
+    if (!MR::tryStartDemo(mActor, mDemoName)) {
+        return false;
+    }
+
+    mCurrentFrame = 0;
+    mWasInvalidClipping = MR::isInvalidClipping(mActor);
+
+    if (!mWasInvalidClipping) {
+        MR::invalidateClipping(mActor);
+    }
+
+    MR::startActorCameraNoTarget(mActor, mCameraInfo);
+
+    if (MR::Demo::isExistCameraShaking(mDemoName)) {
+        MR::shakeCameraInfinity(mActor, MR::Demo::getCameraShakeIntensity(mDemoName), MR::Demo::getCameraShakeSpeed(mDemoName));
+    }
+
+    MR::startSystemSE("SE_SY_READ_RIDDLE_S");
+    MR::emitEffect(mActor, MR::Demo::getStartEffect(mDemoName));
+
+    return true;
+}

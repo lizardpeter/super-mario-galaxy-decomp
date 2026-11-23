@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// The game's bloom at the internal resolution (game_bloom.h): BloomEffect's and BloomEffectSimple's chains as one
+// operator on the scene target, with the game's own thresholds, blur radii and intensities.
+//
+// DownCS: the source's region in boxes of c_size.z x c_size.z texels (each texel clamped to 1, as the 8-bit scene target keeps
+// it) into u0.
+// BoxCS: a box of c_params.x texels along axis c_size.w (the game's 4 x 4 pixel workspace texel at the internal
+// resolution); with c_params.y >= 0 the selection after it: the colour where its intensity or channel
+// c_params.z (red, green or blue) exceeds the threshold, else black.
+// BlurCS: axis 0, up to three Gaussians (widths c_sigma.xyz in texels) of t0 into u0..u2; axis 1, the Gaussians of
+// t0..t2 summed, times c_params.x, clamped to 1 when c_params.y is 1, into u0.
+// CompositeVS/CompositePS: the kept scene plus the bloom (bilinear from its levels) over the game's frame.
+//
+// The images may be larger than the part a pass works in (dynamic resolution makes them once for every step): c_size is
+// that part, UVs are of the image's own size, and no sample leaves the part (its edge is the clamp's edge).
+
+cbuffer BloomConstants : register(b0) {
+    uint4 c_size;     // the output's texels (x, y); Down: the box (z); Box, Blur: the Gaussians (z), the axis (w)
+    float4 c_sigma;   // Blur: the Gaussians' widths along the axis (texels); Composite: the levels' last texel centres (UV)
+    float4 c_params;  // per pass (above); Composite: intensity, strength, kind (0 scene, 1 normal, 2 simple)
+    float4 c_uv;      // Down: the source region (texels: x, y); Composite: frame pixel to level-1 UV (x, y), level-2 (z, w)
+};
+
+Texture2D<float4> t_source : register(t0);
+Texture2D<float4> t_second : register(t1);
+Texture2D<float4> t_third : register(t2);
+// Vulkan (game_bloom_vk.cpp) writes the work images as storage images of a known format: no device feature needed.
+#ifdef BLOOM_STORAGE_FORMAT
+#define WORK_FORMAT [[spv::format_rgba16f]]
+#else
+#define WORK_FORMAT
+#endif
+WORK_FORMAT RWTexture2D<float4> u_first : register(u0);
+WORK_FORMAT RWTexture2D<float4> u_second : register(u1);
+WORK_FORMAT RWTexture2D<float4> u_third : register(u2);
+SamplerState s_linear : register(s0);
+
+[numthreads(8, 8, 1)]
+void DownCS(uint3 id : SV_DispatchThreadID) {
+    if (any(id.xy >= c_size.xy)) {
+        return;
+    }
+    const uint2 region = uint2(c_uv.xy);
+    const uint2 base = id.xy * c_size.z;
+    float3 sum = 0.0f;
+    if (c_size.z == 4u && all(base + 4u <= region)) {
+        // A whole 4 x 4 box (every first-level box but those the picture's right or bottom edge cuts): its texels fetched
+        // 2 x 2 by Gather, which returns them as Load does, each clamped and added in the loop's order below (rows, then
+        // across): the same sum. Gather's order about the 2 x 2's top left: x (0, 1), y (1, 1), z (1, 0), w (0, 0).
+        uint width, height;
+        t_source.GetDimensions(width, height);
+        const float2 uv = (float2(base) + 1.0f) / float2(width, height);
+        // precise: the adds stay in this order (the loop's sum cannot be reordered across its turns; this one could). The
+        // offsets are written out: constant offsets need no device feature.
+        precise float3 box = 0.0f;
+        // Rows 0 and 1: texels 0-1 and 2-3 of each.
+        {
+            const float4 r0 = t_source.GatherRed(s_linear, uv, int2(0, 0));
+            const float4 g0 = t_source.GatherGreen(s_linear, uv, int2(0, 0));
+            const float4 b0 = t_source.GatherBlue(s_linear, uv, int2(0, 0));
+            const float4 r1 = t_source.GatherRed(s_linear, uv, int2(2, 0));
+            const float4 g1 = t_source.GatherGreen(s_linear, uv, int2(2, 0));
+            const float4 b1 = t_source.GatherBlue(s_linear, uv, int2(2, 0));
+            box += saturate(float3(r0.w, g0.w, b0.w));
+            box += saturate(float3(r0.z, g0.z, b0.z));
+            box += saturate(float3(r1.w, g1.w, b1.w));
+            box += saturate(float3(r1.z, g1.z, b1.z));
+            box += saturate(float3(r0.x, g0.x, b0.x));
+            box += saturate(float3(r0.y, g0.y, b0.y));
+            box += saturate(float3(r1.x, g1.x, b1.x));
+            box += saturate(float3(r1.y, g1.y, b1.y));
+        }
+        // Rows 2 and 3: texels 0-1 and 2-3 of each.
+        {
+            const float4 r0 = t_source.GatherRed(s_linear, uv, int2(0, 2));
+            const float4 g0 = t_source.GatherGreen(s_linear, uv, int2(0, 2));
+            const float4 b0 = t_source.GatherBlue(s_linear, uv, int2(0, 2));
+            const float4 r1 = t_source.GatherRed(s_linear, uv, int2(2, 2));
+            const float4 g1 = t_source.GatherGreen(s_linear, uv, int2(2, 2));
+            const float4 b1 = t_source.GatherBlue(s_linear, uv, int2(2, 2));
+            box += saturate(float3(r0.w, g0.w, b0.w));
+            box += saturate(float3(r0.z, g0.z, b0.z));
+            box += saturate(float3(r1.w, g1.w, b1.w));
+            box += saturate(float3(r1.z, g1.z, b1.z));
+            box += saturate(float3(r0.x, g0.x, b0.x));
+            box += saturate(float3(r0.y, g0.y, b0.y));
+            box += saturate(float3(r1.x, g1.x, b1.x));
+            box += saturate(float3(r1.y, g1.y, b1.y));
+        }
+        u_first[id.xy] = float4(box / 16.0f, 1.0f);
+        return;
+    }
+    uint count = 0u;
+    [loop] for (uint j = 0u; j < c_size.z; ++j) {
+        [loop] for (uint i = 0u; i < c_size.z; ++i) {
+            const uint2 p = base + uint2(i, j);
+            if (all(p < region)) {
+                sum += saturate(t_source.Load(int3(p, 0)).rgb);
+                ++count;
+            }
+        }
+    }
+    u_first[id.xy] = float4(count != 0u ? sum / float(count) : 0.0f, 1.0f);
+}
+
+[numthreads(8, 8, 1)]
+void BoxCS(uint3 id : SV_DispatchThreadID) {
+    if (any(id.xy >= c_size.xy)) {
+        return;
+    }
+    // The texels' overlap with [centre - width / 2, centre + width / 2] (texel i spans [i, i + 1]).
+    const uint axis = c_size.w;
+    const int last = int(axis == 0u ? c_size.x : c_size.y) - 1;
+    const float centre = float(axis == 0u ? id.x : id.y) + 0.5f;
+    const float lo = centre - 0.5f * c_params.x;
+    const float hi = centre + 0.5f * c_params.x;
+    float3 sum = 0.0f;
+    [loop] for (int i = int(floor(lo)); float(i) < hi; ++i) {
+        const float w = min(float(i + 1), hi) - max(float(i), lo);
+        int2 p = int2(id.xy);
+        if (axis == 0u) {
+            p.x = clamp(i, 0, last);
+        } else {
+            p.y = clamp(i, 0, last);
+        }
+        sum += t_source.Load(int3(p, 0)).rgb * w;
+    }
+    float3 c = sum / c_params.x;
+    if (c_params.y >= 0.0f) {
+        // The 8-bit value the copy would hold: intensity as the scene target copy converts it (BT.601, 16-235), or a channel.
+        const uint channel = uint(c_params.z);
+        const float value = channel == 0u ? dot(c, float3(66.0f, 129.0f, 25.0f)) * (255.0f / 256.0f) + 16.0f
+                                          : c[min(channel, 3u) - 1u] * 255.0f;
+        c = floor(value + 0.5f) > c_params.y ? c : 0.0f;
+    }
+    u_first[id.xy] = float4(c, 1.0f);
+}
+
+// A normalised Gaussian of `sigma` texels along `step` (UV per texel) about `uv`, two texels a bilinear tap.
+// The weights are w(i) = exp(k i^2). Each is the one before times exp(k (2 i + 1)), and that factor is the one before
+// it times exp(2 k): two exponentials for the whole kernel and two products a texel, where an exponential a texel was
+// most of the chain's work (at 3360 by 2100 its kernels take 55 million taps a frame).
+// Every tap is held between `lo` and `hi` (UV of the part's first and last texel centres): a pair of texels across the
+// part's edge reads its edge texel, as the clamp sampler does at the image's own edge.
+float3 gaussian(Texture2D<float4> source, float2 uv, float2 step, float sigma, float2 lo, float2 hi) {
+    const int radius = int(ceil(3.0f * sigma));
+    const float k = -0.5f / max(sigma * sigma, 1e-4f);
+    const float grow = exp(2.0f * k);
+    float weight = exp(k);        // w(1)
+    float ratio = weight * grow;  // w(2) / w(1)
+    float3 sum = source.SampleLevel(s_linear, uv, 0.0f).rgb;
+    float weights = 1.0f;
+    [loop] for (int i = 1; i <= radius; i += 2) {
+        const float w0 = weight;
+        const float next = weight * ratio;  // w(i + 1)
+        const float w1 = i + 1 <= radius ? next : 0.0f;
+        const float w = w0 + w1;
+        const float offset = float(i) + w1 / w;
+        sum += (source.SampleLevel(s_linear, clamp(uv + step * offset, lo, hi), 0.0f).rgb +
+                source.SampleLevel(s_linear, clamp(uv - step * offset, lo, hi), 0.0f).rgb) * w;
+        weights += 2.0f * w;
+        ratio *= grow;
+        weight = next * ratio;  // w(i + 2)
+        ratio *= grow;
+    }
+    return sum / weights;
+}
+
+[numthreads(8, 8, 1)]
+void BlurCS(uint3 id : SV_DispatchThreadID) {
+    if (any(id.xy >= c_size.xy)) {
+        return;
+    }
+    // The level's images are one size (t0..t2 and u0..u2); the part worked in is c_size.
+    uint width, height;
+    t_source.GetDimensions(width, height);
+    const float2 texel = 1.0f / float2(width, height);
+    const float2 uv = (float2(id.xy) + 0.5f) * texel;
+    const float2 lo = 0.5f * texel;
+    const float2 hi = (float2(c_size.xy) - 0.5f) * texel;
+    const uint count = c_size.z;
+    if (c_size.w == 0u) {
+        const float2 step = float2(texel.x, 0.0f);
+        u_first[id.xy] = float4(gaussian(t_source, uv, step, c_sigma.x, lo, hi), 1.0f);
+        if (count > 1u) {
+            u_second[id.xy] = float4(gaussian(t_source, uv, step, c_sigma.y, lo, hi), 1.0f);
+        }
+        if (count > 2u) {
+            u_third[id.xy] = float4(gaussian(t_source, uv, step, c_sigma.z, lo, hi), 1.0f);
+        }
+        return;
+    }
+    const float2 step = float2(0.0f, texel.y);
+    float3 sum = gaussian(t_source, uv, step, c_sigma.x, lo, hi);
+    if (count > 1u) {
+        sum += gaussian(t_second, uv, step, c_sigma.y, lo, hi);
+    }
+    if (count > 2u) {
+        sum += gaussian(t_third, uv, step, c_sigma.z, lo, hi);
+    }
+    sum *= c_params.x;
+    u_first[id.xy] = float4(c_params.y != 0.0f ? saturate(sum) : sum, 1.0f);
+}
+
+float4 CompositeVS(uint id : SV_VertexID) : SV_Position {
+    const float2 uv = float2((id << 1u) & 2u, id & 2u);
+    return float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+}
+
+// t_source the kept scene, t_second level 1 (normal: the first blur's sum; simple: its one blur), t_third level 2.
+// Kind 0 (the game's own chain restoring its kept scene): the scene alone.
+float4 CompositePS(float4 position : SV_Position) : SV_Target0 {
+    const float4 kept = t_source.Load(int3(int2(position.xy), 0));
+    const float3 scene = kept.rgb;
+    float3 bloom = 0.0f;
+    if (c_params.z == 1.0f) {
+        const float3 first = t_second.SampleLevel(s_linear, min(position.xy * c_uv.xy, c_sigma.xy), 0.0f).rgb;
+        const float3 second = t_third.SampleLevel(s_linear, min(position.xy * c_uv.zw, c_sigma.zw), 0.0f).rgb;
+        bloom = saturate(c_params.x * (first + second)) * c_params.y;
+    } else if (c_params.z == 2.0f) {
+        bloom = t_second.SampleLevel(s_linear, min(position.xy * c_uv.xy, c_sigma.xy), 0.0f).rgb *
+                (c_params.x * c_params.y);
+    }
+    return float4(scene + bloom, kept.a);
+}

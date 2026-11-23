@@ -1,0 +1,195 @@
+#pragma once
+
+// One Wii Remote pointer for every host source: the mouse (absolute), pointer
+// keys and the right stick (velocity), the gyro (rotation) and a touchpad (a
+// finger's travel). Whichever source moved last owns the pointer; another source
+// takes it over only after the owner has been still for kPointerHandoffUs, so a
+// resting stick or a controller lying on the desk never fights a moving mouse and
+// the reverse. A finger moving on a touchpad, and a moving mouse over the gyro, take
+// it at once: the hand holding the controller turns it a little all the time.
+
+#include <array>
+#include <cstdint>
+
+namespace galaxy::input {
+
+enum class PointerSource : std::uint8_t { None, Mouse, Keys, Stick, Gyro, Touch };
+
+inline constexpr std::uint64_t kPointerHandoffUs = 250'000;
+
+struct PointerActivity {
+    bool mouse = false;
+    bool keys = false;
+    bool stick = false;
+    bool gyro = false;
+    bool touch = false;
+};
+
+struct PointerOwner {
+    PointerSource owner = PointerSource::None;
+    std::uint64_t last_active_us = 0;
+    // Applies one report's activity and returns the owner. Among sources that
+    // start together the controller ones win, so a mouse moved by a controller
+    // mapper (Steam's desktop layout) cannot take the pointer from the stick.
+    PointerSource update(const PointerActivity& activity, std::uint64_t now_us) noexcept;
+};
+
+[[nodiscard]] const char* pointer_source_name(PointerSource source) noexcept;
+// Radial dead zone with the live range rescaled to 0..1 (XInput's guidance for
+// thumbsticks: per-axis dead zones snap the pointer to the axes).
+struct StickVector {
+    float x = 0.0f;
+    float y = 0.0f;
+};
+[[nodiscard]] StickVector apply_radial_deadzone(float x, float y, float deadzone) noexcept;
+
+// Pointer velocity (pointer units per second, 2 units = picture width; y up
+// positive) for a dead-zoned stick vector: response 0.3 s + 0.7 s^3 of the
+// deflection s, so small deflections place the pointer finely and full
+// deflection crosses the picture in 2 / speed seconds.
+[[nodiscard]] StickVector stick_pointer_velocity(StickVector stick, float speed) noexcept;
+
+// Stick and key pointers stay inside the picture so they always come back.
+inline constexpr float kStickPointerLimit = 1.0f;
+// The gyro pointer may leave the picture by this much (the game hides it, as
+// a Wii Remote pointed past the screen) and returns where the controller
+// points when it turns back: a picture's width or height past each edge
+// (40 by 22.5 degrees at 16:9), so a turn past the top or bottom never leaves
+// the pointer offset from the hand.
+inline constexpr float kGyroPointerLimit = 3.0f;
+inline constexpr float kPointerVisibleLimit = 1.02f;
+
+// As in the game's Switch release, the gyro pointer hides when it is not being used and
+// comes back only with R (recenter). The controller-owned pointer, low-passed over
+// kPointerHideFilterSeconds so a one-report spike does not count, is compared with an
+// anchor: while it stays within `radius` of the anchor a timer runs, and after
+// `hide_seconds` the pointer hides. Hand tremor and small jerks inside the radius never
+// restart the timer; leaving the radius re-anchors and restarts it. A hidden gyro
+// pointer (`latch`) stays hidden until `reveal` (recenter). A hidden stick pointer also
+// shows again when it leaves the radius or the stick is pushed. A mouse-owned pointer
+// hides by MouseRestHide instead.
+//
+// The default radius of 0.12 units (6 % of the picture width, 2.4 degrees of turn at
+// gyro sensitivity 1) is larger than hand tremor (about 0.025 units).
+inline constexpr float kPointerHideFilterSeconds = 0.1f;
+inline constexpr float kDefaultPointerHideRadius = 0.12f;
+
+// Five seconds, as in the game's Switch release: long enough that a pause to look never loses the pointer.
+inline constexpr float kDefaultPointerHideSeconds = 5.0f;
+struct PointerRestHide {
+    bool hidden = false;
+    bool anchored = false;
+    float anchor_x = 0.0f;
+    float anchor_y = 0.0f;
+    float filtered_x = 0.0f;
+    float filtered_y = 0.0f;
+    std::uint64_t since_us = 0;
+    std::uint64_t last_us = 0;
+    // Returns whether the pointer is hidden after this report.
+    bool update(float x, float y, std::uint64_t now_us, bool controller_owned, bool reveal, bool latch,
+                float hide_seconds, float radius) noexcept;
+};
+
+// Keyboard and mouse, in play: the mouse-owned pointer hides after kMouseHideSeconds without a
+// mouse move or a held mouse button, and shows again with either. Any other owner resets it.
+inline constexpr float kMouseHideSeconds = kDefaultPointerHideSeconds;
+
+struct MouseRestHide {
+    std::uint64_t since_us = 0;
+    // Returns whether the pointer is hidden after this report.
+    bool update(bool mouse_owned, bool mouse_active, std::uint64_t now_us) noexcept;
+};
+
+// The recenter button (Switch R, Xbox right-stick click, keyboard R): the
+// press moves the pointer to the picture centre and, while the button is
+// held, the pointer stays there, visible, ignoring gyro and stick motion. On
+// release the pointer resumes from the centre, so the controller's
+// orientation at release becomes the new reference.
+struct RecenterHold {
+    bool held = false;
+    struct Output {
+        bool pressed = false;   // this report: move to the centre, take ownership
+        bool pinned = false;    // held: keep the pointer at the centre
+        bool released = false;  // this report: motion resumes from the centre
+    };
+    Output update(bool down) noexcept;
+};
+
+// StarPointerOnOffController::mMode: the index of the highest-priority
+// pointer mode requested this frame, in updateMode's order: 0 HOME button
+// menu, 1 error window, 2 pause menu, 3 logo, 4 title, 5 file select,
+// 6 scenario select, 7 pause menu, 8 yes/no choice, 9 picture book,
+// 10-14 demos, 15 1P invalid / 2P valid, 16-17 sphere selector, 18 launch
+// star, 19 command stream, 20-21 blue star, 22 star bit target, 23 big
+// bubble, 24 base, 25 game. Menus are the modes of screens with a Back action
+// (0-9, 16, 17); everything else, and an unreadable mode, is play.
+inline constexpr std::uint32_t kStarPointerModeCount = 26;
+// A first-person look (LumaCore input 1.4 look_mode): each pointer source's motion as a view's turn, in radians, yaw
+// right and pitch up positive. A pointer unit is the pointer's (2: the picture's width).
+// - The stick and the pointer keys as fast as they move the pointer: at the default pointer speed (1.6 units a second)
+//   full deflection turns 3.5 radians (200 degrees) a second, and the player's pointer speed scales it.
+// - The gyro as far as the controller turns (at gyro sensitivity 1 a picture's width is 40 degrees of turn).
+// - A touch surface (a controller's, a phone's screen) by its travel: across the picture is half a turn.
+// - The mouse by its own counts (raw, not the system's pointer curve): 0.063 degrees a count, 50 degrees an inch at
+//   800 counts an inch.
+inline constexpr float kLookRadiansPerPointerUnit = 2.19f;
+inline constexpr float kLookGyroRadiansPerUnit = 0.349066f;
+inline constexpr float kLookTouchRadiansPerUnit = 1.570796f;
+inline constexpr float kLookMouseRadiansPerCount = 0.0011f;
+struct LookMotion {
+    float mouse_x = 0.0f;  // counts this sample, y down
+    float mouse_y = 0.0f;
+    float stick_x = 0.0f;  // pointer units a second (stick_pointer_velocity), y up
+    float stick_y = 0.0f;
+    float keys_x = 0.0f;   // pointer units a second, y up
+    float keys_y = 0.0f;
+    float gyro_x = 0.0f;   // pointer units this sample, y up
+    float gyro_y = 0.0f;
+    float touch_x = 0.0f;  // pointer units this sample, y down
+    float touch_y = 0.0f;
+    float dt = 0.0f;       // seconds since the last sample
+};
+struct LookTurn {
+    float yaw = 0.0f;
+    float pitch = 0.0f;
+};
+[[nodiscard]] LookTurn look_turn(const LookMotion& motion) noexcept;
+
+enum class PlayContext : std::uint8_t { Menu, Play };
+[[nodiscard]] PlayContext play_context_from_star_pointer_mode(std::uint32_t mode) noexcept;
+
+// The pointer mode the controls follow (-1 none). While a closed wipe covers the screen (NEBULA_CONTEXT_SCREEN_COVERED)
+// the game's changes are held at the mode last seen uncovered: a scene ending under a wipe passes through modes nobody
+// sees, such as the dome's sphere selector after the launch demo, and the touch controls would flash a menu for them.
+// The screens the player opens or that draw over the wipe (HOME menu, error window, the two pause menus) are never
+// held, and the first uncovered frame releases the hold.
+class CoveredModeHold {
+public:
+    // The game's mode changed; returns the mode to follow.
+    std::int32_t game(std::int32_t mode) noexcept;
+    // Each frame; returns the mode to follow.
+    std::int32_t covered(bool covered) noexcept;
+    [[nodiscard]] std::int32_t mode() const noexcept { return shown_; }
+    [[nodiscard]] bool holding() const noexcept { return shown_ != game_; }
+
+private:
+    std::int32_t follow() noexcept;
+    std::int32_t game_ = -1;
+    std::int32_t shown_ = -1;
+    bool covered_ = false;
+};
+
+// The jump/back button: the game's A while the player controls Mario, its B in menus.
+// The choice is made when the button goes down and kept until it is released,
+// so a menu opening mid-press never turns a held jump into a back press.
+struct JumpBackLatch {
+    bool held = false;
+    bool as_a = false;
+    struct Output {
+        bool a = false;
+        bool b = false;
+    };
+    Output update(bool pressed, PlayContext context) noexcept;
+};
+
+}  // namespace galaxy::input

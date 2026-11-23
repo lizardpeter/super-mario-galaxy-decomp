@@ -1,0 +1,44 @@
+name: Compiler cache
+description: >-
+  sccache in front of every compiler CMake drives (CMAKE_C_COMPILER_LAUNCHER and CMAKE_CXX_COMPILER_LAUNCHER, which
+  CMake takes from the environment) and of rustc, its cache restored from this job's newest run on this branch or on
+  main. The job saves it again with actions/cache/save at its end (key: this step's output `key`). What sccache stores
+  is keyed by the content of what is compiled, so a hit is the object the compiler would make. Its size is limited by
+  `size` (the least recently used entries leave first), so the saved entries cannot grow past GitHub's 10 GB for the
+  whole repository.
+inputs:
+  name:
+    description: The cache's name, one per job (and matrix leg).
+    required: true
+  size:
+    description: The most sccache keeps on disk, uncompressed (the saved entry is about half to three quarters of it).
+    required: false
+    default: 1G
+outputs:
+  key:
+    description: The key the job saves the cache under.
+    value: ${{ steps.key.outputs.key }}
+runs:
+  using: composite
+  steps:
+    - uses: mozilla-actions/sccache-action@v0.0.9
+    - id: key
+      shell: bash
+      run: |
+        # A cache key holds no commas (a matrix value such as address,undefined).
+        name="$(printf '%s' '${{ inputs.name }}' | tr ',' '-')"
+        echo "prefix=sccache-$name-${{ runner.os }}-" >> "$GITHUB_OUTPUT"
+        echo "key=sccache-$name-${{ runner.os }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        dir="$(cd "$RUNNER_TEMP" && pwd -W 2>/dev/null || pwd)/sccache"
+        {
+          echo "SCCACHE_DIR=$dir"
+          echo "SCCACHE_CACHE_SIZE=${{ inputs.size }}"
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache"
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache"
+          echo "RUSTC_WRAPPER=sccache"
+        } >> "$GITHUB_ENV"
+    - uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/sccache
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}

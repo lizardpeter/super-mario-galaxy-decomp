@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>Nebula</string>
+    <key>CFBundleIconFile</key>
+    <string>Nebula</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.nebula.galaxy</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Nebula</string>
+    <key>CFBundleDisplayName</key>
+    <string>Nebula</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>@NEBULA_VERSION@</string>
+    <key>CFBundleVersion</key>
+    <string>@NEBULA_VERSION@</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <!-- A game: macOS 14's Game Mode follows it while it is full screen. -->
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.action-games</string>
+    <key>LSSupportsGameMode</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <!-- The renderer names its own graphics card (GRAPHICS CARD in the settings); macOS need not switch for it. -->
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <!-- Controllers reach the game through Game Controller. -->
+    <key>GCSupportsControllerUserInteraction</key>
+    <true/>
+    <!-- mods:begin (build_macos.sh -n takes everything to mods:end out: a build with no mod support) -->
+    <!-- .luma mods: "Open With" Nebula and a double-click import them (the game's Mods page shows the result). -->
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>dev.nebula.luma</string>
+            <key>UTTypeDescription</key>
+            <string>Nebula mod</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict>
+                <key>public.filename-extension</key>
+                <array>
+                    <string>luma</string>
+                </array>
+            </dict>
+        </dict>
+    </array>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Nebula mod</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Owner</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>dev.nebula.luma</string>
+            </array>
+        </dict>
+        <dict>
+            <!-- Archives and folders the importer converts (Riivolution packs, texture packs): offered, not owned. -->
+            <key>CFBundleTypeName</key>
+            <string>Mod archive</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.zip-archive</string>
+                <string>org.7-zip.7-zip-archive</string>
+                <string>com.rarlab.rar-archive</string>
+                <string>public.folder</string>
+            </array>
+        </dict>
+    </array>
+    <!-- nebula:// links (6.1's import by link): Nebula comes to the front; the link waits on net.internet
+         (files_opened takes file URLs only). -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>dev.nebula.galaxy.link</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>nebula</string>
+            </array>
+        </dict>
+    </array>
+    <!-- Plan 2.9: the system's questions before a mod first uses the microphone (capture.audio), the camera
+         (capture.video) or the local network (net.local). Asked only then, never at the start. English here; every
+         language's in <lang>.lproj/InfoPlist.strings (tools/package_text.py, localization/PackageText.tsv). -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>A mod you allowed asks to use the microphone.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>A mod you allowed asks to use the camera.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>A mod you allowed asks to connect to devices on your local network.</string>
+    <!-- mods:end -->
+    <key>NSHumanReadableCopyright</key>
+    <string>Nebula is free software under the GNU General Public License, version 3. Not affiliated with Nintendo.</string>
+</dict>
+</plist>

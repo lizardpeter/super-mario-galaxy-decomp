@@ -1,0 +1,87 @@
+#pragma once
+
+#include "Game/System/SaveFileId.hpp"
+
+class BinaryDataChunkHolder;
+class GameDataAllGalaxyStorage;
+class GameDataPlayerStatus;
+class GameDataSomeScenarioAccessor;
+class GameEventFlagChecker;
+class GameEventValueChecker;
+class LumaSaveChunk;
+class Table;
+class SpinDriverPathStorage;
+class StarPieceAlmsStorage;
+class UserFile;
+
+class GameDataHolder {
+public:
+    GameDataHolder(const UserFile*);
+
+    bool isDataMario() const;
+    s32 getGalaxyNumCanOpen() const;
+    bool canOnGameEventFlag(const char*) const;
+    bool isOnGameEventFlag(const char*) const;
+    void tryOnGameEventFlag(const char*);
+    s32 getGameEventValue(const char*) const;
+    void setGameEventValue(const char*, u16);
+    bool isOnGameEventValueForBit(const char*, int) const;
+    void setGameEventValueForBit(const char*, int, bool);
+    s32 getPictureBookChapterCanRead() const;
+    s32 getPictureBookChapterAlreadyRead() const;
+    void setPictureBookChapterAlreadyRead(int);
+    void setRaceBestTime(const char*, u32);
+    u32 getRaceBestTime(const char*) const;
+    void addMissPoint(int);
+    void resetMissPoint();
+    bool isPointCollectForLetter() const;
+    void incPlayerMissNum();
+    s32 getPlayerMissNum() const;
+    bool hasPowerStar(const char*, s32) const;
+    bool hasGrandStar(int) const;
+    void setPowerStar(const char*, s32, bool);
+    s32 getPowerStarNumOwned(const char*) const;
+    s32 calcCurrentPowerStarNum() const;
+    GameDataSomeScenarioAccessor makeGalaxyScenarioAccessor(const char*, s32);
+    GameDataSomeScenarioAccessor makeGalaxyScenarioAccessor(const char*, s32) const;
+    bool isOnGalaxyScenarioFlagAlreadyVisited(const char*, s32) const;
+    void onGalaxyScenarioFlagAlreadyVisited(const char*, s32);
+    bool isAppearGalaxy(const char*) const;
+    s32 getPlayerLeft() const;
+    void addPlayerLeft(int);
+    bool isPlayerLeftSupply() const;
+    void offPlayerLeftSupply();
+    s32 getStockedStarPieceNum() const;
+    void addStockedStarPiece(int);
+    s32 setupSpinDriverPathStorage(const char*, int, int, int, f32*);
+    void updateSpinDriverPathStorage(const char*, int, int, f32);
+    s32 getStarPieceNumGivingToTicoSeed(int) const;
+    s32 getStarPieceNumMaxGivingToTicoSeed(int) const;
+    void addStarPieceGivingToTicoSeed(int, int);
+    bool isCompleteMarioAndLuigi() const;
+    bool isPassedStoryEvent(const char*) const;
+    void followStoryEventByName(const char*);
+    void resetAllData();
+    u32 makeFileBinary(u8*, u32);
+    bool loadFromFileBinary(SaveFileId, const u8*, u32);
+    // Mods' values in this file (services/save.md): its chunk, and the bytes it adds to the file, header included.
+    LumaSaveChunk* getLumaChunk() const { return mLumaChunk; }
+    u32 getLumaChunkRoom() const;
+    SaveFileId getFileId() const {
+        return {mIsMario ? SaveFileId::Kind_Mario : SaveFileId::Kind_Luigi, mUser};
+    }
+
+    GameEventFlagChecker* mEventFlagChecker;
+    GameEventValueChecker* mEventValueChecker;
+    GameDataPlayerStatus* mPlayerStatus;
+    GameDataAllGalaxyStorage* mAllGalaxyStorage;
+    SpinDriverPathStorage* mSpinDriverPathStorage;
+    StarPieceAlmsStorage* mStarPieceAlmsStorage;
+    Table* mMapInfo;
+    BinaryDataChunkHolder* mChunkHolder;
+    // The file this holds: Mario's or Luigi's game, of user mUser.
+    bool mIsMario;
+    s32 mUser;
+    const UserFile* mUserFile;
+    LumaSaveChunk* mLumaChunk;
+};

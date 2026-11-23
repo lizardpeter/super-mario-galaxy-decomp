@@ -1,0 +1,38 @@
+#pragma once
+
+#include "Game/System/SaveBinary.hpp"
+
+class BinaryDataChunkBase {
+public:
+    virtual u32 makeHeaderHashCode() const = 0;
+    virtual u32 getSignature() const = 0;
+    virtual s32 serialize(u8*, u32) const = 0;
+    virtual s32 deserialize(const u8*, u32) = 0;
+    virtual void initializeData() = 0;
+};
+
+// One chunk in a user file of GameData.bin: its signature, header hash and size (header included), then its data;
+// the numbers big-endian by the file format, read and written field by field (SaveBinary.hpp).
+namespace BinaryDataChunk {
+    const u32 cSignature = 0x0;
+    const u32 cHash = 0x4;
+    const u32 cSize = 0x8;
+    const u32 cDataOffset = 0xC;
+};  // namespace BinaryDataChunk
+
+class BinaryDataChunkHolder {
+public:
+    BinaryDataChunkHolder();
+
+    void addChunk(BinaryDataChunkBase* pChunk);
+    // The file, each chunk made in place; capacity is room for all of it.
+    u32 makeFileBinary(u8*, u32 capacity);
+    bool loadFromFileBinary(const u8* pData, u32 dataSize);
+    static u32 makeChunkData(u8* pData, u32 dataSize, const BinaryDataChunkBase*);
+    BinaryDataChunkBase* findFromSignature(u32 signature) const;
+    static u32 calcBinarySize(const u8* pData, u32 dataSize);
+
+    BinaryDataChunkBase** mChunks;
+    s32 mChunkRoom;
+    s32 mNumChunks;
+};

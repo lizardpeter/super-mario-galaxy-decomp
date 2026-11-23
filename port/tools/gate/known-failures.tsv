@@ -1,0 +1,4 @@
+# Tests the gate expects to fail (docs/plan/04-GATE-AND-MAIN.md section 4.1). A listed test that passes fails the gate.
+# A line goes in only when main's newest commit fails the same way, or for a new test of an open ledger row;
+# never for what the candidate broke. The commit that closes the row removes its lines.
+check	test	ledger row	first seen	what

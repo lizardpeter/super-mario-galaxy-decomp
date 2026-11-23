@@ -1,0 +1,37 @@
+#pragma once
+
+#include "Game/Screen/LayoutActor.hpp"
+
+class ButtonPaneController;
+class GalaxyMapGalaxyPlain;
+
+namespace MR {
+    class FunctorBase;
+};  // namespace MR
+
+class FileSelectButton : public LayoutActor {
+public:
+    /// @brief Creates a new `FileSelectButton`.
+    /// @param pName The pointer to the null-terminated name of the object.
+    FileSelectButton(const char* pName);
+
+    virtual void init(const TableIter& rIter) override;
+    virtual void appear() override;
+    virtual void kill() override;
+    virtual void control() override;
+
+    void disappear();
+    void setCallbackFunctor(const MR::FunctorBase&, const MR::FunctorBase&, const MR::FunctorBase&, const MR::FunctorBase&, const MR::FunctorBase&);
+    void shiftSelect();
+    void exeSelect();
+    void exeWait();
+    void exeDisappear();
+    void createPaneControl();
+    void createButtonController();
+    void createOthers();
+
+private:
+    ButtonPaneController* mButtonCtrl[5];
+    MR::FunctorBase* mCallbackFunctor[5];
+    GalaxyMapGalaxyPlain* mGuidancePlain;  // the 2P guidance icon
+};

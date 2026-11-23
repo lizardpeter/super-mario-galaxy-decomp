@@ -1,0 +1,44 @@
+// When the game's next frame starts. A frame reads its input as it starts and its picture appears at the display's
+// next refresh, so the time between is latency: a frame starts as late as its work allows, its present landing just
+// before a refresh. The display's clock also sets the frames' period, so no frame is repeated or dropped against it.
+#pragma once
+
+#include <cstdint>
+#include <optional>
+
+namespace galaxy::host {
+
+// The display's refreshes: one at `vblank_ns` (its vertical blank), then every `period_ns`, on the frame clock's time base.
+struct DisplayRefresh {
+    std::int64_t vblank_ns = 0;
+    std::int64_t period_ns = 0;
+};
+
+class FramePhase {
+public:
+    // Before a refresh, to be sure of it.
+    static constexpr std::int64_t kMarginNs = 1'500'000;
+    // How far one frame's start moves towards its place: unseen, since a present lands on a refresh anyway.
+    static constexpr std::int64_t kSlewNs = 500'000;
+    // A frame past its budget has missed its refresh: plain pacing for this many frames.
+    static constexpr int kPlainFrames = 600;
+
+    // The frame that started at `last_start_ns` took `work_ns` to its present (0: not known yet). `period_ns`: the
+    // frame's length; `in_between`: in-between pictures are on. Returns the next frame's start. Without refreshes, on
+    // a display the step does not lock to (galaxy/step_lock.h), after a missed frame, or when the work leaves no room
+    // to start later, frames simply follow `period_ns`.
+    [[nodiscard]] std::int64_t next_start(std::int64_t last_start_ns, std::int64_t work_ns, std::int64_t period_ns,
+                                          const std::optional<DisplayRefresh>& refresh, bool in_between) noexcept;
+    [[nodiscard]] std::int64_t budget_ns() const noexcept { return budget_ns_; }
+    [[nodiscard]] bool plain() const noexcept { return plain_frames_ != 0; }
+
+private:
+    std::int64_t budget_ns_ = 8'000'000;
+    int plain_frames_ = 0;
+};
+
+// Two readings of the display's clock agree: a whole number of refreshes apart. Not on a variable refresh display, whose
+// refreshes follow the presents.
+[[nodiscard]] bool refreshes_in_step(std::int64_t earlier_vblank_ns, const DisplayRefresh& now) noexcept;
+
+}  // namespace galaxy::host
