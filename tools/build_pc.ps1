@@ -8,7 +8,7 @@ one folder ready to run. Linux: tools/build_pc.sh.
   .\tools\build_pc.ps1 [-Out build\pc\windows] [-Llvm <LLVM bin folder>] [-Game <disc image or game folder>]
                        [-Baseline]
 
-  -Llvm      LLVM 21 or later. Default: C:\Program Files\LLVM\bin if it has clang-cl.exe, else a pinned LLVM
+  -Llvm      LLVM 21 or later. Default: C:\Program Files\LLVM\bin if it is LLVM 21 or later, else a pinned LLVM
              downloaded once into .cache\ (docs/pc-build.md).
   -Game      also import the game into <Out>\content\game.pak (RMGE01, RMGP01 or RMGJ01; ISO, RVZ, WIA, WBFS, CISO,
              GCZ or an extracted folder).
@@ -37,19 +37,32 @@ function Invoke-Checked([string]$exe, [string[]]$arguments) {
 . (Join-Path $port "tools\enter_msvc_environment.ps1") | Out-Null
 
 if (-not $Llvm) {
+    # An installed LLVM only if it is 21 or later (Nebula's minimum); otherwise the pinned one.
     $default = "C:\Program Files\LLVM\bin"
-    if (Test-Path (Join-Path $default "clang-cl.exe")) {
+    $major = 0
+    if (Test-Path (Join-Path $default "clang++.exe")) {
+        $line = & (Join-Path $default "clang++.exe") --version | Select-Object -First 1
+        if ($line -match 'version (\d+)\.') { $major = [int]$Matches[1] }
+    }
+    if ($major -ge 21) {
         $Llvm = $default
     } else {
         $folder = Join-Path $root ".cache\clang+llvm-$LlvmVersion-x86_64-pc-windows-msvc"
-        if (-not (Test-Path (Join-Path $folder "bin\clang-cl.exe"))) {
+        if (-not (Test-Path (Join-Path $folder "bin\clang++.exe"))) {
             Write-Host "Downloading LLVM $LlvmVersion (once, into .cache\)"
             New-Item -ItemType Directory -Force -Path (Join-Path $root ".cache") | Out-Null
             $archive = "$folder.tar.xz"
             Invoke-Checked "curl.exe" @("-fL", "--retry", "3", "-o", $archive,
                 "https://github.com/llvm/llvm-project/releases/download/llvmorg-$LlvmVersion/clang+llvm-$LlvmVersion-x86_64-pc-windows-msvc.tar.xz")
             New-Item -ItemType Directory -Force -Path $folder | Out-Null
-            Invoke-Checked "tar.exe" @("-xJf", $archive, "-C", $folder, "--strip-components=1")
+            # Git's tar reads .xz (Windows' own tar.exe may not); relative paths, since it reads "D:\..." as a host.
+            $tar = Join-Path $env:ProgramFiles "Git\usr\bin\tar.exe"
+            if (-not (Test-Path $tar)) { $tar = "tar.exe" }
+            Push-Location (Join-Path $root ".cache")
+            try {
+                $name = Split-Path -Leaf $folder
+                Invoke-Checked $tar @("-xJf", "$name.tar.xz", "-C", $name, "--strip-components=1")
+            } finally { Pop-Location }
             Remove-Item $archive
         }
         $Llvm = Join-Path $folder "bin"
@@ -72,8 +85,9 @@ try {
 
     # The game module: the decomp's game code (port/native/petari) compiled with clang for x64.
     $gameBuild = Join-Path $Out "game"
-    $gameArgs = @("-Petari", "native\petari", "-Build", $gameBuild, "-Llvm", $Llvm, "-Target", "all")
-    if (-not $Baseline) { $gameArgs += "-NoBaseline" }
+    # A hashtable, so the names bind to build.ps1's parameters (an array would pass them as positional strings).
+    $gameArgs = @{ Petari = "native\petari"; Build = $gameBuild; Llvm = $Llvm; Target = "all" }
+    if (-not $Baseline) { $gameArgs.NoBaseline = $true }
     & (Join-Path $port "native\build.ps1") @gameArgs
     if ($LASTEXITCODE -ne 0) { throw "native\build.ps1 failed ($LASTEXITCODE)" }
 
