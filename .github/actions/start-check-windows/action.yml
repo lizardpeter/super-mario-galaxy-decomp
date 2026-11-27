@@ -54,7 +54,7 @@ runs:
       run: |
         foreach ($exe in $env:PROGRAMS.Split(',', [StringSplitOptions]::RemoveEmptyEntries).Trim()) {
           # Start-Process passes its arguments without quoting them: paths with spaces (the program's name is in them) are quoted here.
-  $d = Join-Path $env:RUNNER_TEMP "start-$exe"
+          $d = Join-Path $env:RUNNER_TEMP "start-$exe"
           New-Item -ItemType Directory -Force "$d/data", "$d/settings" | Out-Null
           $p = Start-Process (Join-Path $env:FOLDER "$exe.exe") -WindowStyle Hidden -PassThru `
             -ArgumentList '--start-check', '300', '--data', "`"$d\data`"", '--settings', "`"$d\settings`"", '--crash-dumps', "`"$d`"" `
