@@ -580,3 +580,49 @@ if(luma_copied_count GREATER 0)
         endforeach()
     endforeach()
 endif()
+
+# A single-executable build (NEBULA_GAME_STATIC): the game as one object file the host links in, in place of a shared
+# library. Every game source is compiled to bitcode (-flto), joined into one module, every name but the host's entry
+# points made internal (so the game's C library, math and Wii-era names cannot collide with the host's), optimized as a
+# whole and compiled to smg_game_static.o, with smg_game_static_symbols.c, the entry points by name for the host's
+# find_symbol (native/tools/game_object.py). No mods: the plain game (no rows). The host's projects take both files
+# through NEBULA_GAME_OBJECT.
+option(NEBULA_GAME_STATIC "Build the game as one object for a single executable (no mods)" OFF)
+if(NEBULA_GAME_STATIC)
+    if(NEBULA_LUMA_HOOKS OR NEBULA_MODS)
+        message(FATAL_ERROR "NEBULA_GAME_STATIC builds the game without mods: configure with -DNEBULA_MODS=OFF -DNEBULA_LUMA_HOOKS=OFF")
+    endif()
+    # The game's C library with every function kept (math/src/game_runtime_static.c.in); on Windows the executable's
+    # C runtime runs the static constructors and provides what nebula_runtime_win.c would (NEBULA_MODULE_WITH_CRT).
+    set(static_runtime_sources "${CMAKE_CURRENT_SOURCE_DIR}/math/src/nebula_math.c")
+    foreach(name nebula_libm nebula_libc)
+        set(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/math/src/${name}.c")
+        configure_file(math/src/game_runtime_static.c.in "${CMAKE_CURRENT_BINARY_DIR}/static_runtime/${name}.c" @ONLY)
+        set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/static_runtime/${name}.c" PROPERTIES COMPILE_OPTIONS "-fno-builtin")
+        list(APPEND static_runtime_sources "${CMAKE_CURRENT_BINARY_DIR}/static_runtime/${name}.c")
+    endforeach()
+    add_library(smg_game_bitcode OBJECT ${game_sources} ${static_runtime_sources})
+    target_link_libraries(smg_game_bitcode PRIVATE smg_game_common)
+    target_compile_definitions(smg_game_bitcode PRIVATE NEBULA_PLAIN_MODULE=1 NEBULA_GAME_STATIC=1
+                               $<$<PLATFORM_ID:Windows>:NEBULA_MODULE_WITH_CRT=1>)
+    # On Windows the object asks the linker for the C runtime the host uses (the DLL one, /MD), not clang's default.
+    target_compile_options(smg_game_bitcode PRIVATE -flto $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+                           $<$<PLATFORM_ID:Windows>:-fms-runtime-lib=dll>)
+    set_target_properties(smg_game_bitcode PROPERTIES
+        C_STANDARD 11 C_EXTENSIONS ON CXX_STANDARD 17 CXX_EXTENSIONS ON POSITION_INDEPENDENT_CODE ON)
+    get_filename_component(static_llvm "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    set(static_objects "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static.objects")
+    file(GENERATE OUTPUT "${static_objects}" CONTENT "$<JOIN:$<TARGET_OBJECTS:smg_game_bitcode>,\n>\n")
+    add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
+               "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static_symbols.c"
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/game_object.py"
+                --objects "${static_objects}" --sources "${petari}/src" --llvm "${static_llvm}"
+                --out "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
+                --table "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static_symbols.c"
+        DEPENDS smg_game_bitcode $<TARGET_OBJECTS:smg_game_bitcode> "${CMAKE_CURRENT_SOURCE_DIR}/tools/game_object.py"
+        COMMAND_EXPAND_LISTS VERBATIM)
+    add_custom_target(smg_game_static ALL DEPENDS
+        "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
+        "${CMAKE_CURRENT_BINARY_DIR}/smg_game_static_symbols.c")
+endif()

@@ -50,6 +50,13 @@ namespace galaxy {
     if (!launch_args().data.empty()) {
         return launch_args().data;
     }
+#if defined(NEBULA_SELF_CONTAINED)
+    // A self-contained build (the single executable): everything it writes stays in data/ beside it, never elsewhere.
+    if (std::filesystem::path program = program_directory(); !program.empty()) {
+        return program / "data";
+    }
+    return {};
+#else
     if (std::filesystem::path portable = portable_data_directory(); !portable.empty()) {
         return portable;
     }
@@ -78,6 +85,7 @@ namespace galaxy {
     }
     return {};
 #endif
+#endif  // NEBULA_SELF_CONTAINED
 }
 
 // Where --diagnostics writes its files: <data>/diagnostics, made when first asked for; empty without a data folder.

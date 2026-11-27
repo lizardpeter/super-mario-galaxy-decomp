@@ -517,8 +517,26 @@ std::atomic<uint32_t> gSceneBegins{0};
 // The game frame running (frame_begun): it numbers the frame lists the game submits.
 std::atomic<uint32_t> gGameFrames{0};
 
+#if defined(NEBULA_GAME_STATIC)
+// A single-executable build: the game is linked in (native/tools/game_object.py), and its entry points are found by
+// name in the table that tool generated, in place of the system's GetProcAddress or dlsym.
+struct NebulaStaticSymbol {
+    const char* name;
+    void* address;
+};
+extern "C" const NebulaStaticSymbol nebula_game_static_symbols[];
+// The handle open_module gives: the game is this executable.
+char gStaticModule;
+#endif
+
 void* find_optional_symbol(void* module, const char* name) {
-#if defined(_WIN32)
+#if defined(NEBULA_GAME_STATIC)
+    (void)module;
+    for (const NebulaStaticSymbol* s = nebula_game_static_symbols; s->name != nullptr; ++s) {
+        if (std::strcmp(s->name, name) == 0) return s->address;
+    }
+    return nullptr;
+#elif defined(_WIN32)
     return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(module), name));
 #else
     return dlsym(module, name);
@@ -817,7 +835,11 @@ std::string windows_error_text(DWORD code) {
 // Loads the module and says why when the system will not (game_module.h load_failure). nullptr: it did not load, and
 // `why` is the line to stop with.
 void* open_module(const fs::path& path, std::string& why) {
-#if defined(_WIN32)
+#if defined(NEBULA_GAME_STATIC)
+    (void)path;
+    (void)why;
+    return &gStaticModule;
+#elif defined(_WIN32)
     void* module = LoadLibraryW(path.wstring().c_str());
     const std::string system_text = module == nullptr ? windows_error_text(GetLastError()) : std::string{};
 #else
@@ -829,8 +851,10 @@ void* open_module(const fs::path& path, std::string& why) {
         system_text = reason != nullptr ? reason : "";
     }
 #endif
+#if !defined(NEBULA_GAME_STATIC)
     if (module == nullptr) why = galaxy::game_module::load_failure(path, system_text);
     return module;
+#endif
 }
 
 void load_module(const fs::path& path) {
@@ -5173,21 +5197,13 @@ void svc_mods_start(void*) {
     // never made.
     galaxy::modlog::begin(
         [](const char* name) -> void* {
-#if defined(_WIN32)
-            return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(gModule.module), name));
-#else
-            return dlsym(gModule.module, name);
-#endif
+            return find_optional_symbol(gModule.module, name);
         },
         gModsOn);
     // The game sounds mods replace (sound.md 6; the audio service), code or none. A module without the replacer is
     // left alone.
     galaxy::luma_audio::set_replacements([](const char* name) -> void* {
-#if defined(_WIN32)
-        return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(gModule.module), name));
-#else
-        return dlsym(gModule.module, name);
-#endif
+        return find_optional_symbol(gModule.module, name);
     });
     // What the start's check and the cook said, in the mod log: after the mods' code started, or here with no mod that
     // changes the game itself (texture pack pictures or patches alone).
@@ -5221,11 +5237,7 @@ void svc_mods_start(void*) {
 #endif  // a headless host has no language setting: refusals stay in English, the default
     galaxy::mods::start_plugins(gPlugins, gModRows, game_api(),
                                 [](const char* name) -> void* {
-#if defined(_WIN32)
-                                    return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(gModule.module), name));
-#else
-                                    return dlsym(gModule.module, name);
-#endif
+                                    return find_optional_symbol(gModule.module, name);
                                 },
                                 [](const char* text) { log_line("mods:", text); }, layers_chosen);
     // After the last mod's start, before the title (luma_refs.h), on the game thread: each placement of a class only
@@ -5233,12 +5245,8 @@ void svc_mods_start(void*) {
     // One nobody makes is named in the mod log and placed as the placeholder object. With no mod a player turned on
     // (the harness's own game half alone) it is not called.
     if (gPlayersModsOn != 0) {
-#if defined(_WIN32)
         const auto check = reinterpret_cast<LumaRefsCheckAfterStart>(
-            GetProcAddress(static_cast<HMODULE>(gModule.module), "luma_refs_check_after_start"));
-#else
-        const auto check = reinterpret_cast<LumaRefsCheckAfterStart>(dlsym(gModule.module, "luma_refs_check_after_start"));
-#endif
+            find_optional_symbol(gModule.module, "luma_refs_check_after_start"));
         if (check != nullptr) {
             const std::vector<galaxy::modlog::AfterStartRow> rows = galaxy::modlog::after_start_rows();
             std::vector<LumaAfterStartRef> refs;
@@ -6224,6 +6232,23 @@ int main(int argc, char** argv) {
         (void)galaxy::bench::start(options);
     }
     gPakFolder = pak.parent_path();
+#endif
+#if defined(NEBULA_SELF_CONTAINED)
+    // A self-contained build reads only its own folder: game.pak beside the program, the saves in saves/ beside it.
+    {
+        const fs::path here = galaxy::program_directory();
+        if (pak.empty()) pak = here / "game.pak";
+        if (saves.empty() && !benchmark) saves = here / "saves";
+        std::error_code exists_error;
+        if (!fs::is_regular_file(pak, exists_error)) {
+            die("No game.pak in %s. Make it once with the importer (docs/pc-build.md) and put it beside the program.",
+                utf8_of(here).c_str());
+        }
+        fs::create_directories(saves, exists_error);
+    }
+#if defined(NEBULA_HOST_RENDERER)
+    gPakFolder = pak.parent_path();
+#endif
 #endif
     if (pak.empty() || (saves.empty() && !benchmark)) {
         die("usage: nebula_native_host --pak <game.pak> --saves <dir> [--module <smg_game.dll>] [--seconds N] (docs/using-nebula/command-line-arguments.md)");

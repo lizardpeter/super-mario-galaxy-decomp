@@ -66,6 +66,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# A single self-contained executable (smg.exe, the Vulkan host): the game linked in from the object native/CMakeLists.txt
+# builds with NEBULA_GAME_STATIC (this is that build's folder), no update check, and everything it reads and writes in its
+# own folder (galaxy/platform_paths.h NEBULA_SELF_CONTAINED). Build the NebulaVk target.
+set(NEBULA_GAME_OBJECT "" CACHE PATH "The game's object build folder (native, NEBULA_GAME_STATIC): one self-contained executable")
+if(NEBULA_GAME_OBJECT)
+    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1)
+endif()
+
 # The mods importer's archive libraries (zlib, liblzma, libarchive), built once per build tree.
 # The DirectX 12 Agility SDK's headers before the Windows SDK's, for every target (cmake/agility_sdk.cmake).
 include(cmake/agility_sdk.cmake)
@@ -234,11 +242,12 @@ add_library(galaxy_native_host STATIC
     runtime/src/switch2_ble_win.cpp
     runtime/src/wiimote_hid.cpp
     runtime/src/wiimote_link_win32.cpp
-    # The home screen's update check (galaxy/update.h) over WinHTTP; Nebula Setup installs.
-    runtime/src/update/update.cpp
-    runtime/src/update/update_crypto.cpp
-    runtime/src/update/update_transport_winhttp.cpp
-    runtime/src/update/update_install_windows.cpp)
+    # The home screen's update check (galaxy/update.h) over WinHTTP; Nebula Setup installs. Not in the self-contained
+    # executable, which writes nothing outside its folder.
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/update/update.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/update/update_crypto.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/update/update_transport_winhttp.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/update/update_install_windows.cpp>)
 target_link_libraries(galaxy_native_host
     PUBLIC
         galaxy_runtime_abi
@@ -262,7 +271,8 @@ target_link_libraries(galaxy_native_host
 )
 galaxy_host_options(galaxy_native_host)
 # The host's diagnostics report modes (diag_report.h).
-target_compile_definitions(galaxy_native_host PUBLIC NEBULA_DIAG_REPORTS=1 NEBULA_UPDATE_CHECK=1)
+target_compile_definitions(galaxy_native_host PUBLIC NEBULA_DIAG_REPORTS=1
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:NEBULA_UPDATE_CHECK=1>)
 
 # The same passes for the Vulkan renderer, compiled on the device (cmake/post_shader_sources.cmake).
 include(cmake/post_shader_sources.cmake)
@@ -794,11 +804,22 @@ runtime/src/render/host_window_win32.cpp
     endif()
 
     add_executable(NebulaVk native/host/host_main.cpp runtime/src/frame_phase.cpp)
-    nebula_file_details(NebulaVk Nebula.exe "Nebula" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
+    if(NEBULA_GAME_OBJECT)
+        nebula_file_details(NebulaVk smg.exe "Super Mario Galaxy" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
+    else()
+        nebula_file_details(NebulaVk Nebula.exe "Nebula" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
+    endif()
     target_sources(NebulaVk PRIVATE ${galaxy_programs_spirv})
     target_include_directories(NebulaVk PRIVATE native/include runtime/include)
     target_compile_definitions(NebulaVk PRIVATE NEBULA_HOST_RENDERER=1 _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(NebulaVk PRIVATE dwmapi galaxy_render_vk galaxy_save_files galaxy_asset_store)
+    if(NEBULA_GAME_OBJECT)
+        # The self-contained executable: the game's object and its entry-point table inside it, named smg.exe.
+        target_sources(NebulaVk PRIVATE "${NEBULA_GAME_OBJECT}/smg_game_static.obj" "${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c")
+        set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static.obj" PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+        set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c" PROPERTIES GENERATED TRUE)
+        set_target_properties(NebulaVk PROPERTIES OUTPUT_NAME smg)
+    endif()
     if(MSVC)
         target_sources(NebulaVk PRIVATE native/host/nebula_host.manifest)
         target_compile_options(NebulaVk PRIVATE ${NEBULA_MSVC_DEBUG_INFO})

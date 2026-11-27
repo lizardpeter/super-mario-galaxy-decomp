@@ -14,7 +14,11 @@
 extern "C" {
 #endif
 
-#if defined(_WIN32)
+#if defined(NEBULA_GAME_STATIC)
+/* A single-executable build: the game is an object inside the host's executable (native/tools/game_object.py), so
+   these are ordinary functions, called by the host directly; nothing is exported or imported. */
+#define NEBULA_GAME_API
+#elif defined(_WIN32)
 #if defined(NEBULA_GAME_MODULE)
 #define NEBULA_GAME_API __declspec(dllexport)
 #else

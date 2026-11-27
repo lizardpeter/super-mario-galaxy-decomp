@@ -1,8 +1,9 @@
 name: PC build
 
-# Every push: the PC port (port/, Nebula) builds with the repo's one-command scripts on Windows and Linux, exactly
-# as docs/pc-build.md tells a person to, and each program starts and draws 300 frames without game data
-# (--start-check) on the runner's software renderer. The built folders are uploaded as artifacts.
+# Every push: the game builds as one self-contained executable (smg.exe / smg: Vulkan, no mods, the game linked in)
+# with the repo's one-command scripts on Windows and Linux, exactly as docs/pc-build.md tells a person to, and it starts
+# and draws 300 frames without game data (--start-check) on the runner's software renderer. The SMG folder and the
+# importer are uploaded as artifacts.
 on:
   push:
   pull_request:
@@ -37,6 +38,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Build (tools/build_pc.sh)
         run: sh tools/build_pc.sh -o "$RUNNER_TEMP/pc"
+      - name: One file, nothing beside it
+        run: |
+          ls -la "$RUNNER_TEMP/pc/SMG"
+          test "$(ls "$RUNNER_TEMP/pc/SMG")" = smg
+          echo "libraries it loads:"; ldd "$RUNNER_TEMP/pc/SMG/smg"
       - name: Start check (Vulkan on Mesa lavapipe, virtual display)
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mesa-vulkan-drivers xvfb xauth openbox
@@ -44,7 +50,7 @@ jobs:
           mkdir -p "$d/data" "$d/settings"
           SDL_AUDIO_DRIVER=dummy timeout 300 xvfb-run -a -s "-screen 0 1920x1080x24" \
             sh -c 'openbox >/dev/null 2>&1 & sleep 2; exec "$0" "$@"' \
-            "$RUNNER_TEMP/pc/bin/nebula" --start-check 300 --data "$d/data" --settings "$d/settings" --crash-dumps "$d"
+            "$RUNNER_TEMP/pc/SMG/smg" --start-check 300 --data "$d/data" --settings "$d/settings" --crash-dumps "$d"
       - name: Compiler cache stats
         if: always() && steps.cache.outputs.key != ''
         run: sccache --show-stats
@@ -56,12 +62,17 @@ jobs:
           key: ${{ steps.cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         with:
-          name: nebula-linux-x86_64
-          path: ${{ runner.temp }}/pc/bin
+          name: smg-linux-x86_64
+          path: ${{ runner.temp }}/pc/SMG
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: importer-linux-x86_64
+          path: ${{ runner.temp }}/pc/importer
           retention-days: 14
 
   windows:
-    name: Windows (D3D12, Vulkan, D3D11)
+    name: Windows (Vulkan)
     runs-on: windows-2022
     timeout-minutes: 240
     steps:
@@ -77,10 +88,18 @@ jobs:
         run: |
           .\tools\build_pc.ps1 -Out "$env:RUNNER_TEMP\pc"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: One file, nothing beside it
+        shell: pwsh
+        run: |
+          Get-ChildItem "$env:RUNNER_TEMP\pc\SMG"
+          if ((Get-ChildItem "$env:RUNNER_TEMP\pc\SMG").Name -ne 'smg.exe') { exit 1 }
+          . .\port\tools\enter_msvc_environment.ps1 | Out-Null
+          dumpbin /dependents "$env:RUNNER_TEMP\pc\SMG\smg.exe"
       - name: Start check
         uses: ./.github/actions/start-check-windows
         with:
-          folder: ${{ runner.temp }}\pc\bin
+          folder: ${{ runner.temp }}\pc\SMG
+          programs: smg
       - name: Compiler cache stats
         if: always() && steps.cache.outputs.key != ''
         shell: bash
@@ -93,8 +112,13 @@ jobs:
           key: ${{ steps.cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         with:
-          name: nebula-windows-x64
+          name: smg-windows-x64
           path: |
-            ${{ runner.temp }}/pc/bin
-            !${{ runner.temp }}/pc/bin/vulkan-1.dll
+            ${{ runner.temp }}/pc/SMG
+            !${{ runner.temp }}/pc/SMG/vulkan-1.dll
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: importer-windows-x64
+          path: ${{ runner.temp }}/pc/importer
           retention-days: 14

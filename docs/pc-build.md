@@ -1,50 +1,71 @@
 # Building and running on PC
 
-The PC port is Nebula (`port/`): the decomp's game code compiled natively for x64 (and ARM64), with a host that
-replaces the Wii's hardware and SDK (Direct3D 12, Vulkan and Direct3D 11 renderers, audio, input, saves, mods).
-You need your own copy of the game: a disc image (ISO, RVZ, WIA, WBFS, CISO, GCZ) or an extracted folder of
-RMGE01, RMGP01 or RMGJ01, revision 0.
+The game builds as **one self-contained executable**: `smg.exe` on Windows, `smg` on Linux. It is Nebula's Vulkan host
+with the decomp's game code linked inside it (no `smg_game.dll`), no mods, and no update check. It reads only
+`game.pak` beside itself and writes only into its own folder:
+
+```
+SMG\
+  smg.exe      the game (Windows; `smg` on Linux)
+  game.pak     your game's files, converted once by the importer
+  saves\       made on first run
+  data\        settings, logs, crash reports, the shader cache
+```
+
+Move or copy the `SMG` folder anywhere. Nothing is read from or written to anywhere else, with one exception the game
+cannot control: GPU drivers keep their own shader cache for every Vulkan program (NVIDIA's under `%LOCALAPPDATA%`).
 
 ## Windows
 
-Install once: Visual Studio 2022 (Desktop development with C++, with a Windows SDK), Rust stable
-(`rustup`, MSVC target), Python 3, Git. LLVM is downloaded by the script if `C:\Program Files\LLVM` has none.
+Install once: Visual Studio 2022 (Desktop development with C++, with a Windows SDK), Rust stable (`rustup`, MSVC
+target), Python 3, Git.
 
 ```powershell
 git clone https://github.com/lizardpeter/super-mario-galaxy-decomp
 cd super-mario-galaxy-decomp
-.\tools\build_pc.ps1 -Game D:\Games\SMG.rvz
-& .\build\pc\windows\bin\Nebula.exe --pak .\build\pc\windows\content\game.pak --saves "$env:LOCALAPPDATA\Nebula\saves"
+.\tools\build_pc.ps1 -Game D:\Games\SMG       # the folder holding DATA and UPDATE, or a disc image
+.\build\pc\windows\SMG\smg.exe
 ```
 
-`-Game` imports the game once into `content\game.pak`; leave it out on later builds. `-Baseline` adds the programs
-for CPUs without AVX2. `Nebula.exe` is Direct3D 12; `NebulaVk.exe` Vulkan; `NebulaD11.exe` Direct3D 11 (or
-**Renderer** in the settings, F1). No environment variable is set beyond the PowerShell session.
+`-Game` makes `game.pak` once (about a minute); leave it out on later builds. The importer is
+`build\pc\windows\importer\nebula-import.exe` if you want to make a `game.pak` yourself:
+
+```powershell
+.\build\pc\windows\importer\nebula-import.exe import D:\Games\SMG --output .\build\pc\windows\SMG
+```
 
 ## Linux
 
 ```sh
-sudo apt-get install -y ninja-build cmake pkg-config curl python3 \
+sudo apt-get install -y ninja-build cmake pkg-config curl git python3 \
   libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev libxtst-dev \
   libxkbcommon-dev libwayland-dev wayland-protocols libegl-dev libdecor-0-dev \
   libasound2-dev libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
 # plus Rust stable (rustup)
-tools/build_pc.sh -g ~/Games/SMG.rvz
-build/pc/linux/bin/nebula --pak build/pc/linux/content/game.pak --saves ~/.local/share/Nebula/saves
+tools/build_pc.sh -g ~/Games/SMG
+build/pc/linux/SMG/smg
 ```
 
-The script downloads LLVM 22.1.6 into `.cache/` unless `-l` or `NEBULA_LLVM` names one (21 or later), and Nebula's
-pinned dependencies (SDL3, glslang, Vulkan headers, volk, VMA) into `.cache/deps/`.
+## What the game accepts
 
-## What the scripts run
+Super Mario Galaxy revision 0: North America (RMGE01), Europe (RMGP01) or Japan (RMGJ01), as the extracted folder
+Dolphin makes (the folder holding `DATA` and `UPDATE`, or `DATA` itself) or a disc image (ISO, RVZ, WIA, WBFS, CISO,
+GCZ). Only `DATA` is used.
 
-They are thin wrappers over Nebula's own build (port/README.md): the CMake host build, `port/native/build.ps1` or
-`port/platform/linux/build_linux.sh` for the game module, and `cargo build -p nebula-import`. AMD FSR 3 is left out
-unless its shader headers are supplied (Nebula's `NEBULA_REQUIRE_FSR3`); macOS and Android: port/README.md.
+## How the single executable is built
 
-## Known differences from Nebula's releases
+1. **The game, as one object.** `port/native` with `NEBULA_GAME_STATIC` compiles every game source to LLVM bitcode;
+   `port/native/tools/game_object.py` joins them into one module, makes every name internal except the 46 entry
+   points the host calls, optimizes the whole game at once and compiles it to `smg_game_static.o`. That is why the
+   game can live inside the host: its own C library and math (the same results on every platform) and its thousands of
+   Wii-era names cannot collide with the host's. The tool fails the build if any other name stays visible.
+2. **The host**, built with the object and `NEBULA_GAME_STATIC` + `NEBULA_SELF_CONTAINED`: the entry points come from
+   the table the tool writes instead of `GetProcAddress`/`dlsym`, the data folder is `data\` beside the program
+   (`galaxy/platform_paths.h`), `game.pak` and `saves\` default to beside it (`host_main.cpp`), SDL is linked in on
+   Linux, and the update check is left out.
+3. **The importer**, `nebula-import`, a separate Rust program that converts your game into `game.pak` once (textures,
+   audio, models, collision, text and the render pipelines into the forms the PC renderer reads).
 
-- Nebula's update check (`port/runtime/src/update/update.cpp`) asks keepvaibin/nebula's GitHub releases, so a
-  build from this repo offers Nebula's official updates. Turn it off in **Settings > SYSTEM > UPDATES**
-  (**Check at start**); pointing it at this repo, or removing it, is on the roadmap.
-- Source builds have no diagnostics upload endpoint (`diag_endpoint.h` is empty), so nothing is sent anywhere.
+The scripts pin LLVM 22.1.6's release archive (it has `opt` and `llvm-link`, which LLVM's Windows installer leaves
+out) and download it once into `.cache/`. The game is built with clang; the Windows host with MSVC (the game's object
+asks for the same C runtime, `/MD`).

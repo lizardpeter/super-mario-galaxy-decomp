@@ -27,6 +27,17 @@ NEBULA_GAME_API int32_t luma_guard_blame(const LumaGuardThread* thread, const Lu
 NEBULA_GAME_API int32_t luma_guard_faults(const char* mod, uint32_t* count, char* callers, uint32_t callers_size);
 }
 
+// The labels below are global so the module's other units and the host's guard (luma_guard.h) can reach them. In the
+// single executable (NEBULA_GAME_STATIC) the game is one object whose every name but its entry points is internal
+// (native/tools/game_object.py): these become local labels too, never a name the host's could collide with.
+#if defined(NEBULA_GAME_STATIC)
+#define LUMA_GUARD_GLOBAL(sym) ""
+#define LUMA_GUARD_COFF_CLASS "3"
+#else
+#define LUMA_GUARD_GLOBAL(sym) ".globl " sym "\n"
+#define LUMA_GUARD_COFF_CLASS "2"
+#endif
+
 static_assert(offsetof(LumaGuardFrame, fn) == 256 && offsetof(LumaGuardFrame, args) == 264 && offsetof(LumaGuardFrame, result) == 296,
               "luma_guard_call reads the frame at these offsets");
 
@@ -34,8 +45,8 @@ static_assert(offsetof(LumaGuardFrame, fn) == 256 && offsetof(LumaGuardFrame, ar
 // win-x64. The function pushes rbx (the frame across the call) and the 32 bytes of shadow space; its unwind data says
 // so, so stack walks pass through it.
 __asm__(".text\n"
-        ".globl luma_guard_call\n"
-        ".def luma_guard_call; .scl 2; .type 32; .endef\n"
+        LUMA_GUARD_GLOBAL("luma_guard_call")
+        ".def luma_guard_call; .scl " LUMA_GUARD_COFF_CLASS "; .type 32; .endef\n"
         ".p2align 4\n"
         "luma_guard_call:\n"
         ".seh_proc luma_guard_call\n"
@@ -74,7 +85,7 @@ __asm__(".text\n"
         "    movq 280(%rbx), %r8\n"
         "    movq 288(%rbx), %r9\n"
         "    callq *256(%rbx)\n"
-        ".globl luma_guard_call_return\n"
+        LUMA_GUARD_GLOBAL("luma_guard_call_return")
         "luma_guard_call_return:\n"
         "    movq %rax, 296(%rbx)\n"
         "    addq $32, %rsp\n"
@@ -82,8 +93,8 @@ __asm__(".text\n"
         "    xorl %eax, %eax\n"
         "    ret\n"
         ".seh_endproc\n"
-        ".globl luma_guard_resume\n"
-        ".def luma_guard_resume; .scl 2; .type 32; .endef\n"
+        LUMA_GUARD_GLOBAL("luma_guard_resume")
+        ".def luma_guard_resume; .scl " LUMA_GUARD_COFF_CLASS "; .type 32; .endef\n"
         ".p2align 4\n"
         "luma_guard_resume:\n"
         "    movq 0(%rcx), %rbx\n"
@@ -119,13 +130,17 @@ __asm__(".text\n"
 #define LUMA_GUARD_INSIDE(name) ".alt_entry _" #name "\n"
 #else
 #define LUMA_GUARD_SYM(name) #name
+#if defined(NEBULA_GAME_STATIC)
+#define LUMA_GUARD_HIDE(name) ""
+#else
 #define LUMA_GUARD_HIDE(name) ".hidden " #name "\n"
+#endif
 #define LUMA_GUARD_TYPE(name) ".type " #name ", @function\n" LUMA_GUARD_HIDE(name)
 #define LUMA_GUARD_INSIDE(name) ""
 #endif
 // sysv-x64: pushes rbx (the frame across the call), which also aligns the call; its CFI says so.
 __asm__(".text\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_call) "\n" LUMA_GUARD_TYPE(luma_guard_call)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_call)) LUMA_GUARD_TYPE(luma_guard_call)
         ".p2align 4\n"
         LUMA_GUARD_SYM(luma_guard_call) ":\n"
         ".cfi_startproc\n"
@@ -150,7 +165,7 @@ __asm__(".text\n"
         "    movq 280(%rbx), %rdx\n"
         "    movq 288(%rbx), %rcx\n"
         "    callq *256(%rbx)\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_call_return) "\n" LUMA_GUARD_HIDE(luma_guard_call_return) LUMA_GUARD_INSIDE(luma_guard_call_return)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_call_return)) LUMA_GUARD_HIDE(luma_guard_call_return) LUMA_GUARD_INSIDE(luma_guard_call_return)
         LUMA_GUARD_SYM(luma_guard_call_return) ":\n"
         "    movq %rax, 296(%rbx)\n"
         "    popq %rbx\n"
@@ -159,7 +174,7 @@ __asm__(".text\n"
         "    xorl %eax, %eax\n"
         "    ret\n"
         ".cfi_endproc\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_resume) "\n" LUMA_GUARD_TYPE(luma_guard_resume)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_resume)) LUMA_GUARD_TYPE(luma_guard_resume)
         ".p2align 4\n"
         LUMA_GUARD_SYM(luma_guard_resume) ":\n"
         "    movq 0(%rdi), %rbx\n"
@@ -183,14 +198,18 @@ __asm__(".text\n"
 #define LUMA_GUARD_INSIDE(name) ".alt_entry _" #name "\n"
 #else
 #define LUMA_GUARD_SYM(name) #name
+#if defined(NEBULA_GAME_STATIC)
+#define LUMA_GUARD_HIDE(name) ""
+#else
 #define LUMA_GUARD_HIDE(name) ".hidden " #name "\n"
+#endif
 #define LUMA_GUARD_TYPE(name) ".type " #name ", %function\n" LUMA_GUARD_HIDE(name)
 #define LUMA_GUARD_INSIDE(name) ""
 #endif
 // aarch64: a 32-byte frame (fp, lr, x19 holding the frame across the call); its CFI says so. The resume returns with
 // `ret` through x30, which branch target checks do not apply to.
 __asm__(".text\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_call) "\n" LUMA_GUARD_TYPE(luma_guard_call)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_call)) LUMA_GUARD_TYPE(luma_guard_call)
         ".p2align 4\n"
         LUMA_GUARD_SYM(luma_guard_call) ":\n"
         ".cfi_startproc\n"
@@ -220,7 +239,7 @@ __asm__(".text\n"
         "    ldp x2, x3, [x19, #280]\n"
         "    ldr x16, [x19, #256]\n"
         "    blr x16\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_call_return) "\n" LUMA_GUARD_HIDE(luma_guard_call_return) LUMA_GUARD_INSIDE(luma_guard_call_return)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_call_return)) LUMA_GUARD_HIDE(luma_guard_call_return) LUMA_GUARD_INSIDE(luma_guard_call_return)
         LUMA_GUARD_SYM(luma_guard_call_return) ":\n"
         "    str x0, [x19, #296]\n"
         "    ldr x19, [sp, #16]\n"
@@ -232,7 +251,7 @@ __asm__(".text\n"
         "    mov w0, #0\n"
         "    ret\n"
         ".cfi_endproc\n"
-        ".globl " LUMA_GUARD_SYM(luma_guard_resume) "\n" LUMA_GUARD_TYPE(luma_guard_resume)
+        LUMA_GUARD_GLOBAL(LUMA_GUARD_SYM(luma_guard_resume)) LUMA_GUARD_TYPE(luma_guard_resume)
         ".p2align 4\n"
         LUMA_GUARD_SYM(luma_guard_resume) ":\n"
         "    ldp x19, x20, [x0, #0]\n"

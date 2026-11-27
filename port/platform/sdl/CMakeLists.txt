@@ -19,6 +19,14 @@ if(NEBULA_TEST_TOOLS)
     add_compile_definitions(NEBULA_TEST_TOOLS=1)
 endif()
 
+# A single self-contained executable (smg): the game linked in from the object native/CMakeLists.txt builds with
+# NEBULA_GAME_STATIC (this is that build's folder), SDL linked in, no update check, and everything it reads and writes in
+# its own folder (galaxy/platform_paths.h NEBULA_SELF_CONTAINED).
+set(NEBULA_GAME_OBJECT "" CACHE PATH "The game's object build folder (native, NEBULA_GAME_STATIC): one self-contained executable")
+if(NEBULA_GAME_OBJECT)
+    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -282,8 +290,13 @@ if(TARGET nebula_fidelityfx_vk)
 endif()
 
 # SDL3: the window, Vulkan surface, audio, gamepads and touch. Android loads libSDL3.so from SDL's Java activity.
-set(SDL_SHARED ON CACHE BOOL "" FORCE)
-set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+if(NEBULA_GAME_OBJECT)
+    set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+    set(SDL_STATIC ON CACHE BOOL "" FORCE)
+else()
+    set(SDL_SHARED ON CACHE BOOL "" FORCE)
+    set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+endif()
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory("${NEBULA_SDL_DIR}" SDL3 EXCLUDE_FROM_ALL)
@@ -326,6 +339,14 @@ target_include_directories(main PRIVATE "${nebula_root}/native/include" "${nebul
 target_compile_definitions(main PRIVATE NEBULA_HOST_RENDERER=1 NEBULA_HOST_SDL=1)
 target_include_directories(main PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(main PRIVATE galaxy_render_vk SDL3::SDL3)
+if(NEBULA_GAME_OBJECT)
+    target_sources(main PRIVATE "${NEBULA_GAME_OBJECT}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
+                                "${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c")
+    set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c" PROPERTIES GENERATED TRUE)
+    set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
+        PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+    set_target_properties(main PROPERTIES OUTPUT_NAME smg)
+endif()
 if(TARGET adrenotools)
     add_dependencies(main hook_impl main_hook)
 endif()
@@ -336,7 +357,10 @@ if(NOT IOS)
     # The report's seal (diag_seal.cpp): BoringSSL's HPKE.
     target_link_libraries(main PRIVATE nebula_bssl_crypto)
 endif()
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID AND NEBULA_GAME_OBJECT)
+    # The self-contained executable: no update check (it would write outside its folder), SDL inside it.
+    target_link_libraries(main PRIVATE ${CMAKE_DL_LIBS})
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT ANDROID)
     # The update check and install of the home screen (runtime/include/galaxy/update.h): libcurl is opened at run time.
     target_sources(main PRIVATE ${rt}/update/update.cpp ${rt}/update/update_crypto.cpp ${rt}/update/update_transport_curl.cpp
         ${rt}/update/update_install_linux.cpp ${rt}/update/update_probe_posix.cpp)
