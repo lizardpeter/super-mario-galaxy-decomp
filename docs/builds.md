@@ -2,8 +2,12 @@
 
 ## RMGE01 (target)
 
-Super Mario Galaxy, North America, revision 0. The disc's system area is in R2 under
-`super-mario-galaxy/DATA/sys/` (an extracted disc; `files/` beside it holds the game data).
+Super Mario Galaxy, North America, revision 0. R2 holds the disc extracted by partition (Dolphin's layout):
+`super-mario-galaxy/DATA/` is the game partition (`sys/` with `main.dol`, `files/` with 2,371 game files; 3.39 GB),
+`super-mario-galaxy/UPDATE/` the system-update partition. No other region is in R2.
+
+`DATA/` imports into the PC port as it is: `nebula-import identify` reports RMGE01 revision 0 with the same
+`main.dol` SHA-1, and `nebula-import import DATA --output content` writes a 4.02 GB `game.pak` (53 s on 2 cores).
 
 | file | SHA-256 | notes |
 |---|---|---|
