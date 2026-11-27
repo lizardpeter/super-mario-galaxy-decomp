@@ -40,8 +40,8 @@ jobs:
         run: |
           python3 tools/status.py
           python3 tools/graph/sync.py
-          git diff --stat -- analysis STATUS.md ':!analysis/*/logs'
-          git diff --quiet -- analysis STATUS.md ':!analysis/*/logs' || {
+          git diff --stat -- analysis STATUS.md ':!analysis/*/logs/*'
+          git diff --quiet -- analysis STATUS.md ':!analysis/*/logs/*' || {
             echo "::error::analysis/ or STATUS.md is not what this commit produces: run tools/match.py, tools/status.py and tools/graph/sync.py and commit"; exit 1; }
       - uses: actions/upload-artifact@v4
         if: always()
