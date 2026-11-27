@@ -53,10 +53,11 @@ runs:
         VK_LOADER_DEBUG: error,warn,driver
       run: |
         foreach ($exe in $env:PROGRAMS.Split(',', [StringSplitOptions]::RemoveEmptyEntries).Trim()) {
-          $d = Join-Path $env:RUNNER_TEMP "start-$exe"
+          # Start-Process passes its arguments without quoting them: paths with spaces (the program's name is in them) are quoted here.
+  $d = Join-Path $env:RUNNER_TEMP "start-$exe"
           New-Item -ItemType Directory -Force "$d/data", "$d/settings" | Out-Null
           $p = Start-Process (Join-Path $env:FOLDER "$exe.exe") -WindowStyle Hidden -PassThru `
-            -ArgumentList '--start-check', '300', '--data', "$d/data", '--settings', "$d/settings", '--crash-dumps', $d `
+            -ArgumentList '--start-check', '300', '--data', "`"$d\data`"", '--settings', "`"$d\settings`"", '--crash-dumps', "`"$d`"" `
             -RedirectStandardOutput "$d/out.txt" -RedirectStandardError "$d/err.txt"
           $null = $p.Handle
           if (-not $p.WaitForExit(300000)) { $p.Kill(); Write-Output "${exe}: no end in 5 minutes"; exit 1 }
