@@ -1,8 +1,10 @@
 # Building and running on PC
 
 The game builds as **one self-contained executable**: `smg.exe` on Windows, `smg` on Linux. It is Nebula's Vulkan host
-with the decomp's game code linked inside it (no `smg_game.dll`), no mods, and no update check. It reads only
-`game.pak` beside itself and writes only into its own folder:
+with the decomp's game code linked inside it (no `smg_game.dll`), with no mods and **no network code at all**: no
+update check, no vendor (DLSS/XeSS) downloads, no internet services for mods, no Discord status, no crash-report
+upload. It needs a CPU with **AVX2** (x86-64-v3: Intel Haswell 2013, AMD Excavator 2015 or later) and says so on an
+older one. It reads only `game.pak` beside itself and writes only into its own folder:
 
 ```
 SMG\

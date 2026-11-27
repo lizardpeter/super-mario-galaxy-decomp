@@ -63,7 +63,7 @@ sh "$root/port/tools/fetch_build_deps.sh" "$root/.cache/deps"
 
 # 1. The game: one object (port/native, NEBULA_GAME_STATIC).
 cmake -S "$root/port/native" -B "$out/game" -G Ninja -DCMAKE_BUILD_TYPE=Release $toolchain \
-    -DNEBULA_MODS=OFF -DNEBULA_LUMA_HOOKS=OFF -DNEBULA_GAME_STATIC=ON
+    -DNEBULA_MODS=OFF -DNEBULA_LUMA_HOOKS=OFF -DNEBULA_GAME_STATIC=ON -DNEBULA_CPU_LEVEL=x86-64-v3
 cmake --build "$out/game" --target smg_game_static -- $parallel
 
 # 2. The executable: the SDL host with the game inside (port/platform/sdl, NEBULA_GAME_OBJECT).

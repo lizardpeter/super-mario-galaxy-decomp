@@ -38,6 +38,7 @@ void write_error(const char* text) {
     OutputDebugStringA(text);
 }
 
+#if !defined(NEBULA_SELF_CONTAINED)
 __declspec(noinline) DWORD run_baseline_build() {
     const HANDLE heap = GetProcessHeap();
     constexpr DWORD kPathChars = 32768u;
@@ -58,6 +59,7 @@ __declspec(noinline) DWORD run_baseline_build() {
     }
     return code;
 }
+#endif
 
 }  // namespace
 
@@ -111,6 +113,14 @@ extern "C" int nebula_run_sibling(const wchar_t* path, unsigned long* exit_code)
 // No buffer security check here (compiled /GS-): the C runtime sets the cookie after this frame exists.
 extern "C" DWORD nebula_host_entry(LPVOID peb) {
     if (cpu_runs_x86_64_v3()) return mainCRTStartup(peb);
+#if defined(NEBULA_SELF_CONTAINED)
+    // The self-contained executable is built for x86-64-v3 only and has no baseline build beside it: say so and stop.
+    write_error("This game needs a CPU with AVX2 (x86-64-v3).\n");
+    MessageBoxW(nullptr, L"This game needs a CPU with AVX2 (x86-64-v3): Intel Haswell (2013) or AMD Excavator (2015) or later.",
+                L"Super Mario Galaxy", MB_OK | MB_ICONERROR);
+    ExitProcess(1u);
+#else
     ExitProcess(run_baseline_build());
+#endif
 }
 #endif

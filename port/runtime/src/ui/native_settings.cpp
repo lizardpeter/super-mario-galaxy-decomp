@@ -5111,7 +5111,11 @@ public:
         }
         // The desktop hosts pause or mute a game whose window is not in front (host_main.cpp follow_focus_loss).
         state.focus_loss_offered = galaxy::kDesktopWindow;
+#if defined(NEBULA_OFFLINE)
+        state.discord_offered = false;  // an offline build has no Discord status
+#else
         state.discord_offered = galaxy::discord::supported();
+#endif
         state.mii_count = s_mii_count.load(std::memory_order_acquire);
         if (state.mii_count < 0) {
             state.mii_count = static_cast<int>(galaxy::host::mii_library_count());

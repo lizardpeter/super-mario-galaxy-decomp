@@ -71,7 +71,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # own folder (galaxy/platform_paths.h NEBULA_SELF_CONTAINED). Build the NebulaVk target.
 set(NEBULA_GAME_OBJECT "" CACHE PATH "The game's object build folder (native, NEBULA_GAME_STATIC): one self-contained executable")
 if(NEBULA_GAME_OBJECT)
-    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1)
+    # NEBULA_OFFLINE: no network or Nebula-service code (update check, vendor downloads, the mods' net services and TLS,
+    # Discord status, diagnostics reports): their sources are left out and their call sites compiled out.
+    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1 NEBULA_OFFLINE=1)
 endif()
 
 # The mods importer's archive libraries (zlib, liblzma, libarchive), built once per build tree.
@@ -217,8 +219,8 @@ add_library(galaxy_native_host STATIC
     runtime/src/luma_system_win32.cpp
     runtime/src/luma_mods.cpp
     runtime/src/luma_fs.cpp
-    runtime/src/luma_net.cpp
-    runtime/src/luma_net_reach.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/luma_net.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/luma_net_reach.cpp>
     runtime/src/luma_assets.cpp
     runtime/src/luma_audio.cpp
     runtime/src/luma_capture.cpp
@@ -232,12 +234,12 @@ add_library(galaxy_native_host STATIC
     runtime/src/texture_categories.cpp
     runtime/src/dolphin_pack.cpp
     runtime/src/mod_import.cpp
-    runtime/src/vendor_download.cpp
-    runtime/src/diag_report.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/vendor_download.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/diag_report.cpp>
     runtime/src/strict_json.cpp
-    runtime/src/diag_seal.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/diag_seal.cpp>
     runtime/src/crash_report.cpp
-    runtime/src/discord_presence.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/discord_presence.cpp>
     runtime/src/controller_hid.cpp
     runtime/src/switch2_ble_win.cpp
     runtime/src/wiimote_hid.cpp
@@ -258,7 +260,7 @@ target_link_libraries(galaxy_native_host
         galaxy_atomic_file
         galaxy_mii_formats
         nebula_archive
-        nebula_bssl_ssl
+        $<IF:$<BOOL:${NEBULA_GAME_OBJECT}>,nebula_bssl_crypto,nebula_bssl_ssl>
         nebula_zinflate
         shell32
         bcrypt
@@ -271,7 +273,8 @@ target_link_libraries(galaxy_native_host
 )
 galaxy_host_options(galaxy_native_host)
 # The host's diagnostics report modes (diag_report.h).
-target_compile_definitions(galaxy_native_host PUBLIC NEBULA_DIAG_REPORTS=1
+target_compile_definitions(galaxy_native_host PUBLIC
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:NEBULA_DIAG_REPORTS=1>
     $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:NEBULA_UPDATE_CHECK=1>)
 
 # The same passes for the Vulkan renderer, compiled on the device (cmake/post_shader_sources.cmake).

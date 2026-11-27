@@ -6,7 +6,9 @@
 #include "galaxy/luma_audio_service.h"
 #include "galaxy/luma_capture_service.h"
 #include "galaxy/luma_fs_service.h"
+#if !defined(NEBULA_OFFLINE)
 #include "galaxy/luma_net_service.h"
+#endif
 #include "galaxy/luma_input_service.h"
 #include "galaxy/luma_mods_service.h"
 #include "galaxy/luma_system_platform.h"
@@ -158,10 +160,12 @@ bool provide_all(void* (*find_symbol)(const char*), void (*log)(const char*),
     for (const LumaServiceProvider* const provider : galaxy::luma_fs::providers(log)) {
         provide(provider);
     }
-    // The net services (services/net.md; layer 1: net.local).
+#if !defined(NEBULA_OFFLINE)
+    // The net services (services/net.md; layer 1: net.local). Not in an offline build.
     for (const LumaServiceProvider* const provider : galaxy::luma_net::providers(log)) {
         provide(provider);
     }
+#endif
     // The assets service (services/assets.md; layer 1: the game's files by path).
     for (const LumaServiceProvider* const provider : galaxy::luma_assets::providers(log)) {
         provide(provider);

@@ -57,7 +57,7 @@ $llvmBin = (Join-Path $llvm "bin").Replace("\", "/")
 $gameBuild = Join-Path $Out "game"
 Invoke-Checked "cmake" @("-S", (Join-Path $port "native"), "-B", $gameBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_C_COMPILER=$llvmBin/clang.exe", "-DCMAKE_CXX_COMPILER=$llvmBin/clang++.exe", "-DCMAKE_RC_COMPILER=$llvmBin/llvm-rc.exe",
-    "-DNEBULA_MODS=OFF", "-DNEBULA_LUMA_HOOKS=OFF", "-DNEBULA_GAME_STATIC=ON")
+    "-DNEBULA_MODS=OFF", "-DNEBULA_LUMA_HOOKS=OFF", "-DNEBULA_GAME_STATIC=ON", "-DNEBULA_CPU_LEVEL=x86-64-v3")
 Invoke-Checked "cmake" @("--build", $gameBuild, "--target", "smg_game_static")
 
 # 2. The executable: the Vulkan host with the game inside (port, NEBULA_GAME_OBJECT), built with MSVC.

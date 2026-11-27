@@ -23,8 +23,15 @@ endif()
 # NEBULA_GAME_STATIC (this is that build's folder), SDL linked in, no update check, and everything it reads and writes in
 # its own folder (galaxy/platform_paths.h NEBULA_SELF_CONTAINED).
 set(NEBULA_GAME_OBJECT "" CACHE PATH "The game's object build folder (native, NEBULA_GAME_STATIC): one self-contained executable")
+if(NEBULA_GAME_OBJECT AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+    # The self-contained executable is built for x86-64-v3 (AVX2) only, like the game's object (NEBULA_CPU_LEVEL);
+    # native/host/cpu_check_posix.cpp, compiled for the baseline, stops it on an older CPU with a message.
+    add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-march=x86-64-v3>)
+endif()
 if(NEBULA_GAME_OBJECT)
-    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1)
+    # NEBULA_OFFLINE: no network or Nebula-service code (update check, the mods' net services and TLS, Discord status,
+    # diagnostics reports): their sources are left out and their call sites compiled out.
+    add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1 NEBULA_OFFLINE=1)
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -198,8 +205,8 @@ add_library(galaxy_render_vk STATIC
     ${rt}/luma_system.cpp
     ${rt}/luma_mods.cpp
     ${rt}/luma_fs.cpp
-    ${rt}/luma_net.cpp
-    ${rt}/luma_net_reach.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:${rt}/luma_net.cpp>
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:${rt}/luma_net_reach.cpp>
     ${rt}/luma_assets.cpp
     ${rt}/luma_audio.cpp
     ${rt}/luma_capture.cpp
@@ -243,7 +250,7 @@ add_library(galaxy_render_vk STATIC
     ${rt}/texture_categories.cpp
     ${rt}/dolphin_pack.cpp
     ${rt}/crash_report.cpp
-    ${rt}/discord_presence.cpp
+    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:${rt}/discord_presence.cpp>
     ${rt}/controller_roster.cpp
     ${rt}/wiimote_speaker.cpp)
 # Mod import (folders and archives).
@@ -258,7 +265,11 @@ endif()
 # TLS (BoringSSL) and gzip answers for the net services (luma_net.cpp, net 1.3), on every platform this builds.
 include("${nebula_root}/third_party/boringssl.cmake")
 include("${nebula_root}/third_party/zlib_inflate.cmake")
-target_link_libraries(galaxy_render_vk PRIVATE nebula_bssl_ssl nebula_zinflate)
+if(NEBULA_GAME_OBJECT)
+    target_link_libraries(galaxy_render_vk PRIVATE nebula_bssl_crypto nebula_zinflate)  # offline: no TLS, save crypto only
+else()
+    target_link_libraries(galaxy_render_vk PRIVATE nebula_bssl_ssl nebula_zinflate)
+endif()
 # Save import (save_transfer.cpp) checks a GameData.bin with the game's own check (SaveFileFormat.hpp).
 set_property(SOURCE ${rt}/save_transfer.cpp APPEND PROPERTY INCLUDE_DIRECTORIES "${nebula_root}/native/petari/include")
 target_include_directories(galaxy_render_vk PUBLIC "${nebula_root}/runtime/src")
@@ -346,12 +357,15 @@ if(NEBULA_GAME_OBJECT)
     set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
         PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
     set_target_properties(main PROPERTIES OUTPUT_NAME smg)
+    target_sources(main PRIVATE "${nebula_root}/native/host/cpu_check_posix.cpp")
+    # After the global -march=x86-64-v3: the check itself must run on any x86-64 CPU.
+    set_source_files_properties("${nebula_root}/native/host/cpu_check_posix.cpp" PROPERTIES COMPILE_OPTIONS "-march=x86-64")
 endif()
 if(TARGET adrenotools)
     add_dependencies(main hook_impl main_hook)
 endif()
 # The diagnostics report modes (diag_report.h): zlib from the archive libraries.
-if(NOT IOS)
+if(NOT IOS AND NOT NEBULA_GAME_OBJECT)
     target_sources(main PRIVATE ${rt}/diag_report.cpp ${rt}/diag_seal.cpp)
     target_compile_definitions(main PRIVATE NEBULA_DIAG_REPORTS=1)
     # The report's seal (diag_seal.cpp): BoringSSL's HPKE.

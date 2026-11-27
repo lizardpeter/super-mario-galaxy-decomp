@@ -5,7 +5,9 @@
 #include "galaxy/achievements.h"
 #include "galaxy/luma_input_service.h"
 #include "galaxy/stats.h"
+#if !defined(NEBULA_OFFLINE)
 #include "galaxy/vendor_download.h"
+#endif
 #include "galaxy/render/host_window_win32.h"
 #include "galaxy/render/xess_library.h"
 #include "galaxy/windows_paths.h"
@@ -1687,6 +1689,34 @@ bool frame_generation_files_present() {
     return true;
 }
 
+#if defined(NEBULA_OFFLINE)
+// An offline build downloads nothing: no vendor's files are offered (vendor_megabytes 0 hides the choice), so nothing
+// below is reached.
+bool xess_files_present() {
+    return false;
+}
+
+unsigned vendor_megabytes(unsigned) {
+    return 0u;
+}
+
+bool start_vendor_install(unsigned) {
+    return false;
+}
+
+void cancel_vendor_install() {}
+
+VendorInstall poll_vendor_install(unsigned& percent) {
+    percent = 0u;
+    return VendorInstall::Failed;
+}
+
+void fetch_vendor_license(unsigned) {}
+
+VendorLicense vendor_license(std::string&) {
+    return VendorLicense::Failed;
+}
+#else
 bool xess_files_present() {
     return vendor_download::installed(vendor_download::Package::Xess, xess_library::directory());
 }
@@ -1751,6 +1781,7 @@ VendorLicense vendor_license(std::string& text) {
     text = std::move(license.text);
     return VendorLicense::Ready;
 }
+#endif  // NEBULA_OFFLINE
 
 // The window closes, and the host starts the game again as it ends (host_main finish_and_exit: a new process that takes
 // over this one's files, --start-again-of), with the arguments of the start `kind` asks for.

@@ -2280,7 +2280,9 @@ void svc_game_stage(void*, const char* name) {
 }
 
 // The Discord application Nebula's status shows under ("Super Mario Galaxy").
+#if !defined(NEBULA_OFFLINE)
 constexpr const char* kDiscordClientId = "1562359210463727617";
+#endif
 
 // The game's message text (UTF-16, its tags skipped: 0x1A, then the tag's size in bytes in the next unit's high byte)
 // as UTF-8.
@@ -2383,7 +2385,9 @@ void svc_presence(void*, const uint16_t* galaxy, const uint16_t* star, int32_t p
         last = line;
         log_line("presence:", line.c_str());
     }
+#if !defined(NEBULA_OFFLINE)
     galaxy::discord::set_activity(activity);
+#endif
 }
 
 // An achievement the save data meets: unlocked once (achievements.ini), with its English name. The game names it in
@@ -6573,11 +6577,13 @@ int main(int argc, char** argv) {
     } catch (const std::exception& failure) {
         die("the settings did not load: %s", failure.what());
     }
+#if !defined(NEBULA_OFFLINE)
     // Discord: never from a hidden start (a test), which must leave the player's status alone.
     if (!::galaxy::launch_args().started_hidden) {
         galaxy::discord::set_enabled_provider([] { return galaxy::get_runtime_settings().discord_status; });
         galaxy::discord::start(kDiscordClientId);
     }
+#endif
     const galaxy::render::RenderConfig render_config = galaxy::render::get_render_config();
     if (!galaxy::render::initialize(static_cast<int>(render_config.window_width),
                                     static_cast<int>(render_config.window_height))) {
