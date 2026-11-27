@@ -46,6 +46,12 @@ namespace {
 namespace TitleSequenceProductSub {
     LogoLayout::LogoLayout() : SimpleLayout("ロゴ", "TitleLogo", 2, -1) {
         initEffectKeeper(1, "TitleLogo", nullptr);
+#if defined(NEBULA_GAME_STATIC)
+        // Our build: the title screen's "(c)2007 Nintendo" line is a 168x24 IA4 image made for a 480-line TV and
+        // looks blocky when stretched to modern resolutions; hidden until it is drawn sharply (records/patches.tsv
+        // P0007). appear/decide only animate this pane's alpha, never its visibility, so hiding it once holds.
+        MR::hidePane(this, "PicNintendo");
+#endif
         kill();
     }
 };  // namespace TitleSequenceProductSub
