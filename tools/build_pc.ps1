@@ -4,8 +4,10 @@ Builds the game for Windows as one self-contained executable: build\pc\windows\S
 beside itself and writes only into its own folder (saves\, data\). Vulkan; no mods. Linux: tools/build_pc.sh.
 
 .DESCRIPTION
-  .\tools\build_pc.ps1 [-Out build\pc\windows] [-Game <game folder or disc image>]
+  .\tools\build_pc.ps1 [-Out build\pc\windows] [-Game <game folder or disc image>] [-Icon <picture>]
 
+  -Icon  another icon (file, window, taskbar) from a picture with a white background (tools/icon/make_icon.py,
+         which needs Python's Pillow and NumPy). Without it the icon is branding/star.ico.
   -Game  also make <Out>\SMG\game.pak from your game: the folder holding DATA and UPDATE (or DATA itself), or a disc
          image (ISO, RVZ, WIA, WBFS, CISO, GCZ) of RMGE01, RMGP01 or RMGJ01. Needed once.
 
@@ -19,7 +21,8 @@ variable outlives this session.
 #>
 param(
     [string]$Out = "build\pc\windows",
-    [string]$Game = ""
+    [string]$Game = "",
+    [string]$Icon = ""
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -62,8 +65,14 @@ Invoke-Checked "cmake" @("--build", $gameBuild, "--target", "smg_game_static")
 
 # 2. The executable: the Vulkan host with the game inside (port, NEBULA_GAME_OBJECT), built with MSVC.
 $hostBuild = Join-Path $Out "host"
-Invoke-Checked "cmake" @("-S", $port, "-B", $hostBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+$hostArgs = @("-S", $port, "-B", $hostBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
     "-DNEBULA_VULKAN=ON", "-DNEBULA_D3D11=OFF", "-DNEBULA_MODS=OFF", "-DNEBULA_GAME_OBJECT=$($gameBuild.Replace('\', '/'))")
+if ($Icon) {
+    $ico = Join-Path $Out "smg.ico"
+    Invoke-Checked "python" @((Join-Path $root "tools\icon\make_icon.py"), $Icon, $ico, "--white-to-alpha")
+    $hostArgs += "-DNEBULA_ICON=$($ico.Replace('\', '/'))"
+}
+Invoke-Checked "cmake" $hostArgs
 Invoke-Checked "cmake" @("--build", $hostBuild, "--target", "NebulaVk")
 $smg = Join-Path $Out "SMG"
 New-Item -ItemType Directory -Force -Path $smg | Out-Null

@@ -29,8 +29,8 @@ if(NEBULA_GAME_OBJECT AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$
     add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-march=x86-64-v3>)
 endif()
 if(NEBULA_GAME_OBJECT)
-    # NEBULA_OFFLINE: no network or Nebula-service code (update check, the mods' net services and TLS, Discord status,
-    # diagnostics reports): their sources are left out and their call sites compiled out.
+    # NEBULA_OFFLINE: no network or Nebula-service code (update check, the mods' net services and TLS, diagnostics
+    # reports; Discord status stays, with the game's own application, over the Discord app's local pipe): their sources are left out and their call sites compiled out.
     add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1 NEBULA_OFFLINE=1)
 endif()
 
@@ -250,7 +250,7 @@ add_library(galaxy_render_vk STATIC
     ${rt}/texture_categories.cpp
     ${rt}/dolphin_pack.cpp
     ${rt}/crash_report.cpp
-    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:${rt}/discord_presence.cpp>
+    ${rt}/discord_presence.cpp
     ${rt}/controller_roster.cpp
     ${rt}/wiimote_speaker.cpp)
 # Mod import (folders and archives).

@@ -19,3 +19,6 @@ Each item says what must exist first.
 7. **Fixed tick** (docs/fixed-tick.md): the game simulated at 60 x k ticks a second, k chosen to match the display,
    with the game's speed unchanged and k = 1 bit-identical to the original. Inventory: `analysis/tick/summary.md`.
    Then late input reading and the camera's late latch.
+8. **Discord rich presence** (branding/README.md): the status already names the galaxy, the star and the Power Star
+   count. To add, over the same local pipe: art for each galaxy (images uploaded to the application, named by key),
+   elapsed time, the current mission's icon. No SDK.

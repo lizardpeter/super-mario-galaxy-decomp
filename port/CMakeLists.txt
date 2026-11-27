@@ -72,7 +72,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(NEBULA_GAME_OBJECT "" CACHE PATH "The game's object build folder (native, NEBULA_GAME_STATIC): one self-contained executable")
 if(NEBULA_GAME_OBJECT)
     # NEBULA_OFFLINE: no network or Nebula-service code (update check, vendor downloads, the mods' net services and TLS,
-    # Discord status, diagnostics reports): their sources are left out and their call sites compiled out.
+    # diagnostics reports; Discord status stays, with the game's own application, over the Discord app's local pipe): their sources are left out and their call sites compiled out.
     add_compile_definitions(NEBULA_GAME_STATIC=1 NEBULA_SELF_CONTAINED=1 NEBULA_OFFLINE=1)
 endif()
 
@@ -239,7 +239,7 @@ add_library(galaxy_native_host STATIC
     runtime/src/strict_json.cpp
     $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/diag_seal.cpp>
     runtime/src/crash_report.cpp
-    $<$<NOT:$<BOOL:${NEBULA_GAME_OBJECT}>>:runtime/src/discord_presence.cpp>
+    runtime/src/discord_presence.cpp
     runtime/src/controller_hid.cpp
     runtime/src/switch2_ble_win.cpp
     runtime/src/wiimote_hid.cpp
@@ -808,8 +808,9 @@ runtime/src/render/host_window_win32.cpp
 
     add_executable(NebulaVk native/host/host_main.cpp runtime/src/frame_phase.cpp)
     if(NEBULA_GAME_OBJECT)
-        # The icon of the program file, its window and the taskbar (resource 1): NEBULA_ICON, else Nebula's.
-        set(NEBULA_ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" CACHE FILEPATH "The self-contained program's icon (.ico)")
+        # The icon of the program file, its window and the taskbar (resource 1): NEBULA_ICON, by default the game's star
+        # (branding/star.ico beside port/, made from branding/star.png by tools/icon/make_icon.py).
+        set(NEBULA_ICON "${CMAKE_CURRENT_SOURCE_DIR}/../branding/star.ico" CACHE FILEPATH "The self-contained program's icon (.ico)")
         nebula_file_details(NebulaVk smg.exe "Super Mario Galaxy" ICON "${NEBULA_ICON}" PRODUCT "Super Mario Galaxy"
             COMPANY "" COPYRIGHT "GPL-3.0-only. Built on Nebula (keepvaibin) and Petari (SMGCommunity)." DPI_MANIFEST)
     else()
