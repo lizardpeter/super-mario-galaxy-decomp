@@ -20,6 +20,7 @@
 #include "galaxy/ui/launcher.h"
 #include <deque>
 #include "sdl_host.h"
+#include "galaxy/product_name.h"
 
 #include "galaxy/render/desktop_display.h"
 #include "galaxy/render/display_modes.h"
@@ -1736,7 +1737,7 @@ void show_fatal(const char* message) noexcept {
     }
     // A message box is Java's on Android: only SDL's thread may show it. From another, the launcher shows the file.
     if (std::this_thread::get_id() == g_sdl_thread) {
-        (void)SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Nebula", message, g_window);
+        (void)SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, galaxy::kProductName, message, g_window);
     }
 }
 
@@ -2040,7 +2041,7 @@ OpenedWindow open_game_window(WindowOwner& owner, int window_width, int window_h
 #else
     constexpr bool sized_by_settings = false;
 #endif
-    SDL_Window* window = SDL_CreateWindow("Nebula", sized_by_settings ? std::max(window_width, 1) : std::max(window_width, 320),
+    SDL_Window* window = SDL_CreateWindow(galaxy::kProductName, sized_by_settings ? std::max(window_width, 1) : std::max(window_width, 320),
                                           sized_by_settings ? std::max(window_height, 1) : std::max(window_height, 240), flags);
     if (window == nullptr) {
         std::fprintf(stderr, "[window] SDL_CreateWindow failed: %s\n", SDL_GetError());

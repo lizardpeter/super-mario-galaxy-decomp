@@ -5,6 +5,7 @@
 #include "galaxy/achievements.h"
 #include "galaxy/luma_input_service.h"
 #include "galaxy/stats.h"
+#include "galaxy/product_name.h"
 #if !defined(NEBULA_OFFLINE)
 #include "galaxy/vendor_download.h"
 #endif
@@ -587,7 +588,7 @@ OpenedWindow open_game_window(WindowOwner& owner, int window_width, int window_h
             hidden_window ? (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE)
                           : (WS_EX_APPWINDOW | WS_EX_ACCEPTFILES | (no_focus ? WS_EX_NOACTIVATE : 0u));
         opened.window = owner.start({
-            kWindowClass, L"Nebula", window_style, ex_style,
+            kWindowClass, galaxy::kProductNameWide, window_style, ex_style,
             window_x, window_y, static_cast<int>(outer_width),
             static_cast<int>(outer_height), !hidden_window, !hidden_window, no_focus});
         if (opened.window == nullptr) {

@@ -1,4 +1,5 @@
-# nebula_file_details(TARGET FILE DESCRIPTION [ICON path] [DPI_MANIFEST]): a Windows program's file details, its icon (resource 1,
+# nebula_file_details(TARGET FILE DESCRIPTION [ICON path] [PRODUCT name] [COMPANY name] [COPYRIGHT text] [DPI_MANIFEST]):
+# a Windows program's file details (product Nebula by keepvaibin unless named), its icon (resource 1,
 # the game window's) and, with DPI_MANIFEST, a manifest making the process per-monitor DPI aware (v2) from its start. The version is the root CMakeLists.txt project's, read here so the game's module has the same one.
 set(NEBULA_RC_TEMPLATE "${CMAKE_CURRENT_LIST_DIR}/nebula_file_details.rc.in")
 set(NEBULA_DPI_MANIFEST "${CMAKE_CURRENT_LIST_DIR}/nebula_game.manifest")
@@ -12,8 +13,20 @@ function(nebula_file_details target file description)
     if(NOT WIN32)
         return()
     endif()
-    cmake_parse_arguments(arg "DPI_MANIFEST" "ICON" "" ${ARGN})
+    cmake_parse_arguments(arg "DPI_MANIFEST" "ICON;PRODUCT;COMPANY;COPYRIGHT" "" ${ARGN})
     set(NEBULA_RC_FILE "${file}")
+    set(NEBULA_RC_PRODUCT "Nebula")
+    set(NEBULA_RC_COMPANY "keepvaibin")
+    set(NEBULA_RC_COPYRIGHT "Copyright 2026 keepvaibin")
+    if(DEFINED arg_PRODUCT)
+        set(NEBULA_RC_PRODUCT "${arg_PRODUCT}")
+    endif()
+    if(DEFINED arg_COMPANY)
+        set(NEBULA_RC_COMPANY "${arg_COMPANY}")
+    endif()
+    if(DEFINED arg_COPYRIGHT)
+        set(NEBULA_RC_COPYRIGHT "${arg_COPYRIGHT}")
+    endif()
     set(NEBULA_RC_DESCRIPTION "${description}")
     set(NEBULA_RC_ICON "")
     if(arg_ICON)

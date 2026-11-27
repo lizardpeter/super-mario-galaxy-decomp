@@ -7,12 +7,12 @@ BEGIN
   BEGIN
     BLOCK "040904b0"
     BEGIN
-      VALUE "CompanyName", "keepvaibin"
+      VALUE "CompanyName", "@NEBULA_RC_COMPANY@"
       VALUE "FileDescription", "@NEBULA_RC_DESCRIPTION@"
       VALUE "FileVersion", "@NEBULA_RC_MAJOR@.@NEBULA_RC_MINOR@.@NEBULA_RC_PATCH@"
-      VALUE "LegalCopyright", "Copyright 2026 keepvaibin"
+      VALUE "LegalCopyright", "@NEBULA_RC_COPYRIGHT@"
       VALUE "OriginalFilename", "@NEBULA_RC_FILE@"
-      VALUE "ProductName", "Nebula"
+      VALUE "ProductName", "@NEBULA_RC_PRODUCT@"
       VALUE "ProductVersion", "@NEBULA_RC_MAJOR@.@NEBULA_RC_MINOR@.@NEBULA_RC_PATCH@"
     END
   END

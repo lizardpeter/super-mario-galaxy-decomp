@@ -30,6 +30,7 @@
 #include "galaxy/host_extension.h"
 #include "galaxy/path_text.h"
 #include "galaxy/platform_paths.h"
+#include "galaxy/product_name.h"
 #include "galaxy/game_step.h"
 #include "galaxy/asset_store.h"
 #include "galaxy/save_files.h"
@@ -918,7 +919,12 @@ bool open_pak(const fs::path& path) {
         log_line("import:", "The game files need importing again. Open Nebula Setup and import the game.");
 #if defined(NEBULA_HOST_RENDERER) && defined(_WIN32)
         if (!::galaxy::launch_args().started_hidden) {
+            #if defined(NEBULA_SELF_CONTAINED)
+            MessageBoxW(nullptr, L"game.pak beside the program needs making again with the importer (docs/pc-build.md).",
+                        galaxy::kProductNameWide, MB_OK | MB_ICONINFORMATION);
+#else
             MessageBoxW(nullptr, L"Open Nebula Setup and import the game again.", L"Nebula", MB_OK | MB_ICONINFORMATION);
+#endif
         }
 #endif
         return false;

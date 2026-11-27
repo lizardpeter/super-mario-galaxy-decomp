@@ -808,7 +808,10 @@ runtime/src/render/host_window_win32.cpp
 
     add_executable(NebulaVk native/host/host_main.cpp runtime/src/frame_phase.cpp)
     if(NEBULA_GAME_OBJECT)
-        nebula_file_details(NebulaVk smg.exe "Super Mario Galaxy" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
+        # The icon of the program file, its window and the taskbar (resource 1): NEBULA_ICON, else Nebula's.
+        set(NEBULA_ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" CACHE FILEPATH "The self-contained program's icon (.ico)")
+        nebula_file_details(NebulaVk smg.exe "Super Mario Galaxy" ICON "${NEBULA_ICON}" PRODUCT "Super Mario Galaxy"
+            COMPANY "" COPYRIGHT "GPL-3.0-only. Built on Nebula (keepvaibin) and Petari (SMGCommunity)." DPI_MANIFEST)
     else()
         nebula_file_details(NebulaVk Nebula.exe "Nebula" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
     endif()
