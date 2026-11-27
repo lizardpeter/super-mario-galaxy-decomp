@@ -38,7 +38,7 @@ Move-Item D:\SMG-import\game.pak .\build\pc\windows\"Super Mario Galaxy"\
 ```
 
 The importer only writes into a folder that does not exist yet (it refuses one that does, and on a failure removes only
-the folder it made), so import into a new folder and move `game.pak` beside `smg.exe`. It reads your game, never
+the folder it made), so import into a new folder and move `game.pak` beside `Super Mario Galaxy.exe`. It reads your game, never
 changes it, and uses no network.
 
 ## Linux
