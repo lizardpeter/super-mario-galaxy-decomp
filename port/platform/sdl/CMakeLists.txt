@@ -12,7 +12,7 @@ add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-ffp-contract=off>)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../../CMakeLists.txt" nebula_project_line REGEX "^project\\(Nebula VERSION ")
 string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" nebula_version "${nebula_project_line}")
 include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/nebula_options.cmake")
-add_compile_definitions(NEBULA_VERSION="${nebula_version}${NEBULA_VERSION_SUFFIX}")
+add_compile_definitions(NEBULA_VERSION="${NEBULA_GAME_VERSION}${NEBULA_VERSION_SUFFIX}")
 # Settings > ADVANCED without dev mode: test builds only (the main project's NEBULA_TEST_TOOLS).
 option(NEBULA_TEST_TOOLS "Show the testing tools in Settings without dev mode (test builds, never a release)" OFF)
 if(NEBULA_TEST_TOOLS)
@@ -356,7 +356,7 @@ if(NEBULA_GAME_OBJECT)
     set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c" PROPERTIES GENERATED TRUE)
     set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static${CMAKE_C_OUTPUT_EXTENSION}"
         PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
-    set_target_properties(main PROPERTIES OUTPUT_NAME smg)
+    set_target_properties(main PROPERTIES OUTPUT_NAME super-mario-galaxy)
     target_sources(main PRIVATE "${nebula_root}/native/host/cpu_check_posix.cpp")
     # After the global -march=x86-64-v3: the check itself must run on any x86-64 CPU.
     set_source_files_properties("${nebula_root}/native/host/cpu_check_posix.cpp" PROPERTIES COMPILE_OPTIONS "-march=x86-64")

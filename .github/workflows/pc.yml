@@ -1,8 +1,8 @@
 name: PC build
 
-# Every push: the game builds as one self-contained executable (smg.exe / smg: Vulkan, no mods, the game linked in)
+# Every push: the game builds as one self-contained executable (Super Mario Galaxy.exe / super-mario-galaxy: Vulkan, no mods, the game linked in)
 # with the repo's one-command scripts on Windows and Linux, exactly as docs/pc-build.md tells a person to, and it starts
-# and draws 300 frames without game data (--start-check) on the runner's software renderer. The SMG folder and the
+# and draws 300 frames without game data (--start-check) on the runner's software renderer. The game's folder and the
 # importer are uploaded as artifacts.
 on:
   # Not for changes that cannot change the program (docs, records, the decomp's analysis).
@@ -43,9 +43,9 @@ jobs:
         run: sh tools/build_pc.sh -o "$RUNNER_TEMP/pc"
       - name: One file, nothing beside it
         run: |
-          ls -la "$RUNNER_TEMP/pc/SMG"
-          test "$(ls "$RUNNER_TEMP/pc/SMG")" = smg
-          echo "libraries it loads:"; ldd "$RUNNER_TEMP/pc/SMG/smg"
+          ls -la "$RUNNER_TEMP/pc/Super Mario Galaxy"
+          test "$(ls "$RUNNER_TEMP/pc/Super Mario Galaxy")" = super-mario-galaxy
+          echo "libraries it loads:"; ldd "$RUNNER_TEMP/pc/Super Mario Galaxy/super-mario-galaxy"
       - name: Start check (Vulkan on Mesa lavapipe, virtual display)
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mesa-vulkan-drivers xvfb xauth openbox
@@ -53,7 +53,7 @@ jobs:
           mkdir -p "$d/data" "$d/settings"
           SDL_AUDIO_DRIVER=dummy timeout 300 xvfb-run -a -s "-screen 0 1920x1080x24" \
             sh -c 'openbox >/dev/null 2>&1 & sleep 2; exec "$0" "$@"' \
-            "$RUNNER_TEMP/pc/SMG/smg" --start-check 300 --data "$d/data" --settings "$d/settings" --crash-dumps "$d"
+            "$RUNNER_TEMP/pc/Super Mario Galaxy/super-mario-galaxy" --start-check 300 --data "$d/data" --settings "$d/settings" --crash-dumps "$d"
       - name: Compiler cache stats
         if: always() && steps.cache.outputs.key != ''
         run: sccache --show-stats
@@ -65,8 +65,8 @@ jobs:
           key: ${{ steps.cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         with:
-          name: smg-linux-x86_64
-          path: ${{ runner.temp }}/pc/SMG
+          name: super-mario-galaxy-linux-x86_64
+          path: ${{ runner.temp }}/pc/Super Mario Galaxy
           retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
@@ -94,15 +94,17 @@ jobs:
       - name: One file, nothing beside it
         shell: pwsh
         run: |
-          Get-ChildItem "$env:RUNNER_TEMP\pc\SMG"
-          if ((Get-ChildItem "$env:RUNNER_TEMP\pc\SMG").Name -ne 'smg.exe') { exit 1 }
+          Get-ChildItem "$env:RUNNER_TEMP\pc\Super Mario Galaxy"
+          if ((Get-ChildItem "$env:RUNNER_TEMP\pc\Super Mario Galaxy").Name -ne 'Super Mario Galaxy.exe') { exit 1 }
           . .\port\tools\enter_msvc_environment.ps1 | Out-Null
-          dumpbin /dependents "$env:RUNNER_TEMP\pc\SMG\smg.exe"
+          dumpbin /dependents "$env:RUNNER_TEMP\pc\Super Mario Galaxy\Super Mario Galaxy.exe"
+          # The file's details: our name, version and copyright.
+          (Get-Item "$env:RUNNER_TEMP\pc\Super Mario Galaxy\Super Mario Galaxy.exe").VersionInfo | Format-List ProductName, ProductVersion, FileDescription, CompanyName, LegalCopyright, LegalTrademarks
       - name: Start check
         uses: ./.github/actions/start-check-windows
         with:
-          folder: ${{ runner.temp }}\pc\SMG
-          programs: smg
+          folder: ${{ runner.temp }}\pc\Super Mario Galaxy
+          programs: Super Mario Galaxy
       - name: Compiler cache stats
         if: always() && steps.cache.outputs.key != ''
         shell: bash
@@ -115,10 +117,10 @@ jobs:
           key: ${{ steps.cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         with:
-          name: smg-windows-x64
+          name: super-mario-galaxy-windows-x64
           path: |
-            ${{ runner.temp }}/pc/SMG
-            !${{ runner.temp }}/pc/SMG/vulkan-1.dll
+            ${{ runner.temp }}/pc/Super Mario Galaxy
+            !${{ runner.temp }}/pc/Super Mario Galaxy/vulkan-1.dll
           retention-days: 14
       - uses: actions/upload-artifact@v4
         with:

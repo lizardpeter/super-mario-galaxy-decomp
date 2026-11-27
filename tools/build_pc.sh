@@ -1,13 +1,13 @@
 #!/bin/sh
-# Builds the game for Linux as one self-contained executable: build/pc/linux/SMG/smg. It reads only game.pak beside
+# Builds the game for Linux as one self-contained executable: build/pc/linux/Super Mario Galaxy/super-mario-galaxy. It reads only game.pak beside
 # itself and writes only into its own folder (saves/, data/). Vulkan; no mods. Windows: tools/build_pc.ps1.
 #
 #   tools/build_pc.sh [-l <LLVM folder>] [-o <output folder>] [-g <game folder or disc image>] [-j <jobs>]
 #
 #   -l  LLVM 21 or later, a release archive's folder (it has opt and llvm-link). Default: $NEBULA_LLVM, else LLVM
 #       22.1.6 downloaded once into .cache/.
-#   -o  output folder (default build/pc/linux). The game lands in <output>/SMG, the importer in <output>/importer.
-#   -g  also make <output>/SMG/game.pak from your game: the folder holding DATA and UPDATE (or DATA itself), or a disc
+#   -o  output folder (default build/pc/linux). The game lands in "<output>/Super Mario Galaxy", the importer in <output>/importer.
+#   -g  also make "<output>/Super Mario Galaxy/game.pak" from your game: the folder holding DATA and UPDATE (or DATA itself), or a disc
 #       image (ISO, RVZ, WIA, WBFS, CISO, GCZ) of RMGE01, RMGP01 or RMGJ01. Needed once.
 #
 # Needs cmake 3.24+, ninja, python3, curl, tar, git, cargo (Rust stable) and SDL's system development packages (the
@@ -56,6 +56,8 @@ for tool in clang clang++ ld.lld opt llvm-link llvm-nm llvm-dis; do
     [ -x "$llvm/bin/$tool" ] || { echo "build_pc.sh: no $tool in $llvm/bin (use an LLVM release archive)" >&2; exit 2; }
 done
 export NEBULA_LLVM="$llvm"
+# Our version (the repository's VERSION file): the title screen's.
+version=$(head -n 1 "$root/VERSION" | tr -d '[:space:]')
 toolchain="-DCMAKE_TOOLCHAIN_FILE=$root/port/platform/linux/llvm-toolchain.cmake"
 parallel=${jobs:+-j$jobs}
 
@@ -63,15 +65,17 @@ sh "$root/port/tools/fetch_build_deps.sh" "$root/.cache/deps"
 
 # 1. The game: one object (port/native, NEBULA_GAME_STATIC).
 cmake -S "$root/port/native" -B "$out/game" -G Ninja -DCMAKE_BUILD_TYPE=Release $toolchain \
-    -DNEBULA_MODS=OFF -DNEBULA_LUMA_HOOKS=OFF -DNEBULA_GAME_STATIC=ON -DNEBULA_CPU_LEVEL=x86-64-v3
+    -DNEBULA_MODS=OFF -DNEBULA_LUMA_HOOKS=OFF -DNEBULA_GAME_STATIC=ON -DNEBULA_CPU_LEVEL=x86-64-v3 \
+    "-DNEBULA_PRODUCT_VERSION=$version"
 cmake --build "$out/game" --target smg_game_static -- $parallel
 
 # 2. The executable: the SDL host with the game inside (port/platform/sdl, NEBULA_GAME_OBJECT).
 cmake -S "$root/port/platform/sdl" -B "$out/host" -G Ninja -DCMAKE_BUILD_TYPE=Release $toolchain \
-    "-DNEBULA_DEPS=$root/.cache/deps" -DNEBULA_MODS=OFF "-DNEBULA_GAME_OBJECT=$out/game"
+    "-DNEBULA_DEPS=$root/.cache/deps" -DNEBULA_MODS=OFF "-DNEBULA_PRODUCT_VERSION=$version" "-DNEBULA_GAME_OBJECT=$out/game"
 cmake --build "$out/host" --target main -- $parallel
-mkdir -p "$out/SMG"
-cp "$out/host/smg" "$out/SMG/smg"
+game_dir="$out/Super Mario Galaxy"
+mkdir -p "$game_dir"
+cp "$out/host/super-mario-galaxy" "$game_dir/super-mario-galaxy"
 
 # 3. The importer, a tool of its own: it makes game.pak once; the game never runs it.
 (cd "$root/port" && CARGO_TARGET_DIR="$out/cargo" cargo build --release --locked -p nebula-import --bin nebula-import)
@@ -84,8 +88,8 @@ if [ -n "$game" ]; then
     # the game.
     rm -rf "$out/import"
     "$out/importer/nebula-import" import "$game" --output "$out/import"
-    mv -f "$out/import/game.pak" "$out/SMG/game.pak"
+    mv -f "$out/import/game.pak" "$game_dir/game.pak"
     rmdir "$out/import"
 fi
 echo
-echo "The game: $out/SMG/smg (with game.pak beside it). Move the SMG folder anywhere."
+echo "The game: $game_dir/super-mario-galaxy (with game.pak beside it). Move that folder anywhere."

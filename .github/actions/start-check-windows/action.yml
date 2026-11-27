@@ -10,7 +10,7 @@ inputs:
     description: The folder holding the programs (and D3D12\ beside them).
     required: true
   programs:
-    description: The programs to start, without .exe, separated by spaces.
+    description: The programs to start, without .exe, separated by commas (a name may hold spaces).
     default: Nebula NebulaVk NebulaD11
 runs:
   using: composite
@@ -52,7 +52,7 @@ runs:
         # The loader names the drivers it found and why one was not taken, in the start check's log.
         VK_LOADER_DEBUG: error,warn,driver
       run: |
-        foreach ($exe in $env:PROGRAMS.Split(' ', [StringSplitOptions]::RemoveEmptyEntries)) {
+        foreach ($exe in $env:PROGRAMS.Split(',', [StringSplitOptions]::RemoveEmptyEntries).Trim()) {
           $d = Join-Path $env:RUNNER_TEMP "start-$exe"
           New-Item -ItemType Directory -Force "$d/data", "$d/settings" | Out-Null
           $p = Start-Process (Join-Path $env:FOLDER "$exe.exe") -WindowStyle Hidden -PassThru `

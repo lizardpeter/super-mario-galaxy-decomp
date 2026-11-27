@@ -1,20 +1,20 @@
 # Building and running on PC
 
-The game builds as **one self-contained executable**: `smg.exe` on Windows, `smg` on Linux. It is Nebula's Vulkan host
+The game builds as **one self-contained executable**: `Super Mario Galaxy.exe` on Windows, `super-mario-galaxy` on Linux. It is Nebula's Vulkan host
 with the decomp's game code linked inside it (no `smg_game.dll`), with no mods and **no network code at all**: no
 update check, no vendor (DLSS/XeSS) downloads, no internet services for mods, no Discord status, no crash-report
 upload. It needs a CPU with **AVX2** (x86-64-v3: Intel Haswell 2013, AMD Excavator 2015 or later) and says so on an
 older one. It reads only `game.pak` beside itself and writes only into its own folder:
 
 ```
-SMG\
-  smg.exe      the game (Windows; `smg` on Linux)
+Super Mario Galaxy\
+  Super Mario Galaxy.exe   the game (Windows; `super-mario-galaxy` on Linux)
   game.pak     your game's files, converted once by the importer
   saves\       made on first run
   data\        settings, logs, crash reports, the shader cache
 ```
 
-Move or copy the `SMG` folder anywhere. Nothing is read from or written to anywhere else, with one exception the game
+Move or copy the `Super Mario Galaxy` folder anywhere. Nothing is read from or written to anywhere else, with one exception the game
 cannot control: GPU drivers keep their own shader cache for every Vulkan program (NVIDIA's under `%LOCALAPPDATA%`).
 
 ## Windows
@@ -26,7 +26,7 @@ target), Python 3, Git.
 git clone https://github.com/lizardpeter/super-mario-galaxy-decomp
 cd super-mario-galaxy-decomp
 .\tools\build_pc.ps1 -Game D:\Games\SMG       # the folder holding DATA and UPDATE, or a disc image
-.\build\pc\windows\SMG\smg.exe
+.\build\pc\windows\"Super Mario Galaxy"\"Super Mario Galaxy.exe"
 ```
 
 `-Game` makes `game.pak` once (about a minute); leave it out on later builds. The importer is
@@ -34,7 +34,7 @@ cd super-mario-galaxy-decomp
 
 ```powershell
 .\build\pc\windows\importer\nebula-import.exe import D:\Games\SMG --output D:\SMG-import
-Move-Item D:\SMG-import\game.pak .\build\pc\windows\SMG\
+Move-Item D:\SMG-import\game.pak .\build\pc\windows\"Super Mario Galaxy"\
 ```
 
 The importer only writes into a folder that does not exist yet (it refuses one that does, and on a failure removes only
@@ -50,7 +50,7 @@ sudo apt-get install -y ninja-build cmake pkg-config curl git python3 \
   libasound2-dev libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
 # plus Rust stable (rustup)
 tools/build_pc.sh -g ~/Games/SMG
-build/pc/linux/SMG/smg
+"build/pc/linux/Super Mario Galaxy/super-mario-galaxy"
 ```
 
 ## What the game accepts

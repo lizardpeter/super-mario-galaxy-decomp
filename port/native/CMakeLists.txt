@@ -7,7 +7,7 @@ project(NebulaGame LANGUAGES C CXX)
 file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../CMakeLists.txt" nebula_project_line REGEX "^project\\(Nebula VERSION ")
 string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" nebula_version "${nebula_project_line}")
 include("${CMAKE_CURRENT_LIST_DIR}/../cmake/nebula_options.cmake")
-add_compile_definitions(NEBULA_VERSION="${nebula_version}${NEBULA_VERSION_SUFFIX}")
+add_compile_definitions(NEBULA_VERSION="${NEBULA_GAME_VERSION}${NEBULA_VERSION_SUFFIX}")
 
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
     message(FATAL_ERROR "The game module is built with clang's GNU driver (clang++, not clang-cl).")

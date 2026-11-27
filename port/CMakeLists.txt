@@ -21,7 +21,7 @@ else()
     set(NEBULA_MSVC_DEBUG_INFO /Zi)
 endif()
 include(cmake/nebula_options.cmake)
-add_compile_definitions(NEBULA_VERSION="${PROJECT_VERSION}${NEBULA_VERSION_SUFFIX}")
+add_compile_definitions(NEBULA_VERSION="${NEBULA_GAME_VERSION}${NEBULA_VERSION_SUFFIX}")
 
 # Coverage builds (the gate's long run, tools/gate/coverage.py, N-1042): every program, library and test counts the lines
 # and functions it runs (clang's source-based coverage), each process writing them where LLVM_PROFILE_FILE says when it
@@ -811,8 +811,10 @@ runtime/src/render/host_window_win32.cpp
         # The icon of the program file, its window and the taskbar (resource 1): NEBULA_ICON, by default the game's star
         # (branding/star.ico beside port/, made from branding/star.png by tools/icon/make_icon.py).
         set(NEBULA_ICON "${CMAKE_CURRENT_SOURCE_DIR}/../branding/star.ico" CACHE FILEPATH "The self-contained program's icon (.ico)")
-        nebula_file_details(NebulaVk smg.exe "Super Mario Galaxy" ICON "${NEBULA_ICON}" PRODUCT "Super Mario Galaxy"
-            COMPANY "" COPYRIGHT "GPL-3.0-only. Built on Nebula (keepvaibin) and Petari (SMGCommunity)." DPI_MANIFEST)
+        nebula_file_details(NebulaVk "Super Mario Galaxy.exe" "Super Mario Galaxy" ICON "${NEBULA_ICON}"
+            PRODUCT "Super Mario Galaxy" COMPANY "lizardpeter"
+            COPYRIGHT "Copyright 2026 lizardpeter. GPL-3.0-only. Built on Nebula (keepvaibin) and Petari (SMGCommunity)."
+            TRADEMARKS "Super Mario Galaxy, Mario and Nintendo are trademarks of Nintendo." DPI_MANIFEST)
     else()
         nebula_file_details(NebulaVk Nebula.exe "Nebula" ICON "${CMAKE_CURRENT_SOURCE_DIR}/installer/assets/nebula.ico" DPI_MANIFEST)
     endif()
@@ -825,7 +827,7 @@ runtime/src/render/host_window_win32.cpp
         target_sources(NebulaVk PRIVATE "${NEBULA_GAME_OBJECT}/smg_game_static.obj" "${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c")
         set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static.obj" PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
         set_source_files_properties("${NEBULA_GAME_OBJECT}/smg_game_static_symbols.c" PROPERTIES GENERATED TRUE)
-        set_target_properties(NebulaVk PROPERTIES OUTPUT_NAME smg)
+        set_target_properties(NebulaVk PROPERTIES OUTPUT_NAME "Super Mario Galaxy")
     endif()
     if(MSVC)
         target_sources(NebulaVk PRIVATE native/host/nebula_host.manifest)

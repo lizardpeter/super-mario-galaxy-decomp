@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Builds the game for Windows as one self-contained executable: build\pc\windows\SMG\smg.exe. It reads only game.pak
+Builds the game for Windows as one self-contained executable: build\pc\windows\Super Mario Galaxy\Super Mario Galaxy.exe. It reads only game.pak
 beside itself and writes only into its own folder (saves\, data\). Vulkan; no mods. Linux: tools/build_pc.sh.
 
 .DESCRIPTION
@@ -8,10 +8,10 @@ beside itself and writes only into its own folder (saves\, data\). Vulkan; no mo
 
   -Icon  another icon (file, window, taskbar) from a picture with a white background (tools/icon/make_icon.py,
          which needs Python's Pillow and NumPy). Without it the icon is branding/star.ico.
-  -Game  also make <Out>\SMG\game.pak from your game: the folder holding DATA and UPDATE (or DATA itself), or a disc
+  -Game  also make <Out>\Super Mario Galaxy\game.pak from your game: the folder holding DATA and UPDATE (or DATA itself), or a disc
          image (ISO, RVZ, WIA, WBFS, CISO, GCZ) of RMGE01, RMGP01 or RMGJ01. Needed once.
 
-The game is <Out>\SMG (smg.exe, then game.pak, saves\ and data\ beside it): move that folder anywhere. The importer that
+The game is <Out>\Super Mario Galaxy (Super Mario Galaxy.exe, then game.pak, saves\ and data\ beside it): move that folder anywhere. The importer that
 makes game.pak is <Out>\importer\nebula-import.exe, a tool of its own; the game never runs it.
 
 Needs Visual Studio 2022 with the C++ tools and a Windows SDK (it brings CMake and Ninja), Rust stable with the MSVC
@@ -55,17 +55,20 @@ if (-not (Test-Path (Join-Path $llvm "bin\opt.exe"))) {
     Remove-Item "$llvm.tar.xz"
 }
 $llvmBin = (Join-Path $llvm "bin").Replace("\", "/")
+# Our version (the repository's VERSION file): the title screen's and the program file's.
+$version = (Get-Content (Join-Path $root "VERSION") -TotalCount 1).Trim()
 
 # 1. The game: one object (port\native, NEBULA_GAME_STATIC), built with clang.
 $gameBuild = Join-Path $Out "game"
 Invoke-Checked "cmake" @("-S", (Join-Path $port "native"), "-B", $gameBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_C_COMPILER=$llvmBin/clang.exe", "-DCMAKE_CXX_COMPILER=$llvmBin/clang++.exe", "-DCMAKE_RC_COMPILER=$llvmBin/llvm-rc.exe",
-    "-DNEBULA_MODS=OFF", "-DNEBULA_LUMA_HOOKS=OFF", "-DNEBULA_GAME_STATIC=ON", "-DNEBULA_CPU_LEVEL=x86-64-v3")
+    "-DNEBULA_MODS=OFF", "-DNEBULA_LUMA_HOOKS=OFF", "-DNEBULA_GAME_STATIC=ON", "-DNEBULA_CPU_LEVEL=x86-64-v3",
+    "-DNEBULA_PRODUCT_VERSION=$version")
 Invoke-Checked "cmake" @("--build", $gameBuild, "--target", "smg_game_static")
 
 # 2. The executable: the Vulkan host with the game inside (port, NEBULA_GAME_OBJECT), built with MSVC.
 $hostBuild = Join-Path $Out "host"
-$hostArgs = @("-S", $port, "-B", $hostBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+$hostArgs = @("-S", $port, "-B", $hostBuild, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release", "-DNEBULA_PRODUCT_VERSION=$version",
     "-DNEBULA_VULKAN=ON", "-DNEBULA_D3D11=OFF", "-DNEBULA_MODS=OFF", "-DNEBULA_GAME_OBJECT=$($gameBuild.Replace('\', '/'))")
 if ($Icon) {
     $ico = Join-Path $Out "smg.ico"
@@ -74,9 +77,9 @@ if ($Icon) {
 }
 Invoke-Checked "cmake" $hostArgs
 Invoke-Checked "cmake" @("--build", $hostBuild, "--target", "NebulaVk")
-$smg = Join-Path $Out "SMG"
+$smg = Join-Path $Out "Super Mario Galaxy"
 New-Item -ItemType Directory -Force -Path $smg | Out-Null
-Copy-Item (Join-Path $hostBuild "smg.exe") $smg -Force
+Copy-Item (Join-Path $hostBuild "Super Mario Galaxy.exe") $smg -Force
 
 # 3. The importer, a tool of its own.
 $cargoTarget = Join-Path $Out "cargo"
@@ -99,4 +102,4 @@ if ($Game) {
 }
 
 Write-Host ""
-Write-Host "The game: $smg\smg.exe (with game.pak beside it). Move the SMG folder anywhere."
+Write-Host "The game: $smg\Super Mario Galaxy.exe (with game.pak beside it). Move that folder anywhere."

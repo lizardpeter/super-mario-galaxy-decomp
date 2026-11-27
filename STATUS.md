@@ -84,4 +84,4 @@ Relinked `main.dol`: SHA-1 `9a71008ae1ee9010e267fa67d1f0b0d4f0e895dd`, identical
 
 ## Ledger
 
-0 findings in `records/bugs.tsv`, 5 patches in `records/patches.tsv`.
+0 findings in `records/bugs.tsv`, 6 patches in `records/patches.tsv`.

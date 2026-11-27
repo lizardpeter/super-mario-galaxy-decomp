@@ -5,9 +5,26 @@
 #
 #   NEBULA_VERSION_SUFFIX  "" (a release) or "-beta.<n>": the pre-release label after the project's MAJOR.MINOR.PATCH.
 #                          NEBULA_VERSION, which the title screen shows and the update check compares, is both.
+#   NEBULA_PRODUCT_VERSION "" (Nebula's MAJOR.MINOR.PATCH, the root project's) or another product's MAJOR.MINOR.PATCH
+#                          in its place: the single executable's (the repository's VERSION file). NEBULA_GAME_VERSION is
+#                          the one in force.
 #   NEBULA_MODS            ON (default): mods are supported. OFF: a build with no mod support (runtime/include/galaxy/
 #                          mod_support.h): NEBULA_NO_MODS is defined for every program.
 include_guard(GLOBAL)
+
+if(NOT DEFINED NEBULA_PRODUCT_VERSION AND DEFINED ENV{NEBULA_PRODUCT_VERSION})
+    set(NEBULA_PRODUCT_VERSION "$ENV{NEBULA_PRODUCT_VERSION}")
+endif()
+set(NEBULA_PRODUCT_VERSION "${NEBULA_PRODUCT_VERSION}" CACHE STRING "Another product's version (MAJOR.MINOR.PATCH) in place of Nebula's" FORCE)
+if(NEBULA_PRODUCT_VERSION)
+    if(NOT NEBULA_PRODUCT_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+        message(FATAL_ERROR "NEBULA_PRODUCT_VERSION must be MAJOR.MINOR.PATCH, not \"${NEBULA_PRODUCT_VERSION}\"")
+    endif()
+    set(NEBULA_GAME_VERSION "${NEBULA_PRODUCT_VERSION}")
+else()
+    file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../CMakeLists.txt" nebula_options_project_line REGEX "^project\\(Nebula VERSION ")
+    string(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" NEBULA_GAME_VERSION "${nebula_options_project_line}")
+endif()
 
 if(NOT DEFINED NEBULA_VERSION_SUFFIX)
     set(nebula_suffix_default "")

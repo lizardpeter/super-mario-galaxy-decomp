@@ -11,6 +11,7 @@ BEGIN
       VALUE "FileDescription", "@NEBULA_RC_DESCRIPTION@"
       VALUE "FileVersion", "@NEBULA_RC_MAJOR@.@NEBULA_RC_MINOR@.@NEBULA_RC_PATCH@"
       VALUE "LegalCopyright", "@NEBULA_RC_COPYRIGHT@"
+      VALUE "LegalTrademarks", "@NEBULA_RC_TRADEMARKS@"
       VALUE "OriginalFilename", "@NEBULA_RC_FILE@"
       VALUE "ProductName", "@NEBULA_RC_PRODUCT@"
       VALUE "ProductVersion", "@NEBULA_RC_MAJOR@.@NEBULA_RC_MINOR@.@NEBULA_RC_PATCH@"
