@@ -1,0 +1,53 @@
+name: Decomp match
+
+# Every push: the faithful decomp (decomp/, Petari) is built with the original CodeWarrior compilers, main.dol is
+# relinked and must be byte-identical to the retail disc's (SHA-1 in target.toml), objdiff compares every function,
+# and the committed analysis/, STATUS.md and graph import set must be what that run produces. records/ may claim no
+# more than the evidence shows.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  match:
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [RMGE01]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ninja-build
+      - name: Original main.dol (R2, hash-verified)
+        run: python3 tools/fetch_originals.py ${{ matrix.build }} --only dol
+      - name: Build, relink, compare (tools/match.py)
+        run: python3 tools/match.py ${{ matrix.build }}
+      - name: Records claim no more than the evidence
+        run: python3 tools/check_records.py
+      - name: Generated files are current
+        run: |
+          python3 tools/status.py
+          python3 tools/graph/sync.py
+          git diff --stat -- analysis STATUS.md ':!analysis/*/logs'
+          git diff --quiet -- analysis STATUS.md ':!analysis/*/logs' || {
+            echo "::error::analysis/ or STATUS.md is not what this commit produces: run tools/match.py, tools/status.py and tools/graph/sync.py and commit"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: decomp-${{ matrix.build }}
+          path: |
+            decomp/build/${{ matrix.build }}/report.json
+            analysis/${{ matrix.build }}/logs
+          retention-days: 14

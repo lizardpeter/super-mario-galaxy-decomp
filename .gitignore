@@ -1,0 +1,6 @@
+# Build outputs and downloaded toolchains (tools/build_pc.*, tools/match.py)
+/build/
+/.cache/
+__pycache__/
+# Game content imported for the PC build (never committed)
+*.pak

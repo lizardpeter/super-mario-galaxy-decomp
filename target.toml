@@ -1,0 +1,39 @@
+# What this repo reverses. Originals are never committed; they live in R2 under these keys and every tool verifies
+# the hash before use (python3 tools/fetch_originals.py <build>).
+
+project = "smg"
+title = "Super Mario Galaxy (Wii; North America RMGE01 target; PC port)"
+graph = "re_smg"
+r2_public = "https://r2.houseofkublai.com/"
+compiler = "Metrowerks CodeWarrior for GC/Wii (mwcceppc GC/3.0a3, GC/3.0a5.2, Wii/1.0 per library; linker GC/3.0a5), PowerPC 750CL (Broadway), big-endian"
+
+# Upstreams, imported as squashed git subtrees (docs/upstreams.md). Bump the commit here when pulling.
+[upstream.decomp]
+path = "decomp"
+repo = "https://github.com/SMGCommunity/Petari"
+commit = "f7ada3c67f99debb1fe5a199359a207636280933"
+license = "CC0-1.0"
+
+[upstream.port]
+path = "port"
+repo = "https://github.com/keepvaibin/nebula"
+commit = "f29a1d27d418396fa93dea93c6bc718b4ed534e1"
+license = "GPL-3.0-only"
+
+# kind: "retail" = the target. The Wii disc's executable, which the decomp (decomp/) rebuilds byte for byte.
+# The other regions (RMGP01, RMGJ01, RMGK01, SHIELD) are configured in decomp/config/ and can be added here once
+# their main.dol is in R2. There is no symbol build: Petari's names come from the community's identification work
+# (decomp/config/<version>/symbols.txt), which the byte match proves.
+[[build]]
+id = "RMGE01"
+kind = "retail"
+architecture = "ppc750cl"
+region = "North America"
+image_base = 0x80004000  # first section (.init); DOL sections are absolute
+disc = "Super Mario Galaxy (USA), revision 0"
+dol = { key = "super-mario-galaxy/DATA/sys/main.dol", sha256 = "2c680585a8f58e1cc9c5521b579057f12b124ff0ef409e470a57606c50a93c09", sha1 = "9a71008ae1ee9010e267fa67d1f0b0d4f0e895dd" }
+# The rest of the disc's system area, for reference (the PC port reads the full disc or extracted folder).
+boot = { key = "super-mario-galaxy/DATA/sys/boot.bin", sha256 = "6e9f22d21a05bbd6863d4088e3a991b954ca318e20e5e3f0fe9e059617db6d95" }
+bi2 = { key = "super-mario-galaxy/DATA/sys/bi2.bin", sha256 = "e43ff23c01e65a86f82488345ca8aadabd8357d0dbeb83cf915c7d11b114dd9c" }
+apploader = { key = "super-mario-galaxy/DATA/sys/apploader.img", sha256 = "e63e57a812f18a392b11de5abb12a204c7d2d1bcf57ab2753f217fdc0f610431" }
+fst = { key = "super-mario-galaxy/DATA/sys/fst.bin", sha256 = "d730428f91ba83d33f76a2be9d14a3367ca6cbafd46ea3c1678d597e6310258f" }

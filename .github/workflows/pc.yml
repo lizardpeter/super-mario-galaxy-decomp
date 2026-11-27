@@ -1,0 +1,100 @@
+name: PC build
+
+# Every push: the PC port (port/, Nebula) builds with the repo's one-command scripts on Windows and Linux, exactly
+# as docs/pc-build.md tells a person to, and each program starts and draws 300 frames without game data
+# (--start-check) on the runner's software renderer. The built folders are uploaded as artifacts.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  linux:
+    name: Linux (Vulkan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache
+        uses: ./port/.github/actions/compiler-cache
+        with:
+          name: pc-linux
+          size: 1536M
+      - name: SDL's system libraries
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ninja-build pkg-config \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev libxfixes-dev libxtst-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libegl-dev libdecor-0-dev \
+            libasound2-dev libpulse-dev libdbus-1-dev libudev-dev libdrm-dev libgbm-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build (tools/build_pc.sh)
+        run: sh tools/build_pc.sh -o "$RUNNER_TEMP/pc"
+      - name: Start check (Vulkan on Mesa lavapipe, virtual display)
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends mesa-vulkan-drivers xvfb xauth openbox
+          d="$RUNNER_TEMP/start"
+          mkdir -p "$d/data" "$d/settings"
+          SDL_AUDIO_DRIVER=dummy timeout 300 xvfb-run -a -s "-screen 0 1920x1080x24" \
+            sh -c 'openbox >/dev/null 2>&1 & sleep 2; exec "$0" "$@"' \
+            "$RUNNER_TEMP/pc/bin/nebula" --start-check 300 --data "$d/data" --settings "$d/settings" --crash-dumps "$d"
+      - name: Compiler cache stats
+        if: always() && steps.cache.outputs.key != ''
+        run: sccache --show-stats
+      - name: Save the compiler cache
+        if: always() && steps.cache.outputs.key != '' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/sccache
+          key: ${{ steps.cache.outputs.key }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nebula-linux-x86_64
+          path: ${{ runner.temp }}/pc/bin
+          retention-days: 14
+
+  windows:
+    name: Windows (D3D12, Vulkan, D3D11)
+    runs-on: windows-2022
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - id: cache
+        uses: ./port/.github/actions/compiler-cache
+        with:
+          name: pc-windows
+          size: 1536M
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build (tools/build_pc.ps1)
+        shell: pwsh
+        run: |
+          .\tools\build_pc.ps1 -Out "$env:RUNNER_TEMP\pc"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Start check
+        uses: ./.github/actions/start-check-windows
+        with:
+          folder: ${{ runner.temp }}\pc\bin
+      - name: Compiler cache stats
+        if: always() && steps.cache.outputs.key != ''
+        shell: bash
+        run: sccache --show-stats
+      - name: Save the compiler cache
+        if: always() && steps.cache.outputs.key != '' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/sccache
+          key: ${{ steps.cache.outputs.key }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nebula-windows-x64
+          path: |
+            ${{ runner.temp }}/pc/bin
+            !${{ runner.temp }}/pc/bin/vulkan-1.dll
+          retention-days: 14

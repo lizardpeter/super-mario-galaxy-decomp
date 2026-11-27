@@ -1,0 +1,31 @@
+{
+  "graph": "re_smg",
+  "schema": [
+    "CREATE INDEX FOR (n:Build) ON (n.id)",
+    "CREATE INDEX FOR (n:Subsystem) ON (n.name)",
+    "CREATE INDEX FOR (n:SourceFile) ON (n.path)",
+    "CREATE INDEX FOR (n:Function) ON (n.key)",
+    "CREATE INDEX FOR (n:FunctionInstance) ON (n.id)",
+    "CREATE INDEX FOR (n:Bug) ON (n.id)"
+  ],
+  "imports": [
+    {
+      "file": "smg/builds.jsonl",
+      "sha256": "0f71fba4f08d26aba18904eca27aedbcd50afa995319a7a6e2aa9a2148910c49",
+      "rows": 1,
+      "cypher": "UNWIND {{ROWS}} AS r MERGE (b:Build {id:r.id}) SET b.region=r.region, b.dol_sha256=r.dol_sha256"
+    },
+    {
+      "file": "smg/sourcefiles.jsonl",
+      "sha256": "b6edf4a79bb7cbf886103be6132467b85623febdf3970fab2120ed61ff55f785",
+      "rows": 2169,
+      "cypher": "UNWIND {{ROWS}} AS r MERGE (s:Subsystem {name:r.subsystem}) MERGE (f:SourceFile {path:r.path}) SET f.in_port=r.in_port MERGE (f)-[:PART_OF]->(s)"
+    },
+    {
+      "file": "smg/functions-RMGE01.jsonl",
+      "sha256": "157a658775f53a2d0a2b0dc999367b1acc21afe36ce66f37e5a0e91165ee6021",
+      "rows": 41996,
+      "cypher": "UNWIND {{ROWS}} AS r MATCH (b:Build {id:r.build}) MERGE (fn:Function {key:r.key}) SET fn.name=r.name MERGE (fi:FunctionInstance {id:r.id}) SET fi.build=r.build, fi.va=r.va, fi.size=r.size, fi.status=r.status, fi.match=r.match MERGE (fi)-[:INSTANCE_OF]->(fn) MERGE (fi)-[:IN_BUILD]->(b) WITH fn, r WHERE r.source <> '' MATCH (sf:SourceFile {path:r.source}) MERGE (fn)-[:DEFINED_IN]->(sf)"
+    }
+  ]
+}
