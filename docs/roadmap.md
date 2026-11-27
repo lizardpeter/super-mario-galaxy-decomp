@@ -14,3 +14,5 @@ Each item says what must exist first.
 4. **Other regions** (docs/builds.md): RMGP01 and RMGJ01 `main.dol` in R2.
 5. **Bug ledger.** File what Nebula's ledger (`port/docs/plan/ledger.tsv`) and audits found in the original game
    code as `records/bugs.tsv` rows with evidence.
+6. **Exact CMPR textures** (docs/accuracy.md): expand to RGBA8 with the Wii's colour arithmetic on upload instead of
+   sampling as BC1. Measure frame time before and after.

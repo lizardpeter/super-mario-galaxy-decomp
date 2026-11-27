@@ -5,8 +5,11 @@ name: PC build
 # and draws 300 frames without game data (--start-check) on the runner's software renderer. The SMG folder and the
 # importer are uploaded as artifacts.
 on:
+  # Not for changes that cannot change the program (docs, records, the decomp's analysis).
   push:
+    paths-ignore: ['docs/**', '**/*.md', 'records/**', 'analysis/**', 'STATUS.md']
   pull_request:
+    paths-ignore: ['docs/**', '**/*.md', 'records/**', 'analysis/**', 'STATUS.md']
   workflow_dispatch:
 
 permissions:
