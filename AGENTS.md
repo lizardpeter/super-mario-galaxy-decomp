@@ -20,7 +20,7 @@ port) so pulling a newer upstream (docs/upstreams.md) can be checked against the
 
 | Kind | Where | Who writes it |
 |---|---|---|
-| **Generated** | `analysis/<build>/`, `analysis/graph/`, `STATUS.md` | Only `tools/match.py`, `tools/status.py`, `tools/graph/sync.py`. Never hand-edit. |
+| **Generated** | `analysis/<build>/`, `analysis/graph/`, `analysis/tick/`, `STATUS.md` | Only `tools/match.py`, `tools/status.py`, `tools/graph/sync.py`, `tools/tick/inventory.py`. Never hand-edit. |
 | **Authored** | `records/`, `docs/`, `tools/`, `.github/`, and code in `decomp/` and `port/` | People and agents. |
 
 If a generated file is wrong, fix the script and re-run. CI (`decomp.yml`) fails if the committed generated files
