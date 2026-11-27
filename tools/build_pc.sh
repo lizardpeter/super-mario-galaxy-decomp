@@ -80,7 +80,12 @@ cp "$out/cargo/release/nebula-import" "$out/importer/"
 
 if [ -n "$game" ]; then
     "$out/importer/nebula-import" identify "$game"
-    "$out/importer/nebula-import" import "$game" --output "$out/SMG"
+    # The importer writes into a folder that must not exist yet (it refuses one that does), then game.pak moves beside
+    # the game.
+    rm -rf "$out/import"
+    "$out/importer/nebula-import" import "$game" --output "$out/import"
+    mv -f "$out/import/game.pak" "$out/SMG/game.pak"
+    rmdir "$out/import"
 fi
 echo
 echo "The game: $out/SMG/smg (with game.pak beside it). Move the SMG folder anywhere."

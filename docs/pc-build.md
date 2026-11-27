@@ -33,8 +33,13 @@ cd super-mario-galaxy-decomp
 `build\pc\windows\importer\nebula-import.exe` if you want to make a `game.pak` yourself:
 
 ```powershell
-.\build\pc\windows\importer\nebula-import.exe import D:\Games\SMG --output .\build\pc\windows\SMG
+.\build\pc\windows\importer\nebula-import.exe import D:\Games\SMG --output D:\SMG-import
+Move-Item D:\SMG-import\game.pak .\build\pc\windows\SMG\
 ```
+
+The importer only writes into a folder that does not exist yet (it refuses one that does, and on a failure removes only
+the folder it made), so import into a new folder and move `game.pak` beside `smg.exe`. It reads your game, never
+changes it, and uses no network.
 
 ## Linux
 

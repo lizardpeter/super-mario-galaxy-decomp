@@ -80,7 +80,13 @@ Copy-Item (Join-Path $cargoTarget "release\nebula-import.exe") $importer -Force
 
 if ($Game) {
     Invoke-Checked (Join-Path $importer "nebula-import.exe") @("identify", $Game)
-    Invoke-Checked (Join-Path $importer "nebula-import.exe") @("import", $Game, "--output", $smg)
+    # The importer writes into a folder that must not exist yet (it refuses one that does), then game.pak moves beside
+    # the game.
+    $import = Join-Path $Out "import"
+    if (Test-Path $import) { Remove-Item -Recurse -Force $import }
+    Invoke-Checked (Join-Path $importer "nebula-import.exe") @("import", $Game, "--output", $import)
+    Move-Item -Force (Join-Path $import "game.pak") (Join-Path $smg "game.pak")
+    Remove-Item $import
 }
 
 Write-Host ""
