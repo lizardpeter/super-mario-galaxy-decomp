@@ -28,10 +28,10 @@ extern "C" {
 #define NEBULA_GAME_API __attribute__((visibility("default")))
 #endif
 
-#define NEBULA_GAME_API_VERSION 163u
+#define NEBULA_GAME_API_VERSION 164u
 
-/* The game's fixed step: nebula_game_run's loop runs this many steps a second (frame_wait paces them), whatever the
-   display's rate; the host presents each or interpolates between them. */
+/* The steps a second the game was authored for: its durations, speeds and factors count steps of 1/60 s. The loop runs
+   NebulaHostServices.tick_multiplier ticks per authored step (the fixed tick, docs/fixed-tick.md); frame_wait paces them. */
 #define NEBULA_STEPS_PER_SECOND 60
 
 /* Viewports, scissors, clears, target sizes and picture points count this many units across a frame on each axis. */
@@ -1077,6 +1077,9 @@ typedef struct NebulaHostServices {
     /* Returns once a save_request's `status` has left NEBULA_SAVE_PENDING, the thread asleep meanwhile (an acquire
        load: the request's buffer and length are the host's result). Game thread. */
     void (*save_wait)(void* user, const int32_t* status);
+    /* The fixed tick: k ticks per authored step (1, 2, 4 or 8; 0 is read as 1), fixed for the whole run
+       (galaxy/game_step.h). */
+    uint32_t tick_multiplier;
 } NebulaHostServices;
 
 

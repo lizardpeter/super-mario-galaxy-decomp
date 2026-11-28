@@ -1,4 +1,5 @@
 #include "Game/MapObj/MapPartsFunction.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/LiveActor.hpp"
 #include "Game/LiveActor/Spine.hpp"
 #include "Game/System/LumaCore.hpp"
@@ -28,11 +29,11 @@ void MapPartsFunction::setNerve(const Nerve* pNerve) {
 }
 
 s32 MapPartsFunction::getStep() const {
-    return mSpine->mStep;
+    return NebulaTick::stepOfTick(mSpine->mStep);
 }
 
 bool MapPartsFunction::isStep(s32 step) const {
-    return step == mSpine->mStep;
+    return NebulaTick::isStep(mSpine->mStep, step);
 }
 
 bool MapPartsFunction::isNerve(const Nerve* pNerve) const {

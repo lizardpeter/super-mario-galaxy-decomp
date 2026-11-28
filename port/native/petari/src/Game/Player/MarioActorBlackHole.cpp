@@ -1,4 +1,5 @@
 #include "Game/Enemy/KarikariDirector.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/MapObj/BlackHole.hpp"
 #include "Game/Player/MarioActor.hpp"
 #include "Game/Player/MarioConst.hpp"
@@ -66,7 +67,7 @@ void MarioActor::exeGameOverBlackHole2() {
         MR::deactivateDefaultGameLayout();
     }
 
-    if (getNerveStep() == 60) {
+    if (NebulaTick::isStep(getNerveTick(), 60)) {
         if (!MR::getPlayerLeft()) {
             MR::startPlayerEvent("ゲームオーバー");
         } else {
@@ -74,7 +75,7 @@ void MarioActor::exeGameOverBlackHole2() {
         }
     }
 
-    if (getNerveStep() == mConst->getTable()->mBlackHoleHideTime) {
+    if (NebulaTick::isStep(getNerveTick(), mConst->getTable()->mBlackHoleHideTime)) {
         mHidden = true;
 
         MR::hidePlayer();

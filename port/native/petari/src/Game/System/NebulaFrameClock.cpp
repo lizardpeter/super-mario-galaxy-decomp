@@ -57,6 +57,15 @@ namespace {
 }  // namespace
 
 namespace NebulaFrameClock {
+    u32 tickMultiplier() {
+        const NebulaHostServices* const host = nebula_host();
+        return host != nullptr && host->tick_multiplier != 0u ? host->tick_multiplier : 1u;
+    }
+
+    u32 ticksPerSecond() {
+        return cStepsPerSecond * tickMultiplier();
+    }
+
     u32 count() {
         return sFrames;
     }

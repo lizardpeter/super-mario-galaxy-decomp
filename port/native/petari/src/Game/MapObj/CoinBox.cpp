@@ -1,4 +1,5 @@
 #include "Game/MapObj/CoinBox.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util.hpp"
@@ -40,7 +41,7 @@ void CoinBox::exeHit() {
         MR::emitEffect(this, "CoinGet");
     }
 
-    if (getNerveStep() == 0xF) {
+    if (NebulaTick::isStep(getNerveTick(), 0xF)) {
         Vec3f axis_y;
         MR::getRotatedAxisY(&axis_y, mRotation);
         MR::calcGravityOrZero(this);

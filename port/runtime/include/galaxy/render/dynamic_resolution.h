@@ -23,7 +23,7 @@ namespace galaxy::render {
 [[nodiscard]] inline double resolution_budget_ms(double present_rate, double refresh_hz) noexcept {
     double rate = present_rate;
     if (!(rate > 0.0) || !std::isfinite(rate)) {
-        rate = refresh_hz > 1.0 ? refresh_hz : kGameStepRate;
+        rate = refresh_hz > 1.0 ? refresh_hz : game_step_rate();
     }
     return 1000.0 / rate;
 }

@@ -1,4 +1,5 @@
 #include "Game/Render/Clip.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Render/ModelData.hpp"
 #include <nebula_geometry.hpp>
 #include <nebula_module.h>
@@ -334,7 +335,8 @@ int FrameCtrl::checkPass(f32 passFrame) {
 
 void FrameCtrl::update() {
     mState = 0;
-    mFrame += mRate;
+    // The rate is frames per authored step (1/60 s); a tick plays its share (docs/fixed-tick.md).
+    mFrame += NebulaTick::perTick(mRate);
 
     switch (mAttribute) {
     case EMode_NONE:

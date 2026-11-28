@@ -1,4 +1,5 @@
 #include "Game/LiveActor/LiveActor.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaMods.hpp"
 #include "Game/Util/MotionSignal.hpp"
 #include "Game/AudioLib/AudAnmSoundObject.hpp"
@@ -270,6 +271,10 @@ bool LiveActor::isNerve(const Nerve* pNerve) const {
 }
 
 s32 LiveActor::getNerveStep() const {
+    return NebulaTick::stepOfTick(mSpine->mStep);
+}
+
+s32 LiveActor::getNerveTick() const {
     return mSpine->mStep;
 }
 
@@ -508,12 +513,15 @@ void LiveActor::addToSoundObjHolder() {
 }
 
 void LiveActor::updateBinder() {
+    // The velocity is per authored step (1/60 s); a tick moves its share (docs/fixed-tick.md).
+    Vec3f velocity(mVelocity);
+    NebulaTick::scalePerTick(&velocity);
     if (mBinder == nullptr) {
-        mPosition += mVelocity;
+        mPosition += velocity;
     } else if (mFlag.mIsNoBind) {
-        mPosition += mVelocity;
+        mPosition += velocity;
         mBinder->clear();
     } else {
-        mPosition += getBinder()->bind(mVelocity);
+        mPosition += getBinder()->bind(velocity);
     }
 }

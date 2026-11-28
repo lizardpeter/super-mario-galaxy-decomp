@@ -28,7 +28,10 @@ public:
     void setNerve(const Nerve*);
     bool isNerve(const Nerve*) const;
     void initNerve(const Nerve*);
+    // The authored step (1/60 s) the nerve is in (the fixed tick: ticks / k, docs/fixed-tick.md).
     s32 getNerveStep() const;
+    // The nerve's counter in ticks.
+    s32 getNerveTick() const;
 
     Vec3f mTranslation;
     Vec3f mRotation;

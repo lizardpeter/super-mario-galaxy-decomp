@@ -17,9 +17,13 @@ namespace NebulaFrameClock {
     const f32 cEffectTexelsAcross = 640.0f;
     // getScreenWidth at 16:9.
     const s32 cWideScreenWidth = 832;
-    // The game's fixed step: its simulation runs this many steps a second, whatever the display's rate (the host
-    // interpolates between them).
+    // The steps a second the game was authored for: its durations, speeds and factors count steps of 1/60 s
+    // (docs/fixed-tick.md: they keep those units and are converted where applied).
     const u32 cStepsPerSecond = NEBULA_STEPS_PER_SECOND;
+    // The fixed tick: k ticks per authored step (1, 2, 4 or 8), fixed for the whole run (the host's services).
+    u32 tickMultiplier();
+    // Ticks a second: cStepsPerSecond x k. For what runs on real time (a movie's silent clock), not authored counts.
+    u32 ticksPerSecond();
     // Seconds of play as steps.
     constexpr s32 stepsOfSeconds(s32 seconds) {
         return seconds * static_cast< s32 >(NEBULA_STEPS_PER_SECOND);

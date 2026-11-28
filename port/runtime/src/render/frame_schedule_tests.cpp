@@ -17,7 +17,7 @@
 #include <limits>
 #include <vector>
 
-using galaxy::kGameStepRate;
+using galaxy::game_step_rate();
 using namespace galaxy::render;
 
 namespace {
@@ -34,7 +34,7 @@ void check(bool condition, const char* what) {
 // The clock's ticks a second, as Windows' performance counter.
 constexpr std::int64_t kFrequency = 10'000'000;
 // One game step.
-constexpr double kStep = static_cast<double>(kFrequency) / kGameStepRate;
+const double kStep = static_cast<double>(kFrequency) / game_step_rate();
 
 struct SimDisplay final : ScheduleDisplay {
     double rate = 120.0;
@@ -185,7 +185,7 @@ void test_timed_vblanks() {
                       refresh, e.spread);
         check(e.spread <= kFrequency / 5000.0, what);
         // About the display's rate of pictures, all but the start's.
-        const double seconds = 600.0 / kGameStepRate;
+        const double seconds = 600.0 / game_step_rate();
         std::snprintf(what, sizeof what, "%.0f Hz timed: %zu pictures in %.0f s", refresh, r.shown.size(), seconds);
         check(static_cast<double>(r.shown.size()) > refresh * seconds * 0.97, what);
     }

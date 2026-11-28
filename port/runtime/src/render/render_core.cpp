@@ -816,7 +816,7 @@ namespace {
 // The game time a picture shows, on the step clock: t steps on from the moment its frame's step began (t = 1: the
 // frame itself), or when that moment is unknown, the moment the picture is asked for.
 std::int64_t content_moment_qpc(std::int64_t step_qpc, double t, std::int64_t asked_qpc) {
-    static const double period = static_cast<double>(galaxy::qpc_frequency()) / kGameStepRate;
+    static const double period = static_cast<double>(galaxy::qpc_frequency()) / game_step_rate();
     return step_qpc != 0 ? step_qpc + static_cast<std::int64_t>(std::llround(t * period)) : asked_qpc;
 }
 
@@ -1033,7 +1033,7 @@ void RenderCore::note_interp_walked(const ListEntry& entry, float t) noexcept {
 bool RenderCore::skip_for_present_rate() {
     const RenderConfig cfg = get_render_config();
     const double rate = present_frame_rate(presented_max_fps(cfg), cfg.vsync_interval, renderer_.display_refresh_hz());
-    if (rate >= kGameStepRate - 1.0) {
+    if (rate >= game_step_rate() - 1.0) {
         next_rate_present_qpc_ = 0;
         return false;
     }
@@ -2328,7 +2328,7 @@ void RenderCore::calibrate_first_start(bool scene, double walk_ms) {
     }
     // One new picture a game step (the presents between show it again) with interpolation off, as a first start's defaults
     // leave it: the step is the GPU's period (resolution_fit.h's budget, the benchmark's too).
-    constexpr double frame_ms = 1000.0 / galaxy::kGameStepsPerSecond;
+    const double frame_ms = 1000.0 / galaxy::game_steps_per_second();
     // The scene target as the renderer made it: a size it refused (the video memory check) shows as no spread, so no fit.
     c.pixels.push_back(static_cast<double>(renderer_.frame_map().width) * static_cast<double>(renderer_.frame_map().height));
     c.ms.push_back(gpu_ms);

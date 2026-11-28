@@ -1,4 +1,5 @@
 #include "Game/Util/SortUtil.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Map/RaceManager.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -291,7 +292,7 @@ void RaceManager::exeCount() {
 
     mLayout->movement();
 
-    if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == 0) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
         MR::startSystemSE("SE_SY_RACE_COUNT_DOWN");
     }
 

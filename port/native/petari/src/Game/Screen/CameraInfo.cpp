@@ -1,4 +1,5 @@
 #include "Game/Screen/CameraInfo.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/CameraUtil.hpp"
@@ -221,7 +222,7 @@ bool CameraInfo::tryHide() {
     bool isTriggerAnyDir = MR::isPressedUp(PLAYER_1) || MR::isPressedDown(PLAYER_1) || MR::isPressedLeft(PLAYER_1) ||
                            MR::isPressedRight(PLAYER_1);
 
-    if (isTriggerAnyDir || getNerveStep() == 0) {
+    if (isTriggerAnyDir || NebulaTick::isStep(getNerveTick(), 0)) {
         mStep = 0;
     }
 

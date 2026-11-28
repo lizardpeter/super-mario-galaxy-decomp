@@ -1,4 +1,5 @@
 #include "Game/MapObj/FirePressureBullet.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util.hpp"
@@ -70,7 +71,7 @@ void FirePressureBullet::exeFly() {
 
     MR::startLevelSound(this, "SE_OJ_LV_F_PRESSURE_BULLET");
 
-    if (mIsHoming && !(getNerveStep() % 5)) {
+    if (mIsHoming && NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(5), 0)) {
         MR::turnDirectionToTargetDegree(this, &mFront, *MR::getPlayerPos(), 3.0f);
         mVelocity.scale(mSpeed, mFront);
     }

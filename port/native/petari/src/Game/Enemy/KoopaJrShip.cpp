@@ -1,4 +1,5 @@
 #include "Game/Enemy/KoopaJrShip.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/HomingKiller.hpp"
 #include "Game/Enemy/Kameck.hpp"
@@ -475,7 +476,7 @@ void KoopaJrShip::exeMove() {
     MR::moveCoordAndFollowTrans(this);
 
     // Every 120 steps with no killer out: one shell at full health, five at 2 to 4 hit points.
-    if (MR::isGreaterStep(this, 0) && getNerveStep() % NebulaFrameClock::stepsOfSeconds(2) == 0 && !isExistActiveKiller()) {
+    if (MR::isGreaterStep(this, 0) && NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(2)), 0) && !isExistActiveKiller()) {
         if (mHitPoint == 5) {
             setNerve(GET_NERVE(KoopaJrShip, HostTypeShoot1));
         } else if (mHitPoint >= 2 && mHitPoint <= 4) {

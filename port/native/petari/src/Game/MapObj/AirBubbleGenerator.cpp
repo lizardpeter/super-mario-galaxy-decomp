@@ -1,4 +1,5 @@
 #include "Game/MapObj/AirBubbleGenerator.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/MapObj/AirBubbleHolder.hpp"
 #include "Game/Util/ActorMovementUtil.hpp"
@@ -50,7 +51,7 @@ void AirBubbleGenerator::control() {
 }
 
 void AirBubbleGenerator::exeWait() {
-    if (mWaitTime != 0 && mWaitTime - 1 == getNerveStep() % mWaitTime) {
+    if (mWaitTime != 0 && NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(mWaitTime), mWaitTime - 1)) {
         setNerve(GET_NERVE(AirBubbleGenerator, AirBubbleGeneratorNrvGenerate));
     }
 }

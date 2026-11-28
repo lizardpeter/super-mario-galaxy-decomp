@@ -123,7 +123,10 @@ public:
     void calcAnmMtx();
     void setNerve(const Nerve* pNerve);
     bool isNerve(const Nerve* pNerve) const;
+    // The authored step (1/60 s) the nerve is in (the fixed tick: ticks / k, docs/fixed-tick.md).
     s32 getNerveStep() const;
+    // The nerve's counter in ticks.
+    s32 getNerveTick() const;
 
     /// @brief Gets a sensor.
     /// @param pSensorName The name of the sensor to get.

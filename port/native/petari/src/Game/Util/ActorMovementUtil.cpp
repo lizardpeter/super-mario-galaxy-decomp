@@ -1,4 +1,5 @@
 #include "Game/Util/ActorMovementUtil.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaMods.hpp"
 #include "Game/Util/MotionSignal.hpp"
 #include "Game/Animation/XanimeCore.hpp"
@@ -602,6 +603,7 @@ namespace MR {
     void addVelocityMoveToDirection(LiveActor* pActor, const Vec3f& rDir, f32 speed) {
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, rDir, speed);
+        NebulaTick::scalePerTick(&accel);
 
         addVelocity(pActor, accel);
     }
@@ -610,6 +612,7 @@ namespace MR {
         Vec3f toTarget = rTarget - pActor->mPosition;
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, toTarget, speed);
+        NebulaTick::scalePerTick(&accel);
 
         addVelocity(pActor, accel);
     }
@@ -619,6 +622,7 @@ namespace MR {
 
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, toTarget, speedMin, speedMax, lengthMin, lengthMax);
+        NebulaTick::scalePerTick(&accel);
 
         addVelocity(pActor, accel);
     }
@@ -628,6 +632,7 @@ namespace MR {
 
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, fromTarget, speed);
+        NebulaTick::scalePerTick(&accel);
 
         addVelocity(pActor, accel);
     }
@@ -637,6 +642,7 @@ namespace MR {
 
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, fromTarget, speedMin, speedMax, lengthMin, lengthMax);
+        NebulaTick::scalePerTick(&accel);
 
         addVelocity(pActor, accel);
     }
@@ -650,6 +656,7 @@ namespace MR {
         side.cross(pActor->mGravity, side);
         Vec3f accel;
         calcVelocityMoveToDirection(&accel, pActor, side, speed);
+        NebulaTick::scalePerTick(&accel);
         pActor->mVelocity.add(accel);
     }
 
@@ -690,13 +697,14 @@ namespace MR {
         setVelocity(pActor, pActor->mGravity * -speed);
     }
 
+    // An acceleration along gravity each step: a tick adds its share (docs/fixed-tick.md).
     void addVelocityToGravity(LiveActor* pActor, f32 speed) {
-        addVelocity(pActor, pActor->mGravity * speed);
+        addVelocity(pActor, pActor->mGravity * NebulaTick::perTick(speed));
     }
 
     void addVelocityToGravityOrGround(LiveActor* pActor, f32 speed) {
         if (isBindedGround(pActor)) {
-            pActor->mVelocity.scaleAdd(-speed, *getGroundNormal(pActor), pActor->mVelocity);
+            pActor->mVelocity.scaleAdd(-NebulaTick::perTick(speed), *getGroundNormal(pActor), pActor->mVelocity);
         } else {
             addVelocityToGravity(pActor, speed);
         }
@@ -714,7 +722,7 @@ namespace MR {
         }
 
         normalize(&normal);
-        pActor->mVelocity.add(normal * speed);
+        pActor->mVelocity.add(normal * NebulaTick::perTick(speed));
 
         return true;
     }
@@ -797,14 +805,15 @@ namespace MR {
         setVelocity(pActor, horizontal * velH - pActor->mGravity * velV);
     }
 
+    // A friction each step: a tick applies its root, so k ticks apply it once (docs/fixed-tick.md).
     void attenuateVelocity(LiveActor* pActor, f32 friction) {
-        pActor->mVelocity.scale(friction);
+        pActor->mVelocity.scale(NebulaTick::decayPerTick(friction));
     }
 
     void attenuateVelocityExceptDirection(LiveActor* pActor, const Vec3f& rDir, f32 rate) {
         Vec3f across;
         across.killElement(pActor->mVelocity, rDir);
-        across.scale(rate);
+        across.scale(NebulaTick::decayPerTick(rate));
         f32 along = rDir.dot(pActor->mVelocity);
         pActor->mVelocity.scale(along, rDir);
         pActor->mVelocity.add(across);

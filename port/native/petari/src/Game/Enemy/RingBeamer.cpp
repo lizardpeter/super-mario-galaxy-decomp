@@ -1,4 +1,5 @@
 #include "Game/Enemy/RingBeamer.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Enemy/JumpGuarder.hpp"
 #include "Game/Enemy/RingBeam.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -95,11 +96,11 @@ void RingBeamer::exeAttack() {
         MR::startLevelSound(this, "SE_EM_LV_RINGBEAM_CHARGE");
     }
 
-    if (getNerveStep() % ::sBeamInterval == 0) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::sBeamInterval), 0)) {
         MR::emitEffect(this, "Charge");
     }
 
-    if (getNerveStep() % ::sBeamInterval == ::sBeamInterval - 1) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::sBeamInterval), ::sBeamInterval - 1)) {
         MR::deleteEffect(this, "Charge");
 
         if (!MR::enableGroupAttack(this, 3200.0f, 500.0f)) {

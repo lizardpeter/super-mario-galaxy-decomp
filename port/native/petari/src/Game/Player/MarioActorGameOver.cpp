@@ -1,4 +1,5 @@
 #include "Game/LiveActor/HitSensor.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Player/MarioActor.hpp"
 #include "Game/System/GameRules.hpp"
 #include "Game/System/NebulaMods.hpp"
@@ -167,7 +168,7 @@ void MarioActor::exeGameOver() {
     calcHeadPos();
     updateRealMtx();
 
-    if (getNerveStep() == 32) {
+    if (NebulaTick::isStep(getNerveTick(), 32)) {
         mBlurState = 0;
     }
 
@@ -250,7 +251,7 @@ void MarioActor::exeGameOverFire() {
     calcHeadPos();
     updateRealMtx();
 
-    if (getNerveStep() == 120) {
+    if (NebulaTick::isStep(getNerveTick(), 120)) {
         mBlurState = 0;
     }
 
@@ -281,7 +282,7 @@ void MarioActor::exeGameOverSink() {
     calcHeadPos();
     updateRealMtx();
 
-    if (getNerveStep() == 120) {
+    if (NebulaTick::isStep(getNerveTick(), 120)) {
         mBlurState = 0;
     }
 
@@ -314,13 +315,13 @@ void MarioActor::exeGameOverSink() {
     if (mMario->mFloorCode == 31 || mMario->mFloorCode == 18) {
         playSound("沼死亡", -1);
 
-        if (getNerveStep() == 90) {
+        if (NebulaTick::isStep(getNerveTick(), 90)) {
             playSound("声沼沈み死亡", -1);
         }
     } else {
         playSound("砂死亡", -1);
 
-        if (getNerveStep() == 90) {
+        if (NebulaTick::isStep(getNerveTick(), 90)) {
             playSound("声砂沈み死亡", -1);
         }
     }

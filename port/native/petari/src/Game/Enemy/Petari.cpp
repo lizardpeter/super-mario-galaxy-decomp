@@ -1,4 +1,5 @@
 #include "Game/Enemy/Petari.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/AnimScaleController.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -698,7 +699,7 @@ f32 Petari::calcBoost(f32 baseSpeed, f32 boostMultiplier, f32 effectiveRange) co
 }
 
 void Petari::appearStarPieceGradually() {
-    if (getNerveStep() % 5 != 0) {
+    if (!NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(5), 0)) {
         return;
     }
 

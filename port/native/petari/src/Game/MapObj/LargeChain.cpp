@@ -1,4 +1,5 @@
 #include "Game/MapObj/LargeChain.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/MapObj/LargeChainParts.hpp"
 #include "Game/Util/ActorSwitchUtil.hpp"
@@ -78,7 +79,7 @@ void LargeChain::exeBreak() {
         invalidateClippingAllChainParts();
     }
 
-    if (getNerveStep() % ::sBreakInterval != 0) {
+    if (!NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::sBreakInterval), 0)) {
         return;
     }
 

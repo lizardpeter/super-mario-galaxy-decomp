@@ -75,7 +75,7 @@ Interpolation interpolation_of(const RenderConfig& render) {
         return Interpolation::kFrameGeneration;
     }
     const unsigned rate = frame_rate_target(render.max_fps);
-    return rate != 0u && rate <= kStepRate + 1u ? Interpolation::kOff : Interpolation::kNative;
+    return rate != 0u && rate <= step_rate() + 1u ? Interpolation::kOff : Interpolation::kNative;
 }
 
 // The targets a mode offers, lowest first (0: the display's refresh rate): the standard rates
@@ -92,7 +92,7 @@ std::vector<unsigned> interpolation_targets(Interpolation mode, const FrameRateC
     }
     // FSR 3 makes one frame between each two.
     if (mode == Interpolation::kFsrGeneration) {
-        targets.push_back(2u * kStepRate);
+        targets.push_back(2u * step_rate());
         return targets;
     }
     const unsigned refresh = caps.refresh_hz;
@@ -100,12 +100,12 @@ std::vector<unsigned> interpolation_targets(Interpolation mode, const FrameRateC
     // NVIDIA's fixed frame generation makes whole multiples of the game's step rate.
     const bool sixties = generated && caps.generated_supported && !caps.generated_dynamic;
     const unsigned most = generated && caps.generated_supported
-        ? kStepRate * (caps.generated_max + 1u) : kUnlimitedTarget;
+        ? step_rate() * (caps.generated_max + 1u) : kUnlimitedTarget;
     const bool even = refresh != 0u && !caps.unlimited && !caps.variable_refresh;
     std::vector<unsigned> rates;
     if (even) {
-        for (unsigned whole = refresh / (kStepRate + 2u) + 1u; whole >= 2u; --whole) {
-            if (refresh % whole == 0u && refresh / whole > kStepRate + 1u) {
+        for (unsigned whole = refresh / (step_rate() + 2u) + 1u; whole >= 2u; --whole) {
+            if (refresh % whole == 0u && refresh / whole > step_rate() + 1u) {
                 rates.push_back(refresh / whole);
             }
         }
@@ -116,15 +116,15 @@ std::vector<unsigned> interpolation_targets(Interpolation mode, const FrameRateC
         if (refresh != 0u && rate + 1u >= refresh) {
             break;
         }
-        if ((rate == 180u && !sixties && !even) || (sixties && rate % kStepRate != 0u) || rate > most) {
+        if ((rate == 180u && !sixties && !even) || (sixties && rate % step_rate() != 0u) || rate > most) {
             continue;
         }
         targets.push_back(rate);
     }
     // Its own rate: above the step rate, and with the multiples of it only where it is one (frame generation
     // takes the largest multiple at or below it).
-    const bool own = refresh == 0u || (refresh > kStepRate + 1u && (!sixties || generated || refresh % kStepRate <= 1u ||
-                                                          refresh % kStepRate >= kStepRate - 1u));
+    const bool own = refresh == 0u || (refresh > step_rate() + 1u && (!sixties || generated || refresh % step_rate() <= 1u ||
+                                                          refresh % step_rate() >= step_rate() - 1u));
     if (own) {
         targets.push_back(0u);
     }
@@ -143,7 +143,7 @@ std::vector<Interpolation> interpolation_modes(const FrameRateCaps& caps) {
         modes.push_back(Interpolation::kFrameGeneration);
     }
     // Its doubled step rate needs a display that shows it.
-    if (caps.fsr_generation_offered && (caps.refresh_hz == 0u || caps.refresh_hz >= 2u * kStepRate - 1u)) {
+    if (caps.fsr_generation_offered && (caps.refresh_hz == 0u || caps.refresh_hz >= 2u * step_rate() - 1u)) {
         modes.push_back(Interpolation::kFsrGeneration);
     }
     return modes;
@@ -155,13 +155,13 @@ void normalize_interpolation(RenderConfig& render, const FrameRateCaps& caps) {
     const Interpolation mode = interpolation_of(render);
     const unsigned rate = frame_rate_target(render.max_fps);
     if (mode == Interpolation::kOff) {
-        render.max_fps = static_cast<float>(rate != 0u && rate <= kHalfStepRate ? kHalfStepRate : kStepRate);
+        render.max_fps = static_cast<float>(rate != 0u && rate <= half_step_rate() ? half_step_rate() : step_rate());
         return;
     }
     const auto targets = interpolation_targets(mode, caps);
     if (targets.empty()) {
         render.frame_generation = 0u;
-        render.max_fps = static_cast<float>(kStepRate);
+        render.max_fps = static_cast<float>(step_rate());
         return;
     }
     if (std::find(targets.begin(), targets.end(), rate) != targets.end()) {

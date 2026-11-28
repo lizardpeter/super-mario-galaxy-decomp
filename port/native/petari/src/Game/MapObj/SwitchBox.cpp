@@ -1,4 +1,5 @@
 #include "Game/MapObj/SwitchBox.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util.hpp"
@@ -75,15 +76,15 @@ void SwitchBox::exeWait() {
 }
 
 void SwitchBox::exeHit() {
-    if (getNerveStep() == 0) {
+    if (NebulaTick::isStep(getNerveTick(), 0)) {
         getSensor("body")->invalidate();
     }
 
-    if (getNerveStep() == 5) {
+    if (NebulaTick::isStep(getNerveTick(), 5)) {
         MR::hideModel(this);
     }
 
-    if (getNerveStep() == 15) {
+    if (NebulaTick::isStep(getNerveTick(), 15)) {
         kill();
     }
 }

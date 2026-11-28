@@ -1,4 +1,5 @@
 #include "Game/MapObj/BenefitItemObj.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/FlashingCtrl.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -465,7 +466,7 @@ void BenefitItemObj::exeShoot() {
 
     f32 nextFallSpeed = fallSpeed + cGravity;
 
-    if (getNerveStep() == cShootSensorOnStep) {
+    if (NebulaTick::isStep(getNerveTick(), cShootSensorOnStep)) {
         MR::validateHitSensors(this);
     }
 
@@ -539,7 +540,7 @@ void BenefitItemObj::exeAppearGround() {
         return;
     }
 
-    if (getNerveStep() == cGroundAppearStep) {
+    if (NebulaTick::isStep(getNerveTick(), cGroundAppearStep)) {
         MR::showModel(this);
         runBck("Appear");
         MR::startSound(this, "SE_OJ_KINOKO_1UP_GROW");

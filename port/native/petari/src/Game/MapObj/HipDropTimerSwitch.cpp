@@ -1,4 +1,5 @@
 #include "Game/MapObj/HipDropTimerSwitch.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Map/CollisionParts.hpp"
 #include "Game/MapObj/MapObjConnector.hpp"
@@ -129,7 +130,7 @@ void HipDropTimerSwitch::updateTimerSE() {
         return;
     }
 
-    if (mTimerMax == getNerveStep()) {
+    if (NebulaTick::isStep(getNerveTick(), mTimerMax)) {
         // Time's up
         MR::startSystemSE(::sTimerSeSet[mTimerSFXType][3]);
         return;

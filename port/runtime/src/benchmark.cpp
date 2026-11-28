@@ -807,7 +807,7 @@ const char* ceiling_of(const FrameStats& frames, double refresh_hz, bool generat
     if (frames.p50_ms <= 0.0) return nullptr;
     const auto at = [&](double hz) { return at_refresh(frames.average_fps, hz) && at_refresh(1000.0 / frames.p50_ms, hz); };
     if (at(refresh_hz)) return "display";
-    if (!generated && at(static_cast<double>(kGameStepsPerSecond))) return "game frames";
+    if (!generated && at(static_cast<double>(game_steps_per_second()))) return "game frames";
     return nullptr;
 }
 
@@ -1911,10 +1911,10 @@ int scene_frame(std::string_view current_stage, char* stage, std::uint32_t capac
             window.pixels = scene_pixels(asked, window.output_w, window.output_h);
             // The pictures a second the warm-up showed (no cap: the device's own rate), a quarter again.
             const double rate = std::max(render::host_window::measured_present_hz.load(std::memory_order_relaxed),
-                                         static_cast<double>(kGameStepsPerSecond));
+                                         static_cast<double>(game_steps_per_second()));
             const double expected = std::min(rate * item.stage.seconds * 1.25 + 256.0, static_cast<double>(kMostReservedPictures));
             window.steps.reserve(static_cast<std::size_t>(item.stage.seconds) *
-                                 static_cast<std::size_t>(kGameStepsPerSecond) * 5u / 4u + 64u);
+                                 static_cast<std::size_t>(game_steps_per_second()) * 5u / 4u + 64u);
             begin_window(window, static_cast<std::size_t>(expected));
             enter(Phase::Measure);
         }

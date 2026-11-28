@@ -9,7 +9,7 @@
 namespace galaxy::render {
 
 std::int64_t PresentSlots::place(const PresentClock& clock) noexcept {
-    const std::int64_t period = clock.by_moment ? kGameStepNs : clock.period;
+    const std::int64_t period = clock.by_moment ? game_step_ns() : clock.period;
     // The depth in whole vsyncs for a picture timed by its moment, in whole present periods for a game frame.
     const std::int64_t unit = std::max<std::int64_t>(1, clock.by_moment ? clock.vsync : clock.step);
     if (!depth_set_) {
@@ -58,7 +58,7 @@ void PresentSlots::observe(std::int64_t requested, std::int64_t earliest, std::i
     if (actual > requested + half_vsync && earliest > requested + half_vsync) {
         const std::int64_t missed = earliest - requested;
         late_max_ = std::max(late_max_, missed);
-        if (missed <= 2 * kGameStepNs) {
+        if (missed <= 2 * game_step_ns()) {
             ++window_late_;
             window_miss_ = std::max(window_miss_, missed);
         }
@@ -88,7 +88,7 @@ void PresentSlots::observe(std::int64_t requested, std::int64_t earliest, std::i
         if (calm_ns_ >= calm_needed_ns_) {
             // What the margin leaves room for (2 ms kept), in whole periods, a game step at most (a period at the
             // least): the same time at every rate, so a 360 Hz display settles as soon as a 60 Hz one.
-            const std::int64_t most = std::max(step, kGameStepNs / step * step);
+            const std::int64_t most = std::max(step, game_step_ns() / step * step);
             const std::int64_t room = calm_margin_ == INT64_MAX ? 0 : (calm_margin_ - 2'000'000) / step * step;
             const std::int64_t down = std::min({most, room, depth_ns_ - least_ns_});
             if (down > 0) {

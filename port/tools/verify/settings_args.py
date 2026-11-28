@@ -14,7 +14,7 @@ import sys
 # Environment name -> (file, key). Two names for one key: the later in this table wins, as the game read them.
 RENDER = [
     ("GALAXY_VSYNC_INTERVAL", "vsync_interval"), ("GALAXY_MSAA_SAMPLES", "msaa_samples"),
-    ("GALAXY_MAX_FPS", "max_fps"),
+    ("GALAXY_MAX_FPS", "max_fps"), ("GALAXY_TICK_RATE", "tick_rate"),
     ("GALAXY_TEXTURE_LOD_BIAS", "texture_lod_bias"),
     ("GALAXY_ANISOTROPIC_FILTERING", "anisotropic_filtering"),
     ("GALAXY_PER_PIXEL_LIGHTING", "per_pixel_lighting"), ("GALAXY_CURVED_SURFACES", "curved_surfaces"),

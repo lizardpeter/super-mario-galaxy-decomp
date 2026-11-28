@@ -1,4 +1,5 @@
 #include "Game/Util/CameraUtil.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/MapObj/TrampleStar.hpp"
 #include "Game/Render/TypedDraw.hpp"
@@ -440,7 +441,7 @@ void TrampleStar::exeBindingShoot() {
         }
     }
 
-    if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(2)) {
+    if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(2))) {
         if (MR::isPlayerInBind()) {
             Vec3f up = mVtxs[mCaptureVtx];
             MR::normalizeOrZero(&up);

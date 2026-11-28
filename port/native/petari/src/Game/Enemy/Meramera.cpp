@@ -1,4 +1,5 @@
 #include "Game/Enemy/Meramera.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/AnimScaleController.hpp"
 #include "Game/Enemy/WalkerStateBindStarPointer.hpp"
@@ -974,7 +975,7 @@ void Meramera::exeRunaway() {
         if (!mCanDive) {
             f32 angleDegree = (getNerveStep() % 5 * ::sRunawayDiveSpread) / 5.0f;
 
-            if (getNerveStep() % 2 == 1) {
+            if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(2), 1)) {
                 angleDegree = -angleDegree;
             }
 

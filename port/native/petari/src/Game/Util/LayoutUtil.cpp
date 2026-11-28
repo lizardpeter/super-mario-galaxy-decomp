@@ -1,4 +1,5 @@
 #include "Game/Util/TextString.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Util/LayoutUtil.hpp"
 #include "Game/Render/FrameList.hpp"
 #include "Game/Effect/MultiEmitter.hpp"
@@ -691,7 +692,7 @@ void MR::drawLayoutWithDrawInfoWithoutProjectionSetup(const LayoutActor* pActor,
 }
 
 bool MR::isStep(const LayoutActor* pActor, s32 step) {
-    return pActor->getNerveStep() == step;
+    return NebulaTick::isStep(pActor->getNerveTick(), step);
 }
 
 bool MR::isFirstStep(const LayoutActor* pActor) {
@@ -715,7 +716,7 @@ bool MR::isGreaterEqualStep(const LayoutActor* pActor, s32 step) {
 }
 
 bool MR::isIntervalStep(const LayoutActor* pActor, s32 step) {
-    return (step != 0 ? pActor->getNerveStep() % step : pActor->getNerveStep()) == 0;
+    return NebulaTick::isIntervalStep(pActor->getNerveTick(), step);
 }
 
 bool MR::isNewNerve(const LayoutActor* pActor) {
@@ -723,11 +724,11 @@ bool MR::isNewNerve(const LayoutActor* pActor) {
 }
 
 f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMax) {
-    return stepMax <= 0 ? 1.0f : clamp(static_cast< f32 >(pActor->getNerveStep()) / stepMax, 0.0f, 1.0f);
+    return stepMax <= 0 ? 1.0f : clamp(NebulaTick::rateOfSteps(pActor->getNerveTick(), stepMax), 0.0f, 1.0f);
 }
 
 f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMin, s32 stepMax) {
-    return clamp(normalize(pActor->getNerveStep(), stepMin, stepMax), 0.0f, 1.0f);
+    return clamp(normalize(pActor->getNerveTick(), NebulaTick::ticksOfSteps(stepMin), NebulaTick::ticksOfSteps(stepMax)), 0.0f, 1.0f);
 }
 
 f32 MR::calcNerveEaseInRate(const LayoutActor* pActor, s32 stepMax) {
@@ -739,7 +740,7 @@ f32 MR::calcNerveEaseInValue(const LayoutActor* pActor, s32 stepMin, s32 stepMax
 }
 
 void MR::setNerveAtStep(LayoutActor* pActor, const Nerve* pNerve, s32 step) {
-    if (pActor->getNerveStep() == step) {
+    if (NebulaTick::isStep(pActor->getNerveTick(), step)) {
         pActor->setNerve(pNerve);
     }
 }

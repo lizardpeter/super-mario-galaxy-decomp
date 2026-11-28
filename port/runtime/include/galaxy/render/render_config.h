@@ -49,7 +49,10 @@ struct RenderConfig {
 
     // Frames per second presented (0: the display's rate, at least 60; kUnlimitedFrameRate: no cap; see
     // present_frame_rate).
-    float    max_fps             = static_cast<float>(kGameStepsPerSecond);
+    float    max_fps             = static_cast<float>(kAuthoredStepsPerSecond);
+
+    // The game's fixed tick rate (game_step.h): 60 x k ticks a second, k in kTickMultipliers. Read once at start.
+    unsigned tick_rate           = static_cast<unsigned>(kAuthoredStepsPerSecond);
 
     // Mip LOD bias in units of 0.5 LOD levels (0 full detail, 2 quarter), applied to every sampler.
     unsigned texture_lod_bias    = 0;
@@ -176,7 +179,7 @@ struct RenderConfig {
 // kUnlimitedFrameRate is infinite (no slot clock). VSync limits the rate to the display's.
 inline double present_frame_rate(float max_fps, unsigned vsync_interval, double refresh_hz) {
     double rate = max_fps > 0.0f ? static_cast<double>(max_fps)
-                                 : (refresh_hz > 1.0 ? std::max(refresh_hz, kGameStepRate) : kGameStepRate);
+                                 : (refresh_hz > 1.0 ? std::max(refresh_hz, game_step_rate()) : game_step_rate());
     if (vsync_interval != 0u && refresh_hz > 1.0) rate = std::min(rate, refresh_hz);
     return rate;
 }
@@ -189,8 +192,8 @@ inline constexpr unsigned kUnboundedGeneratedFrames = std::numeric_limits<unsign
 // most pairs of game frames, 144 Hz two between some), none at 60 and below, kUnboundedGeneratedFrames for an
 // unlimited rate.
 inline unsigned interpolated_frames_per_game_frame(double rate) {
-    if (!(rate > kGameStepRate + 1.0)) return 0u;
-    const double frames = std::ceil(rate / kGameStepRate - 1e-3) - 1.0;
+    if (!(rate > game_step_rate() + 1.0)) return 0u;
+    const double frames = std::ceil(rate / game_step_rate() - 1e-3) - 1.0;
     if (!(frames < static_cast<double>(kUnboundedGeneratedFrames))) return kUnboundedGeneratedFrames;
     return std::max(1u, static_cast<unsigned>(frames));
 }
@@ -214,8 +217,8 @@ inline unsigned dxgi_sync_interval(unsigned configured, bool variable_refresh, d
         return 1u;
     }
     const double asked = present_frame_rate(max_fps, configured, refresh_hz);
-    const double rate = game_frame ? std::min(kGameStepRate, asked) : asked;
-    if ((game_frame || !interpolating()) && rate >= kGameStepRate - 0.5) {
+    const double rate = game_frame ? std::min(game_step_rate(), asked) : asked;
+    if ((game_frame || !interpolating()) && rate >= game_step_rate() - 0.5) {
         return 1u;
     }
     const double multiple = std::round(refresh_hz / rate);
@@ -345,7 +348,7 @@ void note_frame_generation_allowed(bool allowed) noexcept;
 [[nodiscard]] bool frame_generation_allowed() noexcept;
 // The rate the game presents at: max_fps, or 60 while frame generation runs.
 [[nodiscard]] inline float presented_max_fps(const RenderConfig& cfg) noexcept {
-    return frame_generation_running() ? static_cast<float>(kGameStepsPerSecond) : cfg.max_fps;
+    return frame_generation_running() ? static_cast<float>(game_steps_per_second()) : cfg.max_fps;
 }
 
 // The rate the present pacer holds presents to (0: no hold), from the cap (presented_max_fps: 0 matches the refresh,

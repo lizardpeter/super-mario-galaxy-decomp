@@ -169,7 +169,7 @@ void MovieStream::stepSilent() {
         return;
     }
     // Through any loops, as the sound's place runs (the pictures start over by themselves).
-    mSilentPosition += static_cast< f64 >(mHeader.mFrameRate) / NebulaFrameClock::cStepsPerSecond;
+    mSilentPosition += static_cast< f64 >(mHeader.mFrameRate) / NebulaFrameClock::ticksPerSecond();
     if (!mLoop && mSilentPosition > mHeader.mFrames) {
         mSilentPosition = mHeader.mFrames;
     }

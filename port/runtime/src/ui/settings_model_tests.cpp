@@ -21,7 +21,7 @@ int main() {
         config.max_fps = 60;
         FrameRateCaps sixty{60};
         check(interpolation_modes(sixty) == std::vector{Interpolation::kOff}, "60 Hz has no interpolation target");
-        check(galaxy::ui::kStepRate == 60 && galaxy::ui::kHalfStepRate == 30, "the step rates are the game's");
+        check(galaxy::ui::step_rate() == 60 && galaxy::ui::half_step_rate() == 30, "the step rates are the game's");
         FrameRateCaps unknown{0};
         check(interpolation_targets(Interpolation::kNative, unknown).back() == 0u, "an unknown display rate offers its own rate");
         FrameRateCaps high{144};

@@ -1,4 +1,5 @@
 #include "Game/Enemy/HammerHeadPackun.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/LiveActor/EffectKeeper.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
@@ -290,7 +291,7 @@ void HammerHeadPackun::exeNumb() {
     }
 
     MR::startPointerFreezeLevelSound(this);
-    if (!(getNerveStep() % NebulaFrameClock::stepsOfMilliseconds(500))) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfMilliseconds(500)), 0)) {
         mJointRumbler->start();
     }
 

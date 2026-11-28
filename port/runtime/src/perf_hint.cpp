@@ -142,7 +142,7 @@ struct Api {
 };
 
 // The frame's target duration: the game step until the frame clock says otherwise (perf_hint_set_target).
-std::int64_t g_target_ns = galaxy::kGameStepNs;
+std::int64_t g_target_ns = galaxy::game_step_ns();
 
 Api g_api;
 bool g_api_tried = false;

@@ -1,4 +1,5 @@
 #include "Game/Enemy/Unizo.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/AnimScaleController.hpp"
 #include "Game/Enemy/WalkerStateBindStarPointer.hpp"
@@ -555,7 +556,7 @@ void Unizo::updateInfluence() {
 }
 
 void Unizo::updateBlink() {
-    if (mBlinkFrame == getNerveStep() % sBlinkCycle) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(sBlinkCycle), mBlinkFrame)) {
         MR::startBtp(this, "Blink");
     }
 }

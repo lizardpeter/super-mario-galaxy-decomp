@@ -1,4 +1,5 @@
 #include "Game/Enemy/Metbo.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/AnimScaleController.hpp"
 #include "Game/Enemy/SpinHitController.hpp"
@@ -180,7 +181,7 @@ void Metbo::exeWalkAround() {
 
     if (!MR::isNear(this, mWalkCenter, ::cWalkAroundRadius) || MR::isBindedWallOfMoveLimit(this) || ::isFallNext(this, mFront)) {
         mWalkDir.sub(mWalkCenter, mPosition);
-    } else if (getNerveStep() % ::cWalkAroundTurnInterval == 0) {
+    } else if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::cWalkAroundTurnInterval), 0)) {
         Vec3f upVec;
         MR::calcUpVec(&upVec, this);
         const f32 sign = MR::getRandom(0, 2) ? -1.0f : 1.0f;

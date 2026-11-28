@@ -1,4 +1,5 @@
 #include "Game/Enemy/ElectricPressureBullet.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/ActorSensorUtil.hpp"
@@ -65,7 +66,7 @@ void ElectricPressureBullet::exeFly() {
     MR::startLevelSound(this, "SE_EM_LV_ELECBUBLLET_FLY");
     if (MR::isGreaterEqualStep(this, 10)) {
         if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-            if (getNerveStep() % 5 == 0) {
+            if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(5), 0)) {
                 Vec3f toPlayer;
                 toPlayer.sub(*MR::getPlayerCenterPos(), mPosition);
                 MR::normalize(&toPlayer);

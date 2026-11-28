@@ -1,4 +1,5 @@
 #include "Game/MapObj/MorphItemObjNeo.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Camera/CameraTargetArg.hpp"
 #include "Game/Camera/CameraTargetMtx.hpp"
@@ -700,7 +701,7 @@ void MorphItemObjNeo::exeSwitchAppear() {
         mVelocity = mGravity * -10.0f;
     }
 
-    if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(1)) {
+    if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(1))) {
         MR::showModel(this);
 
         if (mMorphType == PlayerItemStatus_Ice) {
@@ -760,7 +761,7 @@ void MorphItemObjNeo::exeFly() {
 
     mVelocity += mGravity * 0.2f;
 
-    if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(5)) {
+    if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(5))) {
         kill();
         setNerve(GET_NERVE(MorphItemObjNeo, MorphItemObjNeoNrvWait));
     }

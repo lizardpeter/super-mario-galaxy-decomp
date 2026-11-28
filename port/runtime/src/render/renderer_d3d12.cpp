@@ -4274,7 +4274,7 @@ void RendererD3D12::present_to_swap_chain() {
             const double rate = present_frame_rate(cfg.max_fps, cfg.vsync_interval, display_refresh_hz_);
             // An unlimited rate takes every frame the library makes.
             const long most = static_cast<long>(streamline::frame_generation_max());
-            const double multiple = std::isfinite(rate) ? std::min(rate / kGameStepRate + 1e-3, static_cast<double>(most) + 1.0)
+            const double multiple = std::isfinite(rate) ? std::min(rate / game_step_rate() + 1e-3, static_cast<double>(most) + 1.0)
                                                         : static_cast<double>(most) + 1.0;
             generated = static_cast<unsigned>(std::clamp<long>(static_cast<long>(multiple) - 1, 1, most));
         }

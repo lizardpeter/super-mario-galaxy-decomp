@@ -1,4 +1,5 @@
 #include "Game/System/NerveExecutor.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/Spine.hpp"
 
 NerveExecutor::NerveExecutor(const char* pName) : mSpine() {
@@ -27,5 +28,9 @@ bool NerveExecutor::isNerve(const Nerve* pNerve) const {
 }
 
 s32 NerveExecutor::getNerveStep() const {
+    return NebulaTick::stepOfTick(mSpine->mStep);
+}
+
+s32 NerveExecutor::getNerveTick() const {
     return mSpine->mStep;
 }

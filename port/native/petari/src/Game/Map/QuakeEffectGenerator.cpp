@@ -1,4 +1,5 @@
 #include "Game/Map/QuakeEffectGenerator.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/EffectKeeper.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/LiveActorUtil.hpp"
@@ -41,7 +42,7 @@ void QuakeEffectGenerator::exeWaitInArea() {
     if (!MR::isPlayerInAreaObj("QuakeEffectArea")) {
         setNerve(GET_NERVE(QuakeEffectGenerator, HostTypeWait));
     } else if (!MR::isFirstStep(this)) {
-        if (getNerveStep() % ::sQuakeInterval == 0) {
+        if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::sQuakeInterval), 0)) {
             setNerve(GET_NERVE(QuakeEffectGenerator, HostTypeQuaking));
         }
     }

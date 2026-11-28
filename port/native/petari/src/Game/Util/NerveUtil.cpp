@@ -1,10 +1,11 @@
 #include "Game/Util/NerveUtil.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NerveExecutor.hpp"
 #include "Game/Util/MathUtil.hpp"
 
 namespace MR {
     bool isStep(const NerveExecutor* pExecutor, s32 step) {
-        return pExecutor->getNerveStep() == step;
+        return NebulaTick::isStep(pExecutor->getNerveTick(), step);
     }
 
     bool isFirstStep(const NerveExecutor* pExecutor) {
@@ -28,7 +29,7 @@ namespace MR {
     }
 
     bool isIntervalStep(const NerveExecutor* pExecutor, s32 step) {
-        return (step != 0 ? pExecutor->getNerveStep() % step : pExecutor->getNerveStep()) == 0;
+        return NebulaTick::isIntervalStep(pExecutor->getNerveTick(), step);
     }
 
     bool isNewNerve(const NerveExecutor* pExecutor) {
@@ -36,7 +37,7 @@ namespace MR {
     }
 
     f32 calcNerveRate(const NerveExecutor* pExecutor, s32 stepMax) {
-        return stepMax <= 0 ? 1.0f : clamp(static_cast< f32 >(pExecutor->getNerveStep()) / stepMax, 0.0f, 1.0f);
+        return stepMax <= 0 ? 1.0f : clamp(NebulaTick::rateOfSteps(pExecutor->getNerveTick(), stepMax), 0.0f, 1.0f);
     }
 
     f32 calcNerveEaseInRate(const NerveExecutor* pExecutor, s32 stepMax) {
@@ -56,13 +57,13 @@ namespace MR {
     }
 
     f32 calcNerveEaseInOutValue(const NerveExecutor* pExecutor, s32 stepMin, s32 stepMax, f32 valueStart, f32 valueEnd) {
-        f32 rate = clamp(normalize(pExecutor->getNerveStep(), stepMin, stepMax), 0.0f, 1.0f);
+        f32 rate = clamp(normalize(pExecutor->getNerveTick(), NebulaTick::ticksOfSteps(stepMin), NebulaTick::ticksOfSteps(stepMax)), 0.0f, 1.0f);
 
         return getEaseInOutValue(rate, valueStart, valueEnd, 1.0f);
     }
 
     void setNerveAtStep(NerveExecutor* pExecutor, const Nerve* pNerve, s32 step) {
-        if (pExecutor->getNerveStep() == step) {
+        if (NebulaTick::isStep(pExecutor->getNerveTick(), step)) {
             pExecutor->setNerve(pNerve);
         }
     }

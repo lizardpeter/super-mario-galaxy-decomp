@@ -1,4 +1,5 @@
 #include "Game/System/NebulaFrameClock.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Screen/ScenarioSelectLayout.hpp"
 #include "Game/System/NebulaRegion.hpp"
 #include "Game/Camera/CameraContext.hpp"
@@ -881,7 +882,7 @@ void ScenarioSelectLayout::exeAppearCometWarning() {
 }
 
 void ScenarioSelectLayout::exeWaitCometWarning() {
-    if (getNerveStep() % 80 == 25) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(80), 25)) {
         MR::startSystemSE("SE_SY_COMET_WARNING");
     }
 

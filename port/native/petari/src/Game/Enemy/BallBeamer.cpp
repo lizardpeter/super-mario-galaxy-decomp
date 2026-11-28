@@ -1,4 +1,5 @@
 #include "Game/Enemy/BallBeamer.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Enemy/RingBeam.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -126,11 +127,11 @@ void BallBeamer::exeAttack() {
             MR::startLevelSound(this, "SE_EM_LV_RINGBEAM_CHARGE");
         }
 
-        if (getNerveStep() % 120 == 75) {
+        if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(120), 75)) {
             MR::emitEffect(this, "Charge");
         }
 
-        if (getNerveStep() % 120 == 119) {
+        if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(120), 119)) {
             MR::startAction(this, "Sign");
             MR::startSound(this, "SE_EM_BALLBEAMER_ROT_HEAD");
             BallBeamer::tryAttack();

@@ -2117,7 +2117,7 @@ void RendererVk::present_swapchain_image() {
             const double rate = present_frame_rate(cfg.max_fps, cfg.vsync_interval, display_refresh_hz_);
             // An unlimited rate takes every frame the library makes.
             const long most = static_cast<long>(host_window::upscaler_caps().frame_generation_max);
-            const double multiple = std::isfinite(rate) ? std::min(rate / kGameStepRate + 1e-3, static_cast<double>(most) + 1.0)
+            const double multiple = std::isfinite(rate) ? std::min(rate / game_step_rate() + 1e-3, static_cast<double>(most) + 1.0)
                                                         : static_cast<double>(most) + 1.0;
             generated = static_cast<unsigned>(std::clamp<long>(static_cast<long>(multiple) - 1, 1, most));
         }
@@ -2471,7 +2471,7 @@ void RendererVk::report_present_timing() {
     if (vkGetPastPresentationTimingGOOGLE(device, swapchain_.handle, &count, past.data()) < VK_SUCCESS) {
         return;
     }
-    const std::int64_t half_vsync = (timing.vsync_ns != 0 ? timing.vsync_ns : kGameStepNs / 2) / 2;
+    const std::int64_t half_vsync = (timing.vsync_ns != 0 ? timing.vsync_ns : game_step_ns() / 2) / 2;
     for (std::uint32_t i = 0; i < count; ++i) {
         const auto actual = static_cast<std::int64_t>(past[i].actualPresentTime);
         if (!swapchain_.timed) {  // present timing's reports, where it is there, are the recorder's
@@ -2480,7 +2480,7 @@ void RendererVk::report_present_timing() {
         const auto at = past[i].presentID % timing.requested.size();
         const bool identified = timing.requested_id[at] == past[i].presentID;
         const std::int64_t requested = identified ? timing.requested[at] : 0;
-        const auto expected = identified ? timing.requested_period[at] : kGameStepNs;
+        const auto expected = identified ? timing.requested_period[at] : game_step_ns();
         timing.margin_sum += static_cast<std::int64_t>(past[i].presentMargin);
         if (identified && timing.called[at] != 0) {
             timing.slots.observe(requested, static_cast<std::int64_t>(past[i].earliestPresentTime), actual,

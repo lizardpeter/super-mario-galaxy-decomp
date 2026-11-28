@@ -165,6 +165,7 @@ static void apply_kv(RenderConfig& cfg, const char* key, const char* val) {
     if (std::strcmp(key, "vsync_interval") == 0) cfg.vsync_interval      = std::clamp(parse_uint(val, cfg.vsync_interval), 0u, 2u);
     else if (std::strcmp(key, "msaa_samples")   == 0) cfg.msaa_samples        = std::clamp(parse_uint(val, 1), 1u, 8u);
     else if (std::strcmp(key, "max_fps")        == 0) cfg.max_fps             = parse_frame_rate(val, cfg.max_fps);
+    else if (std::strcmp(key, "tick_rate")      == 0) cfg.tick_rate           = parse_uint(val, cfg.tick_rate);
     else if (std::strcmp(key, "texture_lod_bias") == 0) cfg.texture_lod_bias = std::clamp(parse_uint(val, 0), 0u, 8u);
     else if (std::strcmp(key, "anisotropic_filtering") == 0) cfg.anisotropic_filtering = std::clamp(parse_uint(val, cfg.anisotropic_filtering), 1u, 16u);
     else if (std::strcmp(key, "per_pixel_lighting") == 0) cfg.per_pixel_lighting = parse_bool(val, cfg.per_pixel_lighting);
@@ -263,6 +264,14 @@ static void clamp_render_config(RenderConfig& cfg) {
     cfg.vsync_interval = std::clamp(cfg.vsync_interval, 0u, 2u);
     if (!(cfg.max_fps == 0.0f || cfg.max_fps >= kMinFrameRate)) {  // NaN, negative, under kMinFrameRate
         cfg.max_fps = RenderConfig{}.max_fps;
+    }
+    {
+        // The tick rate: 60 x k for a k the game offers (game_step.h), else the original 60.
+        bool offered = false;
+        for (const int k : kTickMultipliers) {
+            offered = offered || cfg.tick_rate == static_cast<unsigned>(kAuthoredStepsPerSecond * k);
+        }
+        if (!offered) cfg.tick_rate = static_cast<unsigned>(kAuthoredStepsPerSecond);
     }
     cfg.texture_lod_bias = std::min(cfg.texture_lod_bias, 8u);
     cfg.anisotropic_filtering = std::clamp(cfg.anisotropic_filtering, 1u, 16u);
@@ -624,6 +633,7 @@ bool save_render_config_to_file() {
     contents << "vsync_interval=" << cfg.vsync_interval << '\n'
              << std::setprecision(std::numeric_limits<float>::max_digits10)
              << "max_fps=" << frame_rate_text(cfg.max_fps) << '\n'
+             << "tick_rate=" << cfg.tick_rate << '\n'
              << "texture_lod_bias=" << cfg.texture_lod_bias << '\n'
              << "anisotropic_filtering="
              << std::clamp(cfg.anisotropic_filtering, 1u, 16u) << '\n'

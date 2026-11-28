@@ -1246,7 +1246,7 @@ void svc_frame_wait(void*) {
     galaxy::pacing::step_done();  // the game thread is back: the step's own work ends here
 #endif
     const HostWait waiting("the frame wait");
-    const auto display_period = std::chrono::nanoseconds(galaxy::kGameStepNs);
+    const auto display_period = std::chrono::nanoseconds(galaxy::game_step_ns());
     static auto period = gBootFast.load(std::memory_order_relaxed) ? std::chrono::nanoseconds(kBootPeriod) : display_period;
     // The due moments are on the runtime's clock (frame_due.h): never a steady_clock value, which on a Mac that has slept
     // is hours ahead of it.
@@ -1380,7 +1380,7 @@ void svc_test_frame_step(void*) {
         ticks_per_second = gSoundClockRunning ? gSoundTicksPerSecond : 0u;
     }
     if (ticks_per_second != 0u) {
-        due_ns += 1e9 / galaxy::kGameStepRate;
+        due_ns += 1e9 / galaxy::game_step_rate();
         const double period_ns = 1e9 / ticks_per_second;
         while (due_ns >= period_ns) {
             due_ns -= period_ns;
@@ -2534,7 +2534,7 @@ std::uint32_t g_settings_open_views = 0;
 #endif
 
 #if defined(NEBULA_HOST_RENDERER)
-static_assert(galaxy::kGameStepsPerSecond == NEBULA_STEPS_PER_SECOND, "the game and the host step at one rate");
+static_assert(galaxy::kAuthoredStepsPerSecond == NEBULA_STEPS_PER_SECOND, "the game and the host count authored steps alike");
 static_assert(static_cast<uint32_t>(galaxy::render::NativeSettingsStatus::Preparing) == NEBULA_SETTINGS_STATUS_PREPARING &&
               static_cast<uint32_t>(galaxy::render::NativeSettingsStatus::Arrange) == NEBULA_SETTINGS_STATUS_ARRANGE &&
               static_cast<uint32_t>(galaxy::render::NativeSettingsStatus::ModAbout) == NEBULA_SETTINGS_STATUS_MOD_ABOUT &&
@@ -2763,7 +2763,7 @@ void svc_movie_frame(void*, const char* name, int32_t frame, float frame_rate, c
 // The game's steady clock: nanoseconds since the process's first read, plus one (0 means "never" to its users).
 uint64_t svc_clock_ns(void*) {
     if (deterministic_mode()) {
-        return gDeterministicFrames.load(std::memory_order_relaxed) * 1000000000ull / static_cast<uint64_t>(galaxy::kGameStepsPerSecond) + 1u;
+        return gDeterministicFrames.load(std::memory_order_relaxed) * 1000000000ull / static_cast<uint64_t>(galaxy::game_steps_per_second()) + 1u;
     }
     static const Clock::time_point start = Clock::now();
     return static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now() - start).count()) + 1u;
@@ -2773,7 +2773,7 @@ int64_t svc_calendar_ns(void*) {
     if (deterministic_mode()) {
         // A fixed date (2026-01-01 from 2000-01-01), then the frames' time.
         constexpr int64_t kFixedDate = 820454400;
-        return kFixedDate * 1000000000ll + static_cast<int64_t>(gDeterministicFrames.load(std::memory_order_relaxed)) * galaxy::kGameStepNs;
+        return kFixedDate * 1000000000ll + static_cast<int64_t>(gDeterministicFrames.load(std::memory_order_relaxed)) * galaxy::game_step_ns();
     }
     const auto now = std::chrono::system_clock::now();
     const std::time_t seconds = std::chrono::system_clock::to_time_t(now);
@@ -6585,6 +6585,15 @@ int main(int argc, char** argv) {
     } catch (const std::exception& failure) {
         die("the settings did not load: %s", failure.what());
     }
+    // The game's tick rate (game_step.h, docs/fixed-tick.md): fixed for the whole run, set before the game, the renderer or
+    // the pacing read it, and given to the game with its services.
+    galaxy::set_game_tick_multiplier(static_cast<int>(galaxy::render::get_render_config().tick_rate) / galaxy::kAuthoredStepsPerSecond);
+    services.tick_multiplier = static_cast<uint32_t>(galaxy::game_tick_multiplier());
+    {
+        char text[96];
+        std::snprintf(text, sizeof(text), "%d ticks a second (k = %d)", galaxy::game_steps_per_second(), galaxy::game_tick_multiplier());
+        log_line("[tick]", text);
+    }
     // Discord: never from a hidden start (a test), which must leave the player's status alone.
     if (!::galaxy::launch_args().started_hidden) {
         galaxy::discord::set_enabled_provider([] { return galaxy::get_runtime_settings().discord_status; });
@@ -6894,7 +6903,7 @@ int main(int argc, char** argv) {
                           gFileReads.load(std::memory_order_relaxed), gSaveOps.load(std::memory_order_relaxed),
                           gSoundBlocks.load(std::memory_order_relaxed), gSoundSubframes.load(std::memory_order_relaxed));
 #if defined(NEBULA_HOST_RENDERER)
-            if (frames / galaxy::kGameStepsPerSecond % 30 == 0) {
+            if (frames / galaxy::game_steps_per_second() % 30 == 0) {
                 log_line("host:", ("jaudio " + gAudio->stats_line()).c_str());
             }
             const size_t length = std::strlen(text);

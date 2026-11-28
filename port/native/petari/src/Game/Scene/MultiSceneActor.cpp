@@ -1,4 +1,5 @@
 #include "Game/System/NebulaFrameClock.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Scene/MultiSceneActor.hpp"
 #include "Game/Util/ScreenUtil.hpp"
 #include "Game/Util/StringUtil.hpp"
@@ -123,6 +124,10 @@ void MultiSceneActor::initNerve(const Nerve* pNerve) {
 }
 
 s32 MultiSceneActor::getNerveStep() const {
+    return NebulaTick::stepOfTick(mSpine->mStep);
+}
+
+s32 MultiSceneActor::getNerveTick() const {
     return mSpine->mStep;
 }
 
@@ -158,11 +163,11 @@ namespace MultiScene {
     }
 
     bool isStep(const MultiSceneActor* pActor, s32 step) {
-        return pActor->getNerveStep() == step;
+        return NebulaTick::isStep(pActor->getNerveTick(), step);
     }
 
     bool isFirstStep(const MultiSceneActor* pActor) {
-        return pActor->getNerveStep() == 0;
+        return pActor->getNerveTick() == 0;
     }
 
     bool isGreaterStep(const MultiSceneActor* pActor, s32 step) {
@@ -190,11 +195,11 @@ namespace MultiScene {
     }
 
     f32 calcNerveRate(const MultiSceneActor* pActor, s32 stepMax) {
-        return stepMax <= 0 ? 1.0f : MR::clamp(static_cast< f32 >(pActor->getNerveStep()) / stepMax, 0.0f, 1.0f);
+        return stepMax <= 0 ? 1.0f : MR::clamp(NebulaTick::rateOfSteps(pActor->getNerveTick(), stepMax), 0.0f, 1.0f);
     }
 
     f32 calcNerveRate(const MultiSceneActor* pActor, s32 stepMin, s32 stepMax) {
-        return MR::clamp(MR::normalize(pActor->getNerveStep(), stepMin, stepMax), 0.0f, 1.0f);
+        return MR::clamp(MR::normalize(pActor->getNerveTick(), NebulaTick::ticksOfSteps(stepMin), NebulaTick::ticksOfSteps(stepMax)), 0.0f, 1.0f);
     }
 
     f32 calcNerveEaseOutRate(const MultiSceneActor* pActor, s32 stepMax) {

@@ -1,4 +1,5 @@
 #include "Game/Player/GhostPlayer.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Render/FrameList.hpp"
 #include "Game/Animation/XanimeCore.hpp"
 #include "Game/Animation/XanimePlayer.hpp"
@@ -297,7 +298,7 @@ void GhostPlayer::exePreStartDemo0() {
         warpPosition("ゴーストデモゴースト位置");
     }
 
-    if (getNerveStep() == 1) {
+    if (NebulaTick::isStep(getNerveTick(), 1)) {
         Mtx playerPosMtx;
         Vec3f playerPosVec;
 
@@ -311,21 +312,21 @@ void GhostPlayer::exePreStartDemo0() {
         MR::requestMovementOn(this);
         MR::requestMovementOnPlayer();
     }
-    if (getNerveStep() == 60) {
+    if (NebulaTick::isStep(getNerveTick(), 60)) {
         mIsHidden = false;
         setAnimation("ゴースト出現");
         MR::validateShadow(this, nullptr);
     }
-    if (getNerveStep() == 107) {
+    if (NebulaTick::isStep(getNerveTick(), 107)) {
         MR::startSound(this, "SE_BV_GHOST_MARIO_LAND");
     }
-    if (getNerveStep() == 111) {
+    if (NebulaTick::isStep(getNerveTick(), 111)) {
         MR::startSound(this, "SE_BM_GHOST_MARIO_LAND");
     }
-    if (getNerveStep() == 146) {
+    if (NebulaTick::isStep(getNerveTick(), 146)) {
         MR::startSound(this, "SE_BV_GHOST_MARIO_PROVOKE");
     }
-    if (getNerveStep() == 240) {
+    if (NebulaTick::isStep(getNerveTick(), 240)) {
         MR::endMultiActorCamera(this, mCameraInfo, "レース開始1", false);
         Pos3f* cameraTargetMatrix = &mCameraTargetMtx->mMatrix;
         cameraTargetMatrix->set(getBaseMtx());
@@ -352,7 +353,7 @@ bool GhostPlayer::isRequestSkipDemo() const {
 }
 
 void GhostPlayer::exePreStartDemo1() {
-    if (getNerveStep() == 240) {
+    if (NebulaTick::isStep(getNerveTick(), 240)) {
         MR::endMultiActorCamera(this, mCameraInfo, "レース開始2", false);
         MR::startMultiActorCameraTargetSelf(this, mCameraInfo, "レース開始3");
         setNerve(GET_NERVE(GhostPlayer, HostTypeNrvPreStartDemo2));
@@ -388,7 +389,7 @@ void GhostPlayer::exePreStartDemo2() {
         MR::startBckPlayerJ("レース開始");
     }
 
-    if (getNerveStep() % 60 == 0) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(60), 0)) {
         MR::startSystemSE("SE_SY_RACE_COUNT_DOWN");
     }
 

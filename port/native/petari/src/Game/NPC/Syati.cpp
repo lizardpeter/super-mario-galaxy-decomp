@@ -1,4 +1,5 @@
 #include "Game/NPC/Syati.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/ActorCameraInfo.hpp"
 #include "Game/LiveActor/LiveActorGroup.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -264,7 +265,7 @@ void Syati::exeCountDown() {
         mRaceManagerLayout->hideBestRecordPane();
     }
 
-    if (getNerveStep() % 0x3C == 0) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(0x3C), 0)) {
         MR::startSystemSE("SE_SY_RACE_COUNT_DOWN");
     }
 

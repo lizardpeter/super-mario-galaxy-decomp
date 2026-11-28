@@ -1,4 +1,5 @@
 #include "Game/MapObj/WoodBox.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/ModelObj.hpp"
 #include "Game/LiveActor/Nerve.hpp"
@@ -217,7 +218,7 @@ void WoodBox::kill() {
 void WoodBox::exeWait() {
 }
 void WoodBox::exeHit() {
-    if (LiveActor::getNerveStep() == 0) {
+    if (NebulaTick::isStep(LiveActor::getNerveTick(), 0)) {
         LiveActor::getSensor("body")->invalidate();
 
         if (mHasPowerStar) {
@@ -225,7 +226,7 @@ void WoodBox::exeHit() {
         }
     }
 
-    if (LiveActor::getNerveStep() == 15) {
+    if (NebulaTick::isStep(LiveActor::getNerveTick(), 15)) {
         if (mCoinCount != 0) {
             MR::appearCoinPop(this, mPosition, mCoinCount);
         }

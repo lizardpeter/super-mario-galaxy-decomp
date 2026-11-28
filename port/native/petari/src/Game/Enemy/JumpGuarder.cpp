@@ -1,4 +1,5 @@
 #include "Game/Enemy/JumpGuarder.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/LiveActor/ActorCameraInfo.hpp"
 #include "Game/LiveActor/LiveActorGroup.hpp"
@@ -555,7 +556,7 @@ bool JumpGuarder::enableAttack() {
             continue;
         }
 
-        return getNerveStep() % ::sAttack == 0;
+        return NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(::sAttack), 0);
     }
 
     return false;

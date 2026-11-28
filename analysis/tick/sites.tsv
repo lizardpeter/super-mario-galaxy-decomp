@@ -11,7 +11,7 @@ Game/Enemy	include/Game/Enemy/BombHeiLauncher.hpp	25	getBombVelocity	velocity			
 Game/Enemy	include/Game/Enemy/RingBeam.hpp	19		anim-rate			void setSpeed(f32 speed);
 Game/LiveActor	include/Game/LiveActor/DynamicJointCtrl.hpp	62		velocity			Vec3f mVelocity;
 Game/LiveActor	include/Game/LiveActor/LiveActor.hpp	112	getVelocity	velocity			return &mVelocity;
-Game/LiveActor	include/Game/LiveActor/LiveActor.hpp	158	editPosition	velocity			Vec3f mVelocity;
+Game/LiveActor	include/Game/LiveActor/LiveActor.hpp	161	editPosition	velocity			Vec3f mVelocity;
 Game/LiveActor	include/Game/LiveActor/RailRider.hpp	24		anim-rate			void setSpeed(f32 speed);
 Game/MapObj	include/Game/MapObj/FloaterFloatingForceTypeNormal.hpp	13		velocity			return mVelocity;
 Game/MapObj	include/Game/MapObj/FloaterFloatingForceTypeNormal.hpp	27		velocity			Vec3f mVelocity;
@@ -62,9 +62,9 @@ Game/System	include/Game/System/NebulaCutsceneSkipBound.hpp	13		frame-clock		tim
 Game/System	include/Game/System/NebulaCutsceneSkipBound.hpp	26	step	counter			mSteps++;
 Game/System	include/Game/System/NebulaCutsceneSkipBound.hpp	28	if	counter			mUnpacedSteps++;
 Game/System	include/Game/System/NebulaFrameClock.hpp	22		frame-clock			const u32 cStepsPerSecond = NEBULA_STEPS_PER_SECOND;
-Game/System	include/Game/System/NebulaFrameClock.hpp	24	stepsOfSeconds	frame-clock		timed	constexpr s32 stepsOfSeconds(s32 seconds) {
-Game/System	include/Game/System/NebulaFrameClock.hpp	28	stepsOfMilliseconds	frame-clock		timed	constexpr s32 stepsOfMilliseconds(s32 milliseconds) {
-Game/System	include/Game/System/NebulaFrameClock.hpp	32	secondsOfSteps	frame-clock		timed	constexpr f32 secondsOfSteps(s32 steps) {
+Game/System	include/Game/System/NebulaFrameClock.hpp	28	stepsOfSeconds	frame-clock		timed	constexpr s32 stepsOfSeconds(s32 seconds) {
+Game/System	include/Game/System/NebulaFrameClock.hpp	32	stepsOfMilliseconds	frame-clock		timed	constexpr s32 stepsOfMilliseconds(s32 milliseconds) {
+Game/System	include/Game/System/NebulaFrameClock.hpp	36	secondsOfSteps	frame-clock		timed	constexpr f32 secondsOfSteps(s32 steps) {
 Game/System	include/Game/System/SaveBytes.hpp	20	if	position-step			mPosition += size;
 Game/System	include/Game/System/SaveBytes.hpp	73	if	position-step			mPosition += size;
 Game/Util	include/Game/Util/ActorMovementUtil.hpp	164	getVelocityHorizon	velocity			velH.scaleAdd(-pActor->mGravity.dot(pActor->mVelocity), pActor->mGravity, pActor->mVelocity);
@@ -1229,11 +1229,11 @@ Game/Enemy	src/Game/Enemy/AnimScaleController.cpp	133	AnimScaleController::exeCr
 Game/Enemy	src/Game/Enemy/AnimScaleController.cpp	140	if	nerve-step			if (MR::isGreaterStep(this, mParam->mCrushStep)) {
 Game/Enemy	src/Game/Enemy/AnimScaleController.cpp	151	if	nerve-step			return MR::isLessStep(this, maxStep);
 Game/Enemy	src/Game/Enemy/AnimStampController.cpp	38	if	nerve-step			if (MR::isLessStep(this, mAnimStep)) {
-Game/Enemy	src/Game/Enemy/BallBeamer.cpp	63	if	anim-rate			mBeams[i]->setSpeed(beamSpeed);
-Game/Enemy	src/Game/Enemy/BallBeamer.cpp	122	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
-Game/Enemy	src/Game/Enemy/BallBeamer.cpp	122	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
-Game/Enemy	src/Game/Enemy/BallBeamer.cpp	143	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
-Game/Enemy	src/Game/Enemy/BallBeamer.cpp	143	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/BallBeamer.cpp	64	if	anim-rate			mBeams[i]->setSpeed(beamSpeed);
+Game/Enemy	src/Game/Enemy/BallBeamer.cpp	123	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
+Game/Enemy	src/Game/Enemy/BallBeamer.cpp	123	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
+Game/Enemy	src/Game/Enemy/BallBeamer.cpp	144	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/BallBeamer.cpp	144	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
 Game/Enemy	src/Game/Enemy/Balloonfish.cpp	20		frame-clock		timed	static const s32 hWaitTime = NebulaFrameClock::stepsOfSeconds(2);
 Game/Enemy	src/Game/Enemy/Balloonfish.cpp	24		frame-clock		timed	static const s32 hDashTime = NebulaFrameClock::stepsOfSeconds(3);
 Game/Enemy	src/Game/Enemy/Balloonfish.cpp	58	if	literal-60			MR::addHitSensorEnemy(this, "body", 32, 100.0f * scale, Vec3f(0.0f, 60.0f * scale, 0.0f));
@@ -1665,14 +1665,14 @@ Game/Enemy	src/Game/Enemy/Dossun.cpp	179	if	nerve-step			if (MR::isStep(this, mF
 Game/Enemy	src/Game/Enemy/Dossun.cpp	193	if	nerve-step			if (MR::isStep(this, isQuickComet ? static_cast< s32 >(::sOnGroundFrame / ::sQuickRatio) : ::sOnGroundFrame)) {
 Game/Enemy	src/Game/Enemy/Dossun.cpp	203	if	approach			f32 ease = MR::getEaseInOutValue(getNerveStep(), 0.0f, 1.0f, mHoldTime);
 Game/Enemy	src/Game/Enemy/Dossun.cpp	206	if	nerve-step			if (MR::isStep(this, mHoldTime)) {
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	47	ElectricPressureBullet::shotElectricBullet	velocity			mVelocity.scale(mSpeed, mFront);
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	66	if	nerve-step			if (MR::isGreaterEqualStep(this, 10)) {
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	67	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	67	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	72	if	approach			MR::turnVecToVecDegree(&mFront, mFront, toPlayer, 4.0f, Vec3f(0, 1, 0));
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	73	if	velocity			mVelocity.scale(mSpeed, mFront);
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	80	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
-Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	80	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	48	ElectricPressureBullet::shotElectricBullet	velocity			mVelocity.scale(mSpeed, mFront);
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	67	if	nerve-step			if (MR::isGreaterEqualStep(this, 10)) {
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	68	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	68	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	73	if	approach			MR::turnVecToVecDegree(&mFront, mFront, toPlayer, 4.0f, Vec3f(0, 1, 0));
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	74	if	velocity			mVelocity.scale(mSpeed, mFront);
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	81	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
+Game/Enemy	src/Game/Enemy/ElectricPressureBullet.cpp	81	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(6))) {
 Game/Enemy	src/Game/Enemy/EyeBeamer.cpp	234	if	nerve-step		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
 Game/Enemy	src/Game/Enemy/EyeBeamer.cpp	234	if	frame-clock		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
 Game/Enemy	src/Game/Enemy/EyeBeamer.cpp	242	if	nerve-step			if (MR::isGreaterStep(this, 500)) {
@@ -1761,26 +1761,26 @@ Game/Enemy	src/Game/Enemy/Gesso.cpp	501	if	velocity			Vec3f* vel = &mVelocity;
 Game/Enemy	src/Game/Enemy/Gesso.cpp	507	if	velocity			mVelocity.scale(verticalSpeed, upVec);
 Game/Enemy	src/Game/Enemy/Gesso.cpp	517	Gesso::calcAndSetVelocity	velocity			Vec3f* vel = &mVelocity;
 Game/Enemy	src/Game/Enemy/Gesso.cpp	522	Gesso::calcAndSetVelocity	velocity			mVelocity.scale(up, upVec);
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	137	if	nerve-step			if (MR::isStep(this, 156)) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	142	if	nerve-step		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	142	if	frame-clock		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	162	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(HammerHeadPackunNrvRecover), NebulaFrameClock::stepsOfMilliseconds(1500));
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	185	if	counter			mImmunityTime++;
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	188	if	nerve-step			if (MR::isStep(this, 76)) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	199	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	199	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	202	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(HammerHeadPackunNrvRise), NebulaFrameClock::stepsOfSeconds(3));
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	213	if	nerve-step			if (MR::isStep(this, 56)) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	245	if	nerve-step			if (MR::isStep(this, 45)) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	293	if	frame-clock		timed	if (!(getNerveStep() % NebulaFrameClock::stepsOfMilliseconds(500))) {
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	301	if	counter			mNumbTime++;
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	502	HammerHeadPackun::isAttackSensorValid	nerve-step			(!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRecover)) || !MR::isLessEqualStep(this, 40)) &&
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	503	HammerHeadPackun::isAttackSensorValid	nerve-step		timed	!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvDamage)) && (!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) || !MR::isLessStep(this, NebulaFrameClock::stepsOfSeco
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	503	HammerHeadPackun::isAttackSensorValid	frame-clock		timed	!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvDamage)) && (!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) || !MR::isLessStep(this, NebulaFrameClock::stepsOfSeco
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	514	HammerHeadPackun::isChance	nerve-step			(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRecover)) && MR::isLessEqualStep(this, 50)) ||
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	515	HammerHeadPackun::isChance	nerve-step		timed	(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) && MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) || isNerve(GET_NERVE_ANON(HammerHead
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	515	HammerHeadPackun::isChance	frame-clock		timed	(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) && MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) || isNerve(GET_NERVE_ANON(HammerHead
-Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	547	if	nerve-step			if (getNerveStep() <= rate) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	138	if	nerve-step			if (MR::isStep(this, 156)) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	143	if	nerve-step		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	143	if	frame-clock		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	163	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(HammerHeadPackunNrvRecover), NebulaFrameClock::stepsOfMilliseconds(1500));
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	186	if	counter			mImmunityTime++;
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	189	if	nerve-step			if (MR::isStep(this, 76)) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	200	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	200	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	203	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(HammerHeadPackunNrvRise), NebulaFrameClock::stepsOfSeconds(3));
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	214	if	nerve-step			if (MR::isStep(this, 56)) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	246	if	nerve-step			if (MR::isStep(this, 45)) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	294	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfMilliseconds(500)), 0)) {
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	302	if	counter			mNumbTime++;
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	503	HammerHeadPackun::isAttackSensorValid	nerve-step			(!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRecover)) || !MR::isLessEqualStep(this, 40)) &&
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	504	HammerHeadPackun::isAttackSensorValid	nerve-step		timed	!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvDamage)) && (!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) || !MR::isLessStep(this, NebulaFrameClock::stepsOfSeco
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	504	HammerHeadPackun::isAttackSensorValid	frame-clock		timed	!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvDamage)) && (!isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) || !MR::isLessStep(this, NebulaFrameClock::stepsOfSeco
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	515	HammerHeadPackun::isChance	nerve-step			(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRecover)) && MR::isLessEqualStep(this, 50)) ||
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	516	HammerHeadPackun::isChance	nerve-step		timed	(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) && MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) || isNerve(GET_NERVE_ANON(HammerHead
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	516	HammerHeadPackun::isChance	frame-clock		timed	(isNerve(GET_NERVE_ANON(HammerHeadPackunNrvRise)) && MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) || isNerve(GET_NERVE_ANON(HammerHead
+Game/Enemy	src/Game/Enemy/HammerHeadPackun.cpp	548	if	nerve-step			if (getNerveStep() <= rate) {
 Game/Enemy	src/Game/Enemy/Hanachan.cpp	39		frame-clock		timed	const s32 hAngryPursueTime = NebulaFrameClock::stepsOfSeconds(5);
 Game/Enemy	src/Game/Enemy/Hanachan.cpp	40		frame-clock		timed	const s32 hOverturnTime = NebulaFrameClock::stepsOfSeconds(3);
 Game/Enemy	src/Game/Enemy/Hanachan.cpp	50		frame-clock		timed	const s32 hRecoverCanTrampleDeathTime = NebulaFrameClock::stepsOfSeconds(1);
@@ -1966,20 +1966,20 @@ Game/Enemy	src/Game/Enemy/JumpBeamer.cpp	116	if	anim-rate			mBeams[i]->setSpeed(
 Game/Enemy	src/Game/Enemy/JumpBeamer.cpp	272	if	nerve-step			if (MR::isStep(this, cHopWaitSteps)) {
 Game/Enemy	src/Game/Enemy/JumpBeamer.cpp	318	if	nerve-step			if (MR::isGreaterEqualStep(this, cOpenSteps)) {
 Game/Enemy	src/Game/Enemy/JumpBeamer.cpp	354	if	nerve-step			if (!MR::isGreaterEqualStep(this, cInterSteps)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	25		frame-clock		timed	static const s32 sHopStep = NebulaFrameClock::stepsOfSeconds(5);
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	290	if	nerve-step			if (MR::isStep(this, 10)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	312	if	nerve-step			if (MR::isStep(this, ::sHopStep)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	349	if	nerve-step			} else if (MR::isStep(this, 0)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	360	if	nerve-step			if (MR::isLessStep(this, ::sOpen)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	382	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	385	if	velocity			baby->mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	396	if	nerve-step			if (MR::isLessStep(this, ::sOpen)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	404	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	407	if	velocity			baby->mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	411	if	nerve-step			if (MR::isStep(this, ::sOpen)) {
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	419	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	421	if	velocity			baby->mVelocity.set(zDir * mBabyVelocity);
-Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	427	if	nerve-step			if (MR::isStep(this, ::sOpenInt)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	26		frame-clock		timed	static const s32 sHopStep = NebulaFrameClock::stepsOfSeconds(5);
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	291	if	nerve-step			if (MR::isStep(this, 10)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	313	if	nerve-step			if (MR::isStep(this, ::sHopStep)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	350	if	nerve-step			} else if (MR::isStep(this, 0)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	361	if	nerve-step			if (MR::isLessStep(this, ::sOpen)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	383	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	386	if	velocity			baby->mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	397	if	nerve-step			if (MR::isLessStep(this, ::sOpen)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	405	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	408	if	velocity			baby->mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	412	if	nerve-step			if (MR::isStep(this, ::sOpen)) {
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	420	if	approach			MR::rotateVecDegree(&zDir, yDir, 360.0f / mNumActiveBabies);
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	422	if	velocity			baby->mVelocity.set(zDir * mBabyVelocity);
+Game/Enemy	src/Game/Enemy/JumpGuarder.cpp	428	if	nerve-step			if (MR::isStep(this, ::sOpenInt)) {
 Game/Enemy	src/Game/Enemy/JumpSpider.cpp	30		frame-clock		timed	static const s32 hNoPowerWaitTime = NebulaFrameClock::stepsOfSeconds(4);
 Game/Enemy	src/Game/Enemy/JumpSpider.cpp	72	if	literal-60			offset1.set(0.0f, 60.0f * scaleY, 0.0f);
 Game/Enemy	src/Game/Enemy/JumpSpider.cpp	153	if	velocity			mVelocity.zero();
@@ -2223,40 +2223,40 @@ Game/Enemy	src/Game/Enemy/KirairaChain.cpp	205	if	random			const f32 accelZ = MR
 Game/Enemy	src/Game/Enemy/KirairaChain.cpp	206	if	random			const f32 accelY = MR::getRandom(-0.3f, 0.3f);
 Game/Enemy	src/Game/Enemy/KirairaChain.cpp	207	if	random			const f32 accelX = MR::getRandom(-0.3f, 0.3f);
 Game/Enemy	src/Game/Enemy/KirairaChain.cpp	211	if	counter			mAccelTimer--;
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	37		frame-clock		timed	const s32 sSpeedEaseTime = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	212	isStateBreak	velocity			mHitDir.set(pSender->mHost->mVelocity);
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	240	if	nerve-rate		timed	return (40.0f * (1.0f - MR::calcNerveRate(this, NebulaFrameClock::stepsOfSeconds(1))));
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	240	if	frame-clock		timed	return (40.0f * (1.0f - MR::calcNerveRate(this, NebulaFrameClock::stepsOfSeconds(1))));
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	261	if	approach			mCoordSpeed = MR::getEaseInValue(rate, topSpeed, 1.0f, 1.0f);
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	266	if	approach			mCoordSpeed = MR::getEaseInValue(mSpeedEaseStep, topSpeed, 0.0f, 60.0f);
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	454	if	nerve-step			if (MR::isStep(this, 1)) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	478	if	nerve-step		timed	if (MR::isGreaterStep(this, 0) && getNerveStep() % NebulaFrameClock::stepsOfSeconds(2) == 0 && !isExistActiveKiller()) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	478	if	frame-clock		timed	if (MR::isGreaterStep(this, 0) && getNerveStep() % NebulaFrameClock::stepsOfSeconds(2) == 0 && !isExistActiveKiller()) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	503	if	nerve-step		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	503	if	frame-clock		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	507	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	507	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	517	if	nerve-step			if (MR::isStep(this, 45 * i)) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	543	if	nerve-step			if (MR::isStep(this, 15)) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	550	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	550	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	558	if	nerve-step			if (MR::isStep(this, step)) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	571	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	571	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	590	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	590	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	625	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	625	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	671	if	nerve-step			if (MR::isStep(this, 287)) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	675	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	675	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	680	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	680	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	686	if	nerve-step			if (!MR::isHiddenModel(mShipBreakModel) && (MR::isBckStopped(mShipBreakModel) || MR::isStep(this, 320))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	714	if	nerve-step		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	714	if	frame-clock		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	718	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
-Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	718	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	38		frame-clock		timed	const s32 sSpeedEaseTime = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	213	isStateBreak	velocity			mHitDir.set(pSender->mHost->mVelocity);
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	241	if	nerve-rate		timed	return (40.0f * (1.0f - MR::calcNerveRate(this, NebulaFrameClock::stepsOfSeconds(1))));
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	241	if	frame-clock		timed	return (40.0f * (1.0f - MR::calcNerveRate(this, NebulaFrameClock::stepsOfSeconds(1))));
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	262	if	approach			mCoordSpeed = MR::getEaseInValue(rate, topSpeed, 1.0f, 1.0f);
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	267	if	approach			mCoordSpeed = MR::getEaseInValue(mSpeedEaseStep, topSpeed, 0.0f, 60.0f);
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	455	if	nerve-step			if (MR::isStep(this, 1)) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	479	if	nerve-step		timed	if (MR::isGreaterStep(this, 0) && NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(2)), 0) && !isExistActiveKiller(
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	479	if	frame-clock		timed	if (MR::isGreaterStep(this, 0) && NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(2)), 0) && !isExistActiveKiller(
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	504	if	nerve-step		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	504	if	frame-clock		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	508	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	508	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(2))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	518	if	nerve-step			if (MR::isStep(this, 45 * i)) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	544	if	nerve-step			if (MR::isStep(this, 15)) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	551	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	551	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	559	if	nerve-step			if (MR::isStep(this, step)) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	572	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	572	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	591	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	591	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	626	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	626	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	672	if	nerve-step			if (MR::isStep(this, 287)) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	676	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	676	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	681	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	681	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	687	if	nerve-step			if (!MR::isHiddenModel(mShipBreakModel) && (MR::isBckStopped(mShipBreakModel) || MR::isStep(this, 320))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	715	if	nerve-step		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	715	if	frame-clock		timed	if (MR::isLessEqualStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	719	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
+Game/Enemy	src/Game/Enemy/KoopaJrShip.cpp	719	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(2500))) {
 Game/Enemy	src/Game/Enemy/KoopaJrShipCannonMainShell.cpp	20		frame-clock		timed	const s32 cLifeTime = NebulaFrameClock::stepsOfSeconds(5);
 Game/Enemy	src/Game/Enemy/KoopaJrShipCannonMainShell.cpp	23		frame-clock		timed	const s32 cWallHitInvalidTime = NebulaFrameClock::stepsOfSeconds(1);
 Game/Enemy	src/Game/Enemy/KoopaJrShipCannonMainShell.cpp	59	KoopaJrShipCannonMainShell::kill	velocity			mVelocity.zero();
@@ -2408,123 +2408,123 @@ Game/Enemy	src/Game/Enemy/MechanicKoopaMini.cpp	556	if	velocity			MR::addVelocit
 Game/Enemy	src/Game/Enemy/MechanicKoopaMini.cpp	568	MechanicKoopaMini::updateHitSensor	nerve-rate			f32 nerveRate = 400.0f * MR::calcNerveRate(this, 10, 30);
 Game/Enemy	src/Game/Enemy/MechanicKoopaMini.cpp	572	MechanicKoopaMini::updateHitSensor	position-step			pSensor->mPosition.add(up * getSensor("body")->getRadius());
 Game/Enemy	src/Game/Enemy/MechanicKoopaMini.cpp	573	MechanicKoopaMini::updateHitSensor	position-step			pSensor->mPosition.add(front * frontDist);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	69		frame-clock		timed	const s32 sWaitTime = NebulaFrameClock::stepsOfSeconds(5);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	70		frame-clock		timed	const s32 sWalkTime = NebulaFrameClock::stepsOfSeconds(2);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	73		frame-clock		timed	const s32 sAttackSuccessTime = NebulaFrameClock::stepsOfSeconds(3);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	77		frame-clock		timed	const s32 sChaseEndTime = NebulaFrameClock::stepsOfSeconds(4);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	78		frame-clock		timed	const s32 sChaseStartTime = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	81		frame-clock		timed	const s32 sChaseDashLowTime = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	96		frame-clock		timed	const s32 sFloatTime = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	102		frame-clock		timed	const s32 sRunawayTime = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	114		frame-clock		timed	const s32 sReadyRestartTime = NebulaFrameClock::stepsOfSeconds(3);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	128		frame-clock		timed	const s32 sRunawayJumpInterval = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	167	keepHeight	velocity			MR::addVelocityKeepHeightUseShadow(pActor, rParam.mHeight, rParam.mUpAccel, rParam.mDownAccel, rParam.mSpeedMax, nullptr);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	359	Meramera::control	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, -mGravity, ::sFireTurnDegree, mFront);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	396	if	velocity			MR::vecScaleAdd(&mVelocity, &dir, ::sPushSpeed);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	463	if	velocity			MR::setVelocitySeparateHV(this, pReceiver, pSender, ::sSpinBlowSpeed, 0.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	509	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	560	if	nerve-step			if (getNerveStep() <= ::sWalkTime) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	566	if	random			MR::getRandomVector(&randomVec, 1.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	577	if	nerve-step			if (getNerveStep() > ::sWaitTime || (0.0f <= mTargetDistance && mTargetDistance <= ::sWalkArriveDistance)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	586	if	nerve-step			if (!MR::isGreaterStep(this, ::sShrinkTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	609	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseStartTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	618	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseDashTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	627	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseTurnTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	636	if	nerve-step			if (!MR::isNearPlayer(this, mChaseDistance) || MR::isGreaterStep(this, ::sChaseEndTime) || mHomePosition.distance(mPosition) > ::sTerritoryChaseRange) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	646	if	nerve-step			if (MR::isGreaterStep(this, MR::getRandom(0, 0) + ::sRunawayTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	646	if	random			if (MR::isGreaterStep(this, MR::getRandom(0, 0) + ::sRunawayTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	656	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	665	if	nerve-step			if (MR::isGreaterStep(this, ::sDivingDelayTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	674	if	nerve-step			if (MR::isGreaterStep(this, ::sDivingTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	683	if	nerve-step			if (MR::isGreaterStep(this, ::sSinkTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	692	if	nerve-step			if (MR::isGreaterStep(this, ::sFloatTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	701	if	nerve-step			if (!MR::isGreaterStep(this, ::sIgnitionTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	722	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	741	if	nerve-step			if (MR::isGreaterStep(this, ::sAttackSuccessTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	780	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	781	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	799	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	800	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	818	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	819	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	838	if	velocity			MR::attenuateVelocity(this, ::sChaseStartAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	839	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	862	if	nerve-step			::keepHeight(this, MR::isLessStep(this, ::sChaseDashLowTime) ? ::sChaseDashLowHeight : ::sChaseDashHeight);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	866	if	velocity			MR::attenuateVelocity(this, ::sChaseDashAccel);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	867	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	884	if	velocity			MR::attenuateVelocity(this, ::sChaseTurnAccel);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	885	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	896	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	902	if	nerve-step			if (MR::isStep(this, ::sDamageExtinguishStep)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	913	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sDamageExtinguishStep)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	918	if	velocity			MR::attenuateVelocity(this, ::sDamageAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	919	if	velocity			MR::reboundVelocityFromEachCollision(this, 0.0f, 0.0f, 0.0f, 0.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	941	if	velocity			f32 fallSpeed = mGravity.dot(mVelocity);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	943	if	nerve-step			if (MR::isStep(this, ::sRunawayEscapeEffectStep)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	956	if	nerve-step			if (MR::isGreaterStep(this, ::sRunawayJumpStep)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	959	if	velocity			velocityH.scaleAdd(-mGravity.dot(mVelocity), mGravity, mVelocity);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	962	if	counter			mRunawayTimer--;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	969	if	random			mRunawayTimer = MR::getRandom(0, ::sRunawayJumpIntervalRandom) + ::sRunawayJumpInterval;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	986	if	velocity			MR::addVelocityToGravity(this, ::sRunawayGravity);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	989	if	velocity			MR::attenuateVelocity(this, MR::isBindedGround(this) ? ::sRunawayGroundAttenuate : ::sRunawayAirAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	990	if	velocity			MR::reboundVelocityFromEachCollision(this, 0.5f, 0.3f, 0.0f, 10.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1006	if	nerve-step			if (MR::isLessStep(this, ::sDivingDelayTime)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1020	if	approach			MR::turnVecToVecCosOnPlane(&mFront, mDivePos - mPosition, mGravity, -1.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1031	if	velocity			mVelocity.set(pos - mPosition);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1033	if	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, -mGravity, ::sDivingFireTurnDegree, mFront);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1062	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1082	if	velocity			MR::setVelocity(this, mDiveUp * ::sFloatUpSpeed);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1086	if	velocity			MR::attenuateVelocity(this, ::sFloatAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1087	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1089	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1095	if	nerve-step			if (MR::isStep(this, ::sIgnitionStartStep)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1099	if	velocity			MR::addVelocity(this, mDiveUp * ::sIgnitionUpSpeed);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1103	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1104	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1113	if	velocity			MR::setVelocityJump(this, ::sIgnitionForceJump);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1119	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1120	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1131	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1137	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1138	if	velocity			MR::reboundVelocityFromCollision(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1151	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1153	if	velocity			mVelocity = -mFront * ::sDownBackSpeed - mGravity * ::sDownUpSpeed;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1157	if	velocity			MR::addVelocityToGravity(this, ::sDownGravityAccel);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1160	if	velocity			MR::attenuateVelocity(this, ::sDownAttenuate);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1161	if	velocity			MR::reboundVelocityFromEachCollision(this, ::sDownRebound, ::sDownRebound, ::sDownRebound, 0.0f);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1163	if	nerve-step			if (MR::isGreaterStep(this, 0)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1175	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1180	if	nerve-step			if (MR::isGreaterStep(this, 0)) {
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1230	if	approach			MR::turnVecToVecCos(&mFront, mFront, dirH, turnCos, gravity);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1236	if	velocity			mVelocity += mFront * accel;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1261	if	random			f32 randomSpeedV = MR::getRandom(::sJumpSpeedVMin, ::sJumpSpeedVMax);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1264	if	velocity			mVelocity -= mGravity * speedV;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1277	if	velocity			mVelocity -= gravity * ::sOverWallAccel;
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1283	if	velocity			MR::rotateQuatRollBall(&mPoseQuat, mVelocity, -mGravity, ::sRollRadius);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1296	Meramera::updateExtinguishMtx	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, trans);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1337	if	approach			MR::rotateVecDegree(&ahead, mGravity, angleDegree);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1393	Meramera::resetAppear	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1485	Meramera::turnFireDirectionToSpin	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, jointPos);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1492	if	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, pullVelocity, degree, mFront);
-Game/Enemy	src/Game/Enemy/Meramera.cpp	1520	if	nerve-step			if (MR::isGreaterStep(this, ::sReadyRestartTime)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	32		frame-clock		timed	const s32 cStepForWait = NebulaFrameClock::stepsOfMilliseconds(2500);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	34		frame-clock		timed	const s32 cStepForChaseMin = NebulaFrameClock::stepsOfSeconds(2);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	36		frame-clock		timed	const s32 cStepForSwoonWait = NebulaFrameClock::stepsOfMilliseconds(2500);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	37		frame-clock		timed	const s32 cStepForRest = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	138	if	velocity			mVelocity.zero();
-Game/Enemy	src/Game/Enemy/Metbo.cpp	171	if	nerve-step			if ((!MR::isValidSwitchA(this) || MR::isOnSwitchA(this)) && !trySearch() && !tryNonActive() && MR::isStep(this, ::cStepForWait)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	186	if	random			const f32 sign = MR::getRandom(0, 2) ? -1.0f : 1.0f;
-Game/Enemy	src/Game/Enemy/Metbo.cpp	187	if	approach			MR::rotateVecDegree(&mWalkDir, upVec, ::cWalkAroundTurn * sign);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	193	if	nerve-step			if (!trySearch() && MR::isStep(this, ::cStepForWalkAround)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	194	if	random			if (MR::getRandom(0, 2)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	244	if	nerve-step			if (MR::isLessStep(this, ::cStepForChaseMin)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	249	if	nerve-step			if (!MR::isNearPlayer(this, ::cFindRadiusOut) || MR::isBindedWallOfMoveLimit(this) || MR::isStep(this, ::cStepForChaseMax) ||
-Game/Enemy	src/Game/Enemy/Metbo.cpp	250	if	random			!MR::getRandom(0, ::cChaseGiveUpChance)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	310	if	nerve-step			if (MR::isStep(this, ::cStepForRest)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	358	if	nerve-step			if (MR::isStep(this, ::cStepForSwoonWait)) {
-Game/Enemy	src/Game/Enemy/Metbo.cpp	413	if	velocity			MR::restrictVelocity(this, ::cSpeedMax);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	450	if	velocity			mVelocity.scaleAdd(::cReceivePushPower, away, mVelocity);
-Game/Enemy	src/Game/Enemy/Metbo.cpp	558	Metbo::startSwoon	velocity			mVelocity.scale(::cSpinPower, launch);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	70		frame-clock		timed	const s32 sWaitTime = NebulaFrameClock::stepsOfSeconds(5);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	71		frame-clock		timed	const s32 sWalkTime = NebulaFrameClock::stepsOfSeconds(2);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	74		frame-clock		timed	const s32 sAttackSuccessTime = NebulaFrameClock::stepsOfSeconds(3);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	78		frame-clock		timed	const s32 sChaseEndTime = NebulaFrameClock::stepsOfSeconds(4);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	79		frame-clock		timed	const s32 sChaseStartTime = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	82		frame-clock		timed	const s32 sChaseDashLowTime = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	97		frame-clock		timed	const s32 sFloatTime = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	103		frame-clock		timed	const s32 sRunawayTime = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	115		frame-clock		timed	const s32 sReadyRestartTime = NebulaFrameClock::stepsOfSeconds(3);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	129		frame-clock		timed	const s32 sRunawayJumpInterval = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	168	keepHeight	velocity			MR::addVelocityKeepHeightUseShadow(pActor, rParam.mHeight, rParam.mUpAccel, rParam.mDownAccel, rParam.mSpeedMax, nullptr);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	360	Meramera::control	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, -mGravity, ::sFireTurnDegree, mFront);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	397	if	velocity			MR::vecScaleAdd(&mVelocity, &dir, ::sPushSpeed);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	464	if	velocity			MR::setVelocitySeparateHV(this, pReceiver, pSender, ::sSpinBlowSpeed, 0.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	510	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	561	if	nerve-step			if (getNerveStep() <= ::sWalkTime) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	567	if	random			MR::getRandomVector(&randomVec, 1.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	578	if	nerve-step			if (getNerveStep() > ::sWaitTime || (0.0f <= mTargetDistance && mTargetDistance <= ::sWalkArriveDistance)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	587	if	nerve-step			if (!MR::isGreaterStep(this, ::sShrinkTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	610	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseStartTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	619	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseDashTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	628	if	nerve-step			if (MR::isGreaterStep(this, ::sChaseTurnTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	637	if	nerve-step			if (!MR::isNearPlayer(this, mChaseDistance) || MR::isGreaterStep(this, ::sChaseEndTime) || mHomePosition.distance(mPosition) > ::sTerritoryChaseRange) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	647	if	nerve-step			if (MR::isGreaterStep(this, MR::getRandom(0, 0) + ::sRunawayTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	647	if	random			if (MR::isGreaterStep(this, MR::getRandom(0, 0) + ::sRunawayTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	657	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	666	if	nerve-step			if (MR::isGreaterStep(this, ::sDivingDelayTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	675	if	nerve-step			if (MR::isGreaterStep(this, ::sDivingTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	684	if	nerve-step			if (MR::isGreaterStep(this, ::sSinkTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	693	if	nerve-step			if (MR::isGreaterStep(this, ::sFloatTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	702	if	nerve-step			if (!MR::isGreaterStep(this, ::sIgnitionTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	723	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	742	if	nerve-step			if (MR::isGreaterStep(this, ::sAttackSuccessTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	781	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	782	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	800	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	801	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	819	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	820	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	839	if	velocity			MR::attenuateVelocity(this, ::sChaseStartAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	840	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	863	if	nerve-step			::keepHeight(this, MR::isLessStep(this, ::sChaseDashLowTime) ? ::sChaseDashLowHeight : ::sChaseDashHeight);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	867	if	velocity			MR::attenuateVelocity(this, ::sChaseDashAccel);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	868	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	885	if	velocity			MR::attenuateVelocity(this, ::sChaseTurnAccel);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	886	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	897	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	903	if	nerve-step			if (MR::isStep(this, ::sDamageExtinguishStep)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	914	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sDamageExtinguishStep)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	919	if	velocity			MR::attenuateVelocity(this, ::sDamageAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	920	if	velocity			MR::reboundVelocityFromEachCollision(this, 0.0f, 0.0f, 0.0f, 0.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	942	if	velocity			f32 fallSpeed = mGravity.dot(mVelocity);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	944	if	nerve-step			if (MR::isStep(this, ::sRunawayEscapeEffectStep)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	957	if	nerve-step			if (MR::isGreaterStep(this, ::sRunawayJumpStep)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	960	if	velocity			velocityH.scaleAdd(-mGravity.dot(mVelocity), mGravity, mVelocity);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	963	if	counter			mRunawayTimer--;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	970	if	random			mRunawayTimer = MR::getRandom(0, ::sRunawayJumpIntervalRandom) + ::sRunawayJumpInterval;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	987	if	velocity			MR::addVelocityToGravity(this, ::sRunawayGravity);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	990	if	velocity			MR::attenuateVelocity(this, MR::isBindedGround(this) ? ::sRunawayGroundAttenuate : ::sRunawayAirAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	991	if	velocity			MR::reboundVelocityFromEachCollision(this, 0.5f, 0.3f, 0.0f, 10.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1007	if	nerve-step			if (MR::isLessStep(this, ::sDivingDelayTime)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1021	if	approach			MR::turnVecToVecCosOnPlane(&mFront, mDivePos - mPosition, mGravity, -1.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1032	if	velocity			mVelocity.set(pos - mPosition);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1034	if	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, -mGravity, ::sDivingFireTurnDegree, mFront);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1063	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1083	if	velocity			MR::setVelocity(this, mDiveUp * ::sFloatUpSpeed);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1087	if	velocity			MR::attenuateVelocity(this, ::sFloatAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1088	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1090	if	approach			MR::turnVecToVecCosOnPlane(&mFront, calcVecToPlayer(), mGravity, -1.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1096	if	nerve-step			if (MR::isStep(this, ::sIgnitionStartStep)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1100	if	velocity			MR::addVelocity(this, mDiveUp * ::sIgnitionUpSpeed);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1104	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1105	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1114	if	velocity			MR::setVelocityJump(this, ::sIgnitionForceJump);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1120	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1121	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1132	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1138	if	velocity			MR::attenuateVelocity(this, ::sDefaultAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1139	if	velocity			MR::reboundVelocityFromCollision(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1152	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1154	if	velocity			mVelocity = -mFront * ::sDownBackSpeed - mGravity * ::sDownUpSpeed;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1158	if	velocity			MR::addVelocityToGravity(this, ::sDownGravityAccel);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1161	if	velocity			MR::attenuateVelocity(this, ::sDownAttenuate);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1162	if	velocity			MR::reboundVelocityFromEachCollision(this, ::sDownRebound, ::sDownRebound, ::sDownRebound, 0.0f);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1164	if	nerve-step			if (MR::isGreaterStep(this, 0)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1176	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1181	if	nerve-step			if (MR::isGreaterStep(this, 0)) {
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1231	if	approach			MR::turnVecToVecCos(&mFront, mFront, dirH, turnCos, gravity);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1237	if	velocity			mVelocity += mFront * accel;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1262	if	random			f32 randomSpeedV = MR::getRandom(::sJumpSpeedVMin, ::sJumpSpeedVMax);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1265	if	velocity			mVelocity -= mGravity * speedV;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1278	if	velocity			mVelocity -= gravity * ::sOverWallAccel;
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1284	if	velocity			MR::rotateQuatRollBall(&mPoseQuat, mVelocity, -mGravity, ::sRollRadius);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1297	Meramera::updateExtinguishMtx	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, trans);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1338	if	approach			MR::rotateVecDegree(&ahead, mGravity, angleDegree);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1394	Meramera::resetAppear	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1486	Meramera::turnFireDirectionToSpin	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, jointPos);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1493	if	approach			MR::turnVecToVecDegree(&mFireUp, mFireUp, pullVelocity, degree, mFront);
+Game/Enemy	src/Game/Enemy/Meramera.cpp	1521	if	nerve-step			if (MR::isGreaterStep(this, ::sReadyRestartTime)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	33		frame-clock		timed	const s32 cStepForWait = NebulaFrameClock::stepsOfMilliseconds(2500);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	35		frame-clock		timed	const s32 cStepForChaseMin = NebulaFrameClock::stepsOfSeconds(2);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	37		frame-clock		timed	const s32 cStepForSwoonWait = NebulaFrameClock::stepsOfMilliseconds(2500);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	38		frame-clock		timed	const s32 cStepForRest = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	139	if	velocity			mVelocity.zero();
+Game/Enemy	src/Game/Enemy/Metbo.cpp	172	if	nerve-step			if ((!MR::isValidSwitchA(this) || MR::isOnSwitchA(this)) && !trySearch() && !tryNonActive() && MR::isStep(this, ::cStepForWait)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	187	if	random			const f32 sign = MR::getRandom(0, 2) ? -1.0f : 1.0f;
+Game/Enemy	src/Game/Enemy/Metbo.cpp	188	if	approach			MR::rotateVecDegree(&mWalkDir, upVec, ::cWalkAroundTurn * sign);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	194	if	nerve-step			if (!trySearch() && MR::isStep(this, ::cStepForWalkAround)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	195	if	random			if (MR::getRandom(0, 2)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	245	if	nerve-step			if (MR::isLessStep(this, ::cStepForChaseMin)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	250	if	nerve-step			if (!MR::isNearPlayer(this, ::cFindRadiusOut) || MR::isBindedWallOfMoveLimit(this) || MR::isStep(this, ::cStepForChaseMax) ||
+Game/Enemy	src/Game/Enemy/Metbo.cpp	251	if	random			!MR::getRandom(0, ::cChaseGiveUpChance)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	311	if	nerve-step			if (MR::isStep(this, ::cStepForRest)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	359	if	nerve-step			if (MR::isStep(this, ::cStepForSwoonWait)) {
+Game/Enemy	src/Game/Enemy/Metbo.cpp	414	if	velocity			MR::restrictVelocity(this, ::cSpeedMax);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	451	if	velocity			mVelocity.scaleAdd(::cReceivePushPower, away, mVelocity);
+Game/Enemy	src/Game/Enemy/Metbo.cpp	559	Metbo::startSwoon	velocity			mVelocity.scale(::cSpinPower, launch);
 Game/Enemy	src/Game/Enemy/Mogu.cpp	40		frame-clock		timed	const s32 sHideWaitSteps = NebulaFrameClock::stepsOfSeconds(2);
 Game/Enemy	src/Game/Enemy/Mogu.cpp	44		frame-clock		timed	const s32 sAppearHipDropSteps = NebulaFrameClock::stepsOfMilliseconds(500);
 Game/Enemy	src/Game/Enemy/Mogu.cpp	49		frame-clock		timed	const s32 sSwoonSteps = NebulaFrameClock::stepsOfSeconds(2);
@@ -2627,27 +2627,27 @@ Game/Enemy	src/Game/Enemy/PackunPetit.cpp	249	if	nerve-step		timed	if (MR::isSte
 Game/Enemy	src/Game/Enemy/PackunPetit.cpp	249	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
 Game/Enemy	src/Game/Enemy/PackunPetit.cpp	271	if	nerve-step			if (MR::isStep(this, 250)) {
 Game/Enemy	src/Game/Enemy/PackunPetit.cpp	475	PackunPetit::punchDown	velocity			mBlownModel->mVelocity.set(velocity);
-Game/Enemy	src/Game/Enemy/Petari.cpp	131	if	velocity			mVelocity.zero();
-Game/Enemy	src/Game/Enemy/Petari.cpp	142	if	velocity			mVelocity.zero();
-Game/Enemy	src/Game/Enemy/Petari.cpp	147	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/Petari.cpp	147	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Enemy	src/Game/Enemy/Petari.cpp	233	if	velocity			mVelocity.zero();
-Game/Enemy	src/Game/Enemy/Petari.cpp	239	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(PetariNrvSwoonEnd), NebulaFrameClock::stepsOfSeconds(3));
-Game/Enemy	src/Game/Enemy/Petari.cpp	299	if	velocity			MR::turnDirectionDegree(this, &mFront, -mVelocity, 180.0f);
-Game/Enemy	src/Game/Enemy/Petari.cpp	309	if	velocity			const Vec3f& vel = mVelocity;
-Game/Enemy	src/Game/Enemy/Petari.cpp	310	if	velocity			mVelocity.scaleAdd(-down.dot(vel), down, vel);
-Game/Enemy	src/Game/Enemy/Petari.cpp	311	if	velocity			mVelocity.add(down * 1.3f);
-Game/Enemy	src/Game/Enemy/Petari.cpp	329	if	velocity			mVelocity.zero();
-Game/Enemy	src/Game/Enemy/Petari.cpp	406	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
-Game/Enemy	src/Game/Enemy/Petari.cpp	416	if	velocity			MR::addVelocityFromPush(this, 3.0f, pSender, pReceiver);
-Game/Enemy	src/Game/Enemy/Petari.cpp	425	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
-Game/Enemy	src/Game/Enemy/Petari.cpp	523	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
-Game/Enemy	src/Game/Enemy/Petari.cpp	538	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
-Game/Enemy	src/Game/Enemy/Petari.cpp	596	if	velocity			mVelocity.set(deltaDir);
-Game/Enemy	src/Game/Enemy/Petari.cpp	634	if	velocity			Vec3f playerVelocity = *MR::getPlayerVelocity();
-Game/Enemy	src/Game/Enemy/Petari.cpp	675	if	nerve-step			if (MR::isStep(this, mMeanderStep)) {
-Game/Enemy	src/Game/Enemy/Petari.cpp	676	if	random			mMeanderAngle = MR::getRandom(-90.0f, 90.0f);
-Game/Enemy	src/Game/Enemy/Petari.cpp	677	if	random			mMeanderStep = getNerveStep() + MR::getRandom((s32)60, 120);
+Game/Enemy	src/Game/Enemy/Petari.cpp	132	if	velocity			mVelocity.zero();
+Game/Enemy	src/Game/Enemy/Petari.cpp	143	if	velocity			mVelocity.zero();
+Game/Enemy	src/Game/Enemy/Petari.cpp	148	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/Petari.cpp	148	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Enemy	src/Game/Enemy/Petari.cpp	234	if	velocity			mVelocity.zero();
+Game/Enemy	src/Game/Enemy/Petari.cpp	240	if	frame-clock		timed	MR::setNerveAtStep(this, GET_NERVE_ANON(PetariNrvSwoonEnd), NebulaFrameClock::stepsOfSeconds(3));
+Game/Enemy	src/Game/Enemy/Petari.cpp	300	if	velocity			MR::turnDirectionDegree(this, &mFront, -mVelocity, 180.0f);
+Game/Enemy	src/Game/Enemy/Petari.cpp	310	if	velocity			const Vec3f& vel = mVelocity;
+Game/Enemy	src/Game/Enemy/Petari.cpp	311	if	velocity			mVelocity.scaleAdd(-down.dot(vel), down, vel);
+Game/Enemy	src/Game/Enemy/Petari.cpp	312	if	velocity			mVelocity.add(down * 1.3f);
+Game/Enemy	src/Game/Enemy/Petari.cpp	330	if	velocity			mVelocity.zero();
+Game/Enemy	src/Game/Enemy/Petari.cpp	407	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
+Game/Enemy	src/Game/Enemy/Petari.cpp	417	if	velocity			MR::addVelocityFromPush(this, 3.0f, pSender, pReceiver);
+Game/Enemy	src/Game/Enemy/Petari.cpp	426	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
+Game/Enemy	src/Game/Enemy/Petari.cpp	524	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
+Game/Enemy	src/Game/Enemy/Petari.cpp	539	if	velocity			MR::setVelocityBlowAttack(this, pSender, pReceiver, 10.0f, 0.0f, 4);
+Game/Enemy	src/Game/Enemy/Petari.cpp	597	if	velocity			mVelocity.set(deltaDir);
+Game/Enemy	src/Game/Enemy/Petari.cpp	635	if	velocity			Vec3f playerVelocity = *MR::getPlayerVelocity();
+Game/Enemy	src/Game/Enemy/Petari.cpp	676	if	nerve-step			if (MR::isStep(this, mMeanderStep)) {
+Game/Enemy	src/Game/Enemy/Petari.cpp	677	if	random			mMeanderAngle = MR::getRandom(-90.0f, 90.0f);
+Game/Enemy	src/Game/Enemy/Petari.cpp	678	if	random			mMeanderStep = getNerveStep() + MR::getRandom((s32)60, 120);
 Game/Enemy	src/Game/Enemy/Poihana.cpp	38		frame-clock		timed	static const s32 sWalkAroundBreakTime = NebulaFrameClock::stepsOfSeconds(3);
 Game/Enemy	src/Game/Enemy/Poihana.cpp	39		frame-clock		timed	static const s32 sWalkAroundKeepTime = NebulaFrameClock::stepsOfSeconds(2);
 Game/Enemy	src/Game/Enemy/Poihana.cpp	54		frame-clock		timed	static const s32 sStepForNonSearch = NebulaFrameClock::stepsOfSeconds(2);
@@ -2708,9 +2708,9 @@ Game/Enemy	src/Game/Enemy/Pukupuku.cpp	527	Pukupuku::startBlownOff	velocity			MR
 Game/Enemy	src/Game/Enemy/RingBeam.cpp	170	RingBeam::setSpeed	anim-rate			void RingBeam::setSpeed(f32 speed) {
 Game/Enemy	src/Game/Enemy/RingBeam.cpp	367	if	nerve-step			if (MR::isStep(this, mLife - (s32)MR::getBrkFrameMax(this))) {
 Game/Enemy	src/Game/Enemy/RingBeam.cpp	370	if	nerve-step			if (MR::isGreaterEqualStep(this, mLife)) {
-Game/Enemy	src/Game/Enemy/RingBeamer.cpp	58	if	anim-rate			mBeams[i]->setSpeed(beamSpeed);
-Game/Enemy	src/Game/Enemy/RingBeamer.cpp	89	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sBeamNum * ::sBeamInterval)) {
-Game/Enemy	src/Game/Enemy/RingBeamer.cpp	114	if	nerve-step			if (MR::isGreaterEqualStep(this, 80)) {
+Game/Enemy	src/Game/Enemy/RingBeamer.cpp	59	if	anim-rate			mBeams[i]->setSpeed(beamSpeed);
+Game/Enemy	src/Game/Enemy/RingBeamer.cpp	90	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sBeamNum * ::sBeamInterval)) {
+Game/Enemy	src/Game/Enemy/RingBeamer.cpp	115	if	nerve-step			if (MR::isGreaterEqualStep(this, 80)) {
 Game/Enemy	src/Game/Enemy/SamboHead.cpp	35		frame-clock		timed	const s32 cUnderGroundSteps = NebulaFrameClock::stepsOfSeconds(2);
 Game/Enemy	src/Game/Enemy/SamboHead.cpp	36		frame-clock		timed	const s32 cHideSteps = NebulaFrameClock::stepsOfSeconds(2);
 Game/Enemy	src/Game/Enemy/SamboHead.cpp	37		frame-clock		timed	const s32 cWaitHideSteps = NebulaFrameClock::stepsOfSeconds(2);
@@ -2858,60 +2858,60 @@ Game/Enemy	src/Game/Enemy/StringSpider.cpp	795	if	velocity			mVelocity.add(push)
 Game/Enemy	src/Game/Enemy/StringSpider.cpp	830	if	velocity			mVelocity += bounce;
 Game/Enemy	src/Game/Enemy/StringSpider.cpp	879	StringSpider::startSwingLevelSound	velocity			f32 speed = mVelocity.length();
 Game/Enemy	src/Game/Enemy/StringSpider.cpp	899	StringSpiderString::calcAndSetBaseMtx	decay			scale.y *= 0.063f;
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	26		frame-clock		timed	static const s32 sNoPushMarioTime = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	31		frame-clock		timed	static const s32 sWaitTime = NebulaFrameClock::stepsOfSeconds(2);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	33		frame-clock		timed	static const s32 sWalkEndTime = NebulaFrameClock::stepsOfSeconds(2);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	39		frame-clock		timed	static const s32 sFindTime = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	42		frame-clock		timed	static const s32 sPursueTime = NebulaFrameClock::stepsOfSeconds(5);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	45		frame-clock		timed	static const s32 sCoolDownTime = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	55		frame-clock		timed	static const s32 sAttackSuccessTime = NebulaFrameClock::stepsOfSeconds(1);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	57		frame-clock		timed	static const s32 sSwoonTime = NebulaFrameClock::stepsOfSeconds(3);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	67		frame-clock		timed	static const s32 sPressDownTime = NebulaFrameClock::stepsOfSeconds(3);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	157	if	counter			mNoPushStep--;
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	183	if	velocity			if (mVelocity.dot(sensorDirection) < 0.0f) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	184	if	velocity			mVelocity.orthogonalize(sensorDirection);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	197	if	velocity			mVelocity += sensorDirection * (MR::isSensorPlayer(pSender) ? ::sPushMarioAccel : ::sPushAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	313	if	velocity			MR::addVelocitySeparateHV(this, pSender, pReceiver, ::sPunchHorizonPower, ::sPunchVerticalPower);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	324	if	velocity			MR::addVelocityMoveToDirection(this, pSender->mPosition - pReceiver->mPosition, ::sAttackSuccessHitPower);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	344	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	354	if	nerve-step			if (MR::isGreaterStep(this, ::sWaitTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	366	if	nerve-step			if (MR::isGreaterStep(this, ::sWalkEndTime) || scaleAdd.squared() < ::sWalkTerritoryRadius) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	372	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	390	if	nerve-step			if (MR::isGreaterStep(this, ::sFindTurnTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	399	if	nerve-step			if (MR::isGreaterStep(this, ::sFindTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	408	if	nerve-step			if (MR::isGreaterStep(this, ::sPursueTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	414	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	424	if	nerve-step			if (::sAttackDistanceNear <= distanceToPlayer && (distanceToPlayer <= ::sAttackDistanceFar || MR::isGreaterStep(this, ::sForceFarAttackTime))) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	433	if	nerve-step			if (MR::isGreaterStep(this, ::sCoolDownTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	446	if	nerve-step			if (MR::isGreaterStep(this, ::sAttackSuccessTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	464	if	nerve-step			if (MR::isGreaterStep(this, ::sSwoonTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	473	if	nerve-step			if (MR::isGreaterStep(this, ::sRecoverTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	483	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	500	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	520	if	frame-clock		timed	if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == NebulaFrameClock::stepsOfSeconds(1) - 1) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	543	if	frame-clock		timed	if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == NebulaFrameClock::stepsOfSeconds(1) - 1) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	549	if	nerve-step			if (MR::isGreaterStep(this, ::sWalkMoveStartTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	550	if	velocity			MR::addVelocityMoveToTarget(this, mWalkTarget, ::sWalkAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	606	if	velocity			MR::addVelocityAwayFromTarget(this, *MR::getPlayerPos(), ::sPursueAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	608	if	velocity			MR::addVelocityMoveToTarget(this, *MR::getPlayerPos(), ::sPursueAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	658	if	velocity			MR::addVelocity(this, mFront * ::sBackAttackSpaceAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	755	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	758	if	nerve-step			if (MR::isGreaterStep(this, ::sPressDownTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	768	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	771	if	nerve-step			if (MR::isGreaterStep(this, ::sHipDropDownTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	781	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	784	if	nerve-step			if (MR::isGreaterStep(this, ::sFlatDownTime)) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	801	if	nerve-step			if (MR::isGreaterStep(this, ::sPunchDownTime) || (MR::isBinded(this) && MR::isGreaterStep(this, 5))) {
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	812	if	velocity			MR::attenuateVelocity(this, ::sNormalGroundFrec);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	814	if	velocity			MR::addVelocityToGravity(this, ::sNormalGravityAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	815	if	velocity			MR::attenuateVelocity(this, ::sNormalAirFrec);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	818	if	velocity			MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	823	if	velocity			MR::attenuateVelocity(this, ::sSwoonGroundFrec);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	825	if	velocity			MR::addVelocityToGravity(this, ::sSwoonGravityAccel);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	826	if	velocity			MR::attenuateVelocity(this, ::sNormalAirFrec);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	829	if	velocity			MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	833	TakoHei::decideNextTargetPos	random			MR::getRandomVector(&mWalkTarget, ::sWalkGoalDistance);
-Game/Enemy	src/Game/Enemy/TakoHei.cpp	896	if	velocity			return MR::isFallNextMove(mPosition, mVelocity, mGravity, 150.0f, mScale.x * 90.0f * 2.0f, 150.0f, nullptr);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	27		frame-clock		timed	static const s32 sNoPushMarioTime = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	32		frame-clock		timed	static const s32 sWaitTime = NebulaFrameClock::stepsOfSeconds(2);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	34		frame-clock		timed	static const s32 sWalkEndTime = NebulaFrameClock::stepsOfSeconds(2);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	40		frame-clock		timed	static const s32 sFindTime = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	43		frame-clock		timed	static const s32 sPursueTime = NebulaFrameClock::stepsOfSeconds(5);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	46		frame-clock		timed	static const s32 sCoolDownTime = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	56		frame-clock		timed	static const s32 sAttackSuccessTime = NebulaFrameClock::stepsOfSeconds(1);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	58		frame-clock		timed	static const s32 sSwoonTime = NebulaFrameClock::stepsOfSeconds(3);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	68		frame-clock		timed	static const s32 sPressDownTime = NebulaFrameClock::stepsOfSeconds(3);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	158	if	counter			mNoPushStep--;
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	184	if	velocity			if (mVelocity.dot(sensorDirection) < 0.0f) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	185	if	velocity			mVelocity.orthogonalize(sensorDirection);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	198	if	velocity			mVelocity += sensorDirection * (MR::isSensorPlayer(pSender) ? ::sPushMarioAccel : ::sPushAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	314	if	velocity			MR::addVelocitySeparateHV(this, pSender, pReceiver, ::sPunchHorizonPower, ::sPunchVerticalPower);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	325	if	velocity			MR::addVelocityMoveToDirection(this, pSender->mPosition - pReceiver->mPosition, ::sAttackSuccessHitPower);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	345	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	355	if	nerve-step			if (MR::isGreaterStep(this, ::sWaitTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	367	if	nerve-step			if (MR::isGreaterStep(this, ::sWalkEndTime) || scaleAdd.squared() < ::sWalkTerritoryRadius) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	373	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	391	if	nerve-step			if (MR::isGreaterStep(this, ::sFindTurnTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	400	if	nerve-step			if (MR::isGreaterStep(this, ::sFindTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	409	if	nerve-step			if (MR::isGreaterStep(this, ::sPursueTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	415	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	425	if	nerve-step			if (::sAttackDistanceNear <= distanceToPlayer && (distanceToPlayer <= ::sAttackDistanceFar || MR::isGreaterStep(this, ::sForceFarAttackTime))) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	434	if	nerve-step			if (MR::isGreaterStep(this, ::sCoolDownTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	447	if	nerve-step			if (MR::isGreaterStep(this, ::sAttackSuccessTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	465	if	nerve-step			if (MR::isGreaterStep(this, ::sSwoonTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	474	if	nerve-step			if (MR::isGreaterStep(this, ::sRecoverTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	484	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	501	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	521	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), NebulaFrameClock::stepsOfSeconds(1) - 1)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	544	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), NebulaFrameClock::stepsOfSeconds(1) - 1)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	550	if	nerve-step			if (MR::isGreaterStep(this, ::sWalkMoveStartTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	551	if	velocity			MR::addVelocityMoveToTarget(this, mWalkTarget, ::sWalkAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	607	if	velocity			MR::addVelocityAwayFromTarget(this, *MR::getPlayerPos(), ::sPursueAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	609	if	velocity			MR::addVelocityMoveToTarget(this, *MR::getPlayerPos(), ::sPursueAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	659	if	velocity			MR::addVelocity(this, mFront * ::sBackAttackSpaceAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	756	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	759	if	nerve-step			if (MR::isGreaterStep(this, ::sPressDownTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	769	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	772	if	nerve-step			if (MR::isGreaterStep(this, ::sHipDropDownTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	782	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	785	if	nerve-step			if (MR::isGreaterStep(this, ::sFlatDownTime)) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	802	if	nerve-step			if (MR::isGreaterStep(this, ::sPunchDownTime) || (MR::isBinded(this) && MR::isGreaterStep(this, 5))) {
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	813	if	velocity			MR::attenuateVelocity(this, ::sNormalGroundFrec);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	815	if	velocity			MR::addVelocityToGravity(this, ::sNormalGravityAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	816	if	velocity			MR::attenuateVelocity(this, ::sNormalAirFrec);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	819	if	velocity			MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	824	if	velocity			MR::attenuateVelocity(this, ::sSwoonGroundFrec);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	826	if	velocity			MR::addVelocityToGravity(this, ::sSwoonGravityAccel);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	827	if	velocity			MR::attenuateVelocity(this, ::sNormalAirFrec);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	830	if	velocity			MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	834	TakoHei::decideNextTargetPos	random			MR::getRandomVector(&mWalkTarget, ::sWalkGoalDistance);
+Game/Enemy	src/Game/Enemy/TakoHei.cpp	897	if	velocity			return MR::isFallNextMove(mPosition, mVelocity, mGravity, 150.0f, mScale.x * 90.0f * 2.0f, 150.0f, nullptr);
 Game/Enemy	src/Game/Enemy/TakoHeiInk.cpp	12		frame-clock		timed	static const s32 sForceBreakTime = NebulaFrameClock::stepsOfSeconds(4);
 Game/Enemy	src/Game/Enemy/TakoHeiInk.cpp	52	TakoHeiInk::start	velocity			mVelocity.set(startVelocity);
 Game/Enemy	src/Game/Enemy/TakoHeiInk.cpp	73	if	nerve-step			if (MR::isGreaterStep(this, ::sBindOnTime) && MR::isNoBind(this)) {
@@ -2997,54 +2997,54 @@ Game/Enemy	src/Game/Enemy/Teresa.cpp	960	Teresa::updateDriftTransparency	nerve-r
 Game/Enemy	src/Game/Enemy/TeresaWater.cpp	72	if	velocity			MR::attenuateVelocityExceptDirection(this, mFront, ::sSideFriction);
 Game/Enemy	src/Game/Enemy/TeresaWater.cpp	86	if	velocity			mVelocity.zero();
 Game/Enemy	src/Game/Enemy/TerritoryMover.cpp	11	TerritoryMover::decideNextTargetPos	random			MR::getRandomVector(&randVec, 1.0f);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	74	setQuatXYZ	frame-clock		timed	const s32 sUnizoCollisionSePlayTime = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	178	if	random			mBlinkFrame = MR::getRandom(100, sBlinkCycle);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	194	Unizo::control	counter			mFrame++;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	196	if	counter			mSpinAnimTimer--;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	199	if	velocity			if (!MR::isNearZero(mVelocity)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	261	Unizo::calcAndSetBaseMtx	velocity			Vec3f horizontalVelocity = MR::getVelocityHorizon(this);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	284	if	nerve-step			if (MR::isStep(this, sStartSearch)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	290	if	nerve-step			if (MR::isGreaterEqualStep(this, sChaseCycle)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	327	if	nerve-step			if (MR::isGreaterStep(this, sCollidePlayerCount)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	339	if	counter			mBlinkCount--;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	343	if	nerve-step			if (MR::isGreaterStep(this, sCollideEnemyCount)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	358	if	nerve-step			if (MR::isStep(this, sFireDownStarPiece)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	367	if	nerve-step			if (MR::isGreaterEqualStep(this, sDamageFloorFrame)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	382	if	nerve-step			if (MR::isGreaterEqualStep(this, sDamageFloorFrame)) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	447	if	velocity			MR::addVelocityMoveToDirection(this, direction, sReboundEnemy * distance);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	467	Unizo::updateRotate	velocity			MR::rotateQuatRollBall(&mQuat, mVelocity, -mGravity, sBodyRadius * mRadiusScale);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	476	Unizo::updateVelocity	velocity			f32 speedRate = mVelocity.length() / sChaseSpeedMax;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	483	if	velocity			if (direction.dot(mVelocity) > 0.0f) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	484	if	velocity			if (mVelocity.length() < sChaseSpeedMax) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	485	if	velocity			MR::addVelocityMoveToDirection(this, direction, sAccelerate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	488	if	velocity			MR::addVelocityMoveToDirection(this, direction, sAccelerate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	496	if	velocity			MR::addVelocityToGravity(this, mGravityRate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	497	if	velocity			rebound = MR::reboundVelocityFromCollision(this, sReboundFloor, 0.0f, 1.0f);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	499	if	velocity			rebound = MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	501	if	velocity			MR::addVelocityToGravity(this, sGravityRateGround0);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	503	if	velocity			MR::addVelocityToGravity(this, sGravityRateGround1);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	507	if	velocity			MR::restrictVelocity(this, sTotalSpeedMax);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	514	if	velocity			f32 verticalSpeed = -mGravity.dot(mVelocity);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	530	isNerve	velocity			MR::attenuateVelocity(this, sBrakeRate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	531	if	velocity			if (mVelocity.length() < sStopSpeed) {
-Game/Enemy	src/Game/Enemy/Unizo.cpp	532	if	velocity			mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
-Game/Enemy	src/Game/Enemy/Unizo.cpp	535	if	velocity			MR::attenuateVelocity(this, sBrakeRateChase);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	538	if	counter			mJumpCount--;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	545	if	velocity			f32 speed = mVelocity.length();
-Game/Enemy	src/Game/Enemy/Unizo.cpp	553	if	counter			mRollSoundTimer--;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	580	if	velocity			bool isRunning = mVelocity.length() > sSurfaceEffectRunSpeed;
-Game/Enemy	src/Game/Enemy/Unizo.cpp	605	Unizo::doJump	velocity			mVelocity.add(mGravity * speed * -1.0f);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	614	Unizo::doAttack	velocity			mVelocity.set(up * sReboundPlayerV + direction * sReboundPlayerH);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	627	if	velocity			mVelocity.set(mGravity * -sDamageFloorVertical);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	648	if	velocity			MR::zeroVelocity(this);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	649	if	velocity			MR::setVelocitySeparateHV(this, rDirection, sFireDownHorizontal, sFireDownVertical);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	679	Unizo::doSpin	velocity			f32 speed = mVelocity.length();
-Game/Enemy	src/Game/Enemy/Unizo.cpp	681	Unizo::doSpin	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, mPosition);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	683	Unizo::doSpin	velocity			mVelocity.add(pullVelocity * sDriftSpeedRate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	685	if	velocity			mVelocity.setLength(speed);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	695	Unizo::fallBroken	velocity			MR::addVelocityToGravity(this, sFireDownGravity);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	697	if	velocity			MR::attenuateVelocity(this, sFireDownAttenuate);
-Game/Enemy	src/Game/Enemy/Unizo.cpp	756	Unizo::startWallHitSound	velocity			f32 speed = mVelocity.length();
+Game/Enemy	src/Game/Enemy/Unizo.cpp	75	setQuatXYZ	frame-clock		timed	const s32 sUnizoCollisionSePlayTime = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	179	if	random			mBlinkFrame = MR::getRandom(100, sBlinkCycle);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	195	Unizo::control	counter			mFrame++;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	197	if	counter			mSpinAnimTimer--;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	200	if	velocity			if (!MR::isNearZero(mVelocity)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	262	Unizo::calcAndSetBaseMtx	velocity			Vec3f horizontalVelocity = MR::getVelocityHorizon(this);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	285	if	nerve-step			if (MR::isStep(this, sStartSearch)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	291	if	nerve-step			if (MR::isGreaterEqualStep(this, sChaseCycle)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	328	if	nerve-step			if (MR::isGreaterStep(this, sCollidePlayerCount)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	340	if	counter			mBlinkCount--;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	344	if	nerve-step			if (MR::isGreaterStep(this, sCollideEnemyCount)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	359	if	nerve-step			if (MR::isStep(this, sFireDownStarPiece)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	368	if	nerve-step			if (MR::isGreaterEqualStep(this, sDamageFloorFrame)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	383	if	nerve-step			if (MR::isGreaterEqualStep(this, sDamageFloorFrame)) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	448	if	velocity			MR::addVelocityMoveToDirection(this, direction, sReboundEnemy * distance);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	468	Unizo::updateRotate	velocity			MR::rotateQuatRollBall(&mQuat, mVelocity, -mGravity, sBodyRadius * mRadiusScale);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	477	Unizo::updateVelocity	velocity			f32 speedRate = mVelocity.length() / sChaseSpeedMax;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	484	if	velocity			if (direction.dot(mVelocity) > 0.0f) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	485	if	velocity			if (mVelocity.length() < sChaseSpeedMax) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	486	if	velocity			MR::addVelocityMoveToDirection(this, direction, sAccelerate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	489	if	velocity			MR::addVelocityMoveToDirection(this, direction, sAccelerate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	497	if	velocity			MR::addVelocityToGravity(this, mGravityRate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	498	if	velocity			rebound = MR::reboundVelocityFromCollision(this, sReboundFloor, 0.0f, 1.0f);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	500	if	velocity			rebound = MR::reboundVelocityFromCollision(this, 0.0f, 0.0f, 1.0f);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	502	if	velocity			MR::addVelocityToGravity(this, sGravityRateGround0);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	504	if	velocity			MR::addVelocityToGravity(this, sGravityRateGround1);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	508	if	velocity			MR::restrictVelocity(this, sTotalSpeedMax);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	515	if	velocity			f32 verticalSpeed = -mGravity.dot(mVelocity);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	531	isNerve	velocity			MR::attenuateVelocity(this, sBrakeRate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	532	if	velocity			if (mVelocity.length() < sStopSpeed) {
+Game/Enemy	src/Game/Enemy/Unizo.cpp	533	if	velocity			mVelocity.set(Vec3f(0.0f, 0.0f, 0.0f));
+Game/Enemy	src/Game/Enemy/Unizo.cpp	536	if	velocity			MR::attenuateVelocity(this, sBrakeRateChase);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	539	if	counter			mJumpCount--;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	546	if	velocity			f32 speed = mVelocity.length();
+Game/Enemy	src/Game/Enemy/Unizo.cpp	554	if	counter			mRollSoundTimer--;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	581	if	velocity			bool isRunning = mVelocity.length() > sSurfaceEffectRunSpeed;
+Game/Enemy	src/Game/Enemy/Unizo.cpp	606	Unizo::doJump	velocity			mVelocity.add(mGravity * speed * -1.0f);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	615	Unizo::doAttack	velocity			mVelocity.set(up * sReboundPlayerV + direction * sReboundPlayerH);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	628	if	velocity			mVelocity.set(mGravity * -sDamageFloorVertical);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	649	if	velocity			MR::zeroVelocity(this);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	650	if	velocity			MR::setVelocitySeparateHV(this, rDirection, sFireDownHorizontal, sFireDownVertical);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	680	Unizo::doSpin	velocity			f32 speed = mVelocity.length();
+Game/Enemy	src/Game/Enemy/Unizo.cpp	682	Unizo::doSpin	velocity			MR::calcPlayerSpinPullVelocity(&pullVelocity, mPosition);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	684	Unizo::doSpin	velocity			mVelocity.add(pullVelocity * sDriftSpeedRate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	686	if	velocity			mVelocity.setLength(speed);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	696	Unizo::fallBroken	velocity			MR::addVelocityToGravity(this, sFireDownGravity);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	698	if	velocity			MR::attenuateVelocity(this, sFireDownAttenuate);
+Game/Enemy	src/Game/Enemy/Unizo.cpp	757	Unizo::startWallHitSound	velocity			f32 speed = mVelocity.length();
 Game/Enemy	src/Game/Enemy/UnizoLauncher.cpp	63	if	nerve-step			if (MR::isGreaterStep(this, ::sUnizoInter)) {
 Game/Enemy	src/Game/Enemy/WalkerStateBindStarPointer.cpp	65	if	velocity			MR::zeroVelocity(getHost());
 Game/Enemy	src/Game/Enemy/WalkerStateBindStarPointer.cpp	69	if	counter			mUpdateCounter++;
@@ -3177,14 +3177,12 @@ Game/LiveActor	src/Game/LiveActor/FlashingCtrl.cpp	39	FlashingCtrl::start	frame-
 Game/LiveActor	src/Game/LiveActor/HitSensor.cpp	90	if	counter			mSensorCount++;
 Game/LiveActor	src/Game/LiveActor/IKJointCtrl.cpp	37	IKJointCtrl::setEndPosition	approach			MR::vecBlend(jointPos, rPos, &jointPos, rate);
 Game/LiveActor	src/Game/LiveActor/IKJointCtrl.cpp	43	if	approach			if (!MR::vecBlendSphere(mEndDir, rDirection, &mEndDir, rate)) {
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	36		velocity	central		: NameObj(pName), mPosition(0.0f, 0.0f, 0.0f), mRotation(0.0f, 0.0f, 0.0f), mScale(1.0f, 1.0f, 1.0f), mVelocity(0.0f, 0.0f, 0.0f),
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	89	LiveActor::makeActorDead	velocity	central		mVelocity.zero();
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	512	if	velocity	central		mPosition += mVelocity;
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	512	if	position-step	central		mPosition += mVelocity;
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	514	if	velocity	central		mPosition += mVelocity;
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	514	if	position-step	central		mPosition += mVelocity;
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	517	if	velocity	central		mPosition += getBinder()->bind(mVelocity);
-Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	517	if	position-step	central		mPosition += getBinder()->bind(mVelocity);
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	37		velocity	central		: NameObj(pName), mPosition(0.0f, 0.0f, 0.0f), mRotation(0.0f, 0.0f, 0.0f), mScale(1.0f, 1.0f, 1.0f), mVelocity(0.0f, 0.0f, 0.0f),
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	90	LiveActor::makeActorDead	velocity	central		mVelocity.zero();
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	517	LiveActor::updateBinder	velocity	central		Vec3f velocity(mVelocity);
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	520	if	position-step	central		mPosition += velocity;
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	522	if	position-step	central		mPosition += velocity;
+Game/LiveActor	src/Game/LiveActor/LiveActor.cpp	525	if	position-step	central		mPosition += getBinder()->bind(velocity);
 Game/LiveActor	src/Game/LiveActor/MaterialCtrl.cpp	51	if	counter			mMaterials[materialCount++] = pModel->ownMaterial(i);
 Game/LiveActor	src/Game/LiveActor/MaterialCtrl.cpp	132	if	counter			matrixCount++;
 Game/LiveActor	src/Game/LiveActor/MirrorActor.cpp	28	MirrorActor::init	approach			mRadius = 0.5f * (box.f - box.i).length();
@@ -3358,16 +3356,16 @@ Game/Map	src/Game/Map/OceanRingDrawer.cpp	112	if	position-step			mPosition.add((
 Game/Map	src/Game/Map/OceanSphere.cpp	409	if	counter			mWaveTime1 += -0.1f;
 Game/Map	src/Game/Map/OceanSphere.cpp	410	if	counter			mWaveTime2 += -0.1f;
 Game/Map	src/Game/Map/OceanSphere.cpp	713	OceanSphere::loadMaterialBack	decay			pos.scale(0.779175f);
-Game/Map	src/Game/Map/QuakeEffectGenerator.cpp	57	if	nerve-step			if (MR::isStep(this, ::sCamShakeFrame)) {
-Game/Map	src/Game/Map/RaceManager.cpp	231	if	nerve-step		timed	if (!MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
-Game/Map	src/Game/Map/RaceManager.cpp	231	if	frame-clock		timed	if (!MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
-Game/Map	src/Game/Map/RaceManager.cpp	278	if	nerve-step			if (MR::isStep(this, 110)) {
-Game/Map	src/Game/Map/RaceManager.cpp	294	if	frame-clock		timed	if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == 0) {
-Game/Map	src/Game/Map/RaceManager.cpp	298	if	nerve-step			if (MR::isStep(this, ::sBgmStartStep)) {
-Game/Map	src/Game/Map/RaceManager.cpp	318	if	nerve-step		timed	if (maxTime > 0 && getNerveStep() >= NebulaFrameClock::stepsOfSeconds(maxTime)) {
-Game/Map	src/Game/Map/RaceManager.cpp	318	if	frame-clock		timed	if (maxTime > 0 && getNerveStep() >= NebulaFrameClock::stepsOfSeconds(maxTime)) {
-Game/Map	src/Game/Map/RaceManager.cpp	376	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
-Game/Map	src/Game/Map/RaceManager.cpp	376	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Map	src/Game/Map/QuakeEffectGenerator.cpp	58	if	nerve-step			if (MR::isStep(this, ::sCamShakeFrame)) {
+Game/Map	src/Game/Map/RaceManager.cpp	232	if	nerve-step		timed	if (!MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
+Game/Map	src/Game/Map/RaceManager.cpp	232	if	frame-clock		timed	if (!MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
+Game/Map	src/Game/Map/RaceManager.cpp	279	if	nerve-step			if (MR::isStep(this, 110)) {
+Game/Map	src/Game/Map/RaceManager.cpp	295	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
+Game/Map	src/Game/Map/RaceManager.cpp	299	if	nerve-step			if (MR::isStep(this, ::sBgmStartStep)) {
+Game/Map	src/Game/Map/RaceManager.cpp	319	if	nerve-step		timed	if (maxTime > 0 && getNerveStep() >= NebulaFrameClock::stepsOfSeconds(maxTime)) {
+Game/Map	src/Game/Map/RaceManager.cpp	319	if	frame-clock		timed	if (maxTime > 0 && getNerveStep() >= NebulaFrameClock::stepsOfSeconds(maxTime)) {
+Game/Map	src/Game/Map/RaceManager.cpp	377	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
+Game/Map	src/Game/Map/RaceManager.cpp	377	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
 Game/Map	src/Game/Map/ScenarioSelectStar.cpp	11		frame-clock		timed	static const s32 cAppearWaitFrame = NebulaFrameClock::stepsOfSeconds(1);
 Game/Map	src/Game/Map/ScenarioSelectStar.cpp	18		frame-clock		timed	static const s32 cMoveInterval = NebulaFrameClock::stepsOfSeconds(3);
 Game/Map	src/Game/Map/ScenarioSelectStar.cpp	114	isNerve	counter			mRotateTime++;
@@ -3447,7 +3445,7 @@ Game/MapObj	src/Game/MapObj/AirBubble.cpp	132	if	decay			mVelocity.mult(0.85f);
 Game/MapObj	src/Game/MapObj/AirBubble.cpp	134	if	nerve-step			if (MR::isGreaterStep(this, mLife)) {
 Game/MapObj	src/Game/MapObj/AirBubble.cpp	154	if	nerve-step		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
 Game/MapObj	src/Game/MapObj/AirBubble.cpp	154	if	frame-clock		timed	if (MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(1500))) {
-Game/MapObj	src/Game/MapObj/AirBubbleGenerator.cpp	66	if	nerve-step			if (MR::isGreaterStep(this, ::sGenerateTime)) {
+Game/MapObj	src/Game/MapObj/AirBubbleGenerator.cpp	67	if	nerve-step			if (MR::isGreaterStep(this, ::sGenerateTime)) {
 Game/MapObj	src/Game/MapObj/AnmModelObj.cpp	80	if	nerve-step			if (MR::isLessStep(this, steps)) {
 Game/MapObj	src/Game/MapObj/AnmModelObj.cpp	92	if	nerve-step			if (MR::isStep(this, steps)) {
 Game/MapObj	src/Game/MapObj/AnmModelObj.cpp	237	if	nerve-step			return MR::isGreaterEqualStep(this, frames);
@@ -3515,31 +3513,29 @@ Game/MapObj	src/Game/MapObj/BenefitItemInvincible.cpp	24		frame-clock		timed	con
 Game/MapObj	src/Game/MapObj/BenefitItemInvincible.cpp	84	if	velocity			mVelocity = mUpAxis * cAppearThrowUpSpd + mFwdAxis * cAppearThrowFwdSpd;
 Game/MapObj	src/Game/MapObj/BenefitItemInvincible.cpp	102	BenefitItemInvincible::doEscape	velocity			MR::addVelocityToGravity(this, 1.0f);
 Game/MapObj	src/Game/MapObj/BenefitItemInvincible.cpp	122	if	counter			mSensorInvalidStep--;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	33		frame-clock		timed	const f32 cSpdRotateY = FloatUtil::PI() / static_cast< f32 >(NebulaFrameClock::stepsOfSeconds(1));
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	38		frame-clock		timed	const s32 cShootSensorOnStep = NebulaFrameClock::stepsOfSeconds(1);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	39		frame-clock		timed	const s32 cGroundAppearStep = NebulaFrameClock::stepsOfSeconds(1);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	40		frame-clock		timed	const s32 cPreEscapeSteps = NebulaFrameClock::stepsOfMilliseconds(500);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	41		frame-clock		timed	const s16 cEscapeLifeSteps = NebulaFrameClock::stepsOfSeconds(10);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	358	if	velocity			mVelocity = rotY * cAppearThrowUpSpd;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	360	if	velocity			mVelocity = rotY * cAppearThrowUpSpd2;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	401	if	counter			mCameraFrames--;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	421	if	velocity			if (!MR::isNearZero(mVelocity) && MR::isInDeath(this, Vec3f(0.0f, 0.0f, 0.0f))) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	447	if	velocity			Vec3f newVel(mVelocity);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	453	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	456	if	nerve-step			if (MR::isGreaterStep(this, cShootLandSteps)) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	468	if	nerve-step			if (getNerveStep() == cShootSensorOnStep) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	478	if	velocity			mVelocity.set(newVel);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	491	if	velocity			mVelocity.set(0.0f);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	538	if	nerve-step			if (getNerveStep() < cGroundAppearStep) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	542	if	nerve-step			if (getNerveStep() == cGroundAppearStep) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	562	if	nerve-step			if (getNerveStep() >= cPreEscapeSteps) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	629	if	velocity			if (!(rWallNormal.dot(mVelocity) < 0.0f)) {
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	655	if	counter			mHideCounter--;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	660	if	counter			mFlashCounter--;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	692	if	velocity			mVelocity = mEscapeVelocity;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	693	if	velocity			mVelocity += mFallVelocity;
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	735	if	velocity			Vec3f front(mVelocity);
-Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	739	if	approach			MR::vecBlendSphere(mBlendFront, front, &front, 0.1f);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	34		frame-clock		timed	const f32 cSpdRotateY = FloatUtil::PI() / static_cast< f32 >(NebulaFrameClock::stepsOfSeconds(1));
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	39		frame-clock		timed	const s32 cShootSensorOnStep = NebulaFrameClock::stepsOfSeconds(1);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	40		frame-clock		timed	const s32 cGroundAppearStep = NebulaFrameClock::stepsOfSeconds(1);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	41		frame-clock		timed	const s32 cPreEscapeSteps = NebulaFrameClock::stepsOfMilliseconds(500);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	42		frame-clock		timed	const s16 cEscapeLifeSteps = NebulaFrameClock::stepsOfSeconds(10);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	359	if	velocity			mVelocity = rotY * cAppearThrowUpSpd;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	361	if	velocity			mVelocity = rotY * cAppearThrowUpSpd2;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	402	if	counter			mCameraFrames--;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	422	if	velocity			if (!MR::isNearZero(mVelocity) && MR::isInDeath(this, Vec3f(0.0f, 0.0f, 0.0f))) {
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	448	if	velocity			Vec3f newVel(mVelocity);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	454	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	457	if	nerve-step			if (MR::isGreaterStep(this, cShootLandSteps)) {
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	479	if	velocity			mVelocity.set(newVel);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	492	if	velocity			mVelocity.set(0.0f);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	539	if	nerve-step			if (getNerveStep() < cGroundAppearStep) {
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	563	if	nerve-step			if (getNerveStep() >= cPreEscapeSteps) {
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	630	if	velocity			if (!(rWallNormal.dot(mVelocity) < 0.0f)) {
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	656	if	counter			mHideCounter--;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	661	if	counter			mFlashCounter--;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	693	if	velocity			mVelocity = mEscapeVelocity;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	694	if	velocity			mVelocity += mFallVelocity;
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	736	if	velocity			Vec3f front(mVelocity);
+Game/MapObj	src/Game/MapObj/BenefitItemObj.cpp	740	if	approach			MR::vecBlendSphere(mBlendFront, front, &front, 0.1f);
 Game/MapObj	src/Game/MapObj/BigBubbleGenerator.cpp	122	if	random			BigBubble* pBubble = MR::generateBigBubble(this, pos, up, MR::getRandom(mMinSize, mMaxSize), isAttach, mIsObstruct, mShape, mLimitterID);
 Game/MapObj	src/Game/MapObj/BlackHole.cpp	213	if	nerve-rate		timed	f32 nerveEaseIn = MR::calcNerveEaseInValue(this, NebulaFrameClock::stepsOfMilliseconds(1500), mModelScale, 0.0f);
 Game/MapObj	src/Game/MapObj/BlackHole.cpp	213	if	frame-clock		timed	f32 nerveEaseIn = MR::calcNerveEaseInValue(this, NebulaFrameClock::stepsOfMilliseconds(1500), mModelScale, 0.0f);
@@ -3639,8 +3635,7 @@ Game/MapObj	src/Game/MapObj/Coin.cpp	609	if	velocity			MR::calcReboundVelocity(&
 Game/MapObj	src/Game/MapObj/Coin.cpp	616	if	velocity			f32 landSpeed = mVelocity.dot(-*MR::getGroundNormal(this));
 Game/MapObj	src/Game/MapObj/Coin.cpp	633	if	velocity			MR::calcReboundVelocity(&mVelocity, -mGravity, rebound, cReboundFriction);
 Game/MapObj	src/Game/MapObj/Coin.cpp	647	if	velocity			MR::attenuateVelocity(this, keep);
-Game/MapObj	src/Game/MapObj/CoinBox.cpp	43	if	nerve-step			if (getNerveStep() == 0xF) {
-Game/MapObj	src/Game/MapObj/CoinBox.cpp	50	if	velocity			MR::appearCoinToVelocity(this, mPosition, axis_y, 1);
+Game/MapObj	src/Game/MapObj/CoinBox.cpp	51	if	velocity			MR::appearCoinToVelocity(this, mPosition, axis_y, 1);
 Game/MapObj	src/Game/MapObj/CoinGroup.cpp	9		frame-clock		timed	static const s32 sAppearCameraTime = NebulaFrameClock::stepsOfMilliseconds(500);
 Game/MapObj	src/Game/MapObj/CoinGroup.cpp	11		frame-clock		timed	static const s32 sDemoAppearTime = NebulaFrameClock::stepsOfMilliseconds(1500);
 Game/MapObj	src/Game/MapObj/CoinGroup.cpp	121	if	nerve-step			if (MR::isStep(this, ::sAppearDelayTime)) {
@@ -3745,10 +3740,10 @@ Game/MapObj	src/Game/MapObj/FireBar.cpp	167	FireBar::exeWait	approach			MR::rota
 Game/MapObj	src/Game/MapObj/FireBar.cpp	231	if	approach			MR::rotateVecDegree(&start, up, 360.0f / mStickCount);
 Game/MapObj	src/Game/MapObj/FireBar.cpp	232	if	approach			MR::rotateVecDegree(&end, up, 360.0f / mStickCount);
 Game/MapObj	src/Game/MapObj/FireBar.cpp	276	if	approach			MR::rotateVecDegree(&scaled, up_vec, 360.0f / mStickCount);
-Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	52	FirePressureBullet::shotFireBullet	velocity			mVelocity.scale(mSpeed, mFront);
-Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	75	if	velocity			mVelocity.scale(mSpeed, mFront);
-Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	80	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
-Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	80	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	53	FirePressureBullet::shotFireBullet	velocity			mVelocity.scale(mSpeed, mFront);
+Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	76	if	velocity			mVelocity.scale(mSpeed, mFront);
+Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	81	if	nerve-step		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
+Game/MapObj	src/Game/MapObj/FirePressureBullet.cpp	81	if	frame-clock		timed	} else if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(5))) {
 Game/MapObj	src/Game/MapObj/FirePressureRadiate.cpp	24	FirePressureRadiate::FirePressureRadiate	frame-clock		timed	mWaitTime = NebulaFrameClock::stepsOfSeconds(5);
 Game/MapObj	src/Game/MapObj/FirePressureRadiate.cpp	25	FirePressureRadiate::FirePressureRadiate	frame-clock		timed	mShootTime = NebulaFrameClock::stepsOfSeconds(5);
 Game/MapObj	src/Game/MapObj/FirePressureRadiate.cpp	108	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
@@ -3855,21 +3850,21 @@ Game/MapObj	src/Game/MapObj/HipDropRock.cpp	123	HipDropRock::initBreakModel	rand
 Game/MapObj	src/Game/MapObj/HipDropSwitch.cpp	131	if	nerve-step			if (MR::isGreaterStep(this, ::sOnSomethingAcc) && MR::isBckStopped(this)) {
 Game/MapObj	src/Game/MapObj/HipDropSwitch.cpp	154	if	velocity			mSpringValue->mVelocity += -10.0f;
 Game/MapObj	src/Game/MapObj/HipDropSwitch.cpp	170	if	nerve-step			if (MR::isStep(this, ::sOnSomethingAcc)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	121	if	frame-clock		timed	s32 subSecond = mTimerMax % NebulaFrameClock::stepsOfSeconds(1);
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	125	if	frame-clock		timed	timeElapsed += NebulaFrameClock::stepsOfSeconds(1);
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	128	if	frame-clock		timed	if (timeElapsed < NebulaFrameClock::stepsOfSeconds(1)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	138	if	frame-clock		timed	if (timeElapsed % NebulaFrameClock::stepsOfSeconds(1) != 0) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	142	if	frame-clock		timed	if (timeElapsed < mTimerMax - NebulaFrameClock::stepsOfSeconds(10)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	145	if	frame-clock		timed	} else if (timeElapsed < mTimerMax - NebulaFrameClock::stepsOfSeconds(2)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	194	if	velocity			mSpring->mVelocity += -10.0f;
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	202	if	nerve-step			if (MR::isStep(this, 0)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	207	if	nerve-step			if (MR::isGreaterStep(this, 0) && MR::isBckStopped(this)) {
-Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	221	if	nerve-step			if (MR::isGreaterStep(this, mTimerMax)) {
-Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	22	HitWallTimerSwitch::HitWallTimerSwitch	frame-clock		timed	mTimer = NebulaFrameClock::stepsOfSeconds(5);
-Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	106	if	nerve-step			if (getNerveStep() > mTimer) {
-Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	113	if	frame-clock		timed	} else if (!(getNerveStep() % NebulaFrameClock::stepsOfSeconds(1))) {
-Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	114	if	nerve-step		timed	if (getNerveStep() < mTimer - NebulaFrameClock::stepsOfSeconds(2)) {
-Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	114	if	frame-clock		timed	if (getNerveStep() < mTimer - NebulaFrameClock::stepsOfSeconds(2)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	122	if	frame-clock		timed	s32 subSecond = mTimerMax % NebulaFrameClock::stepsOfSeconds(1);
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	126	if	frame-clock		timed	timeElapsed += NebulaFrameClock::stepsOfSeconds(1);
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	129	if	frame-clock		timed	if (timeElapsed < NebulaFrameClock::stepsOfSeconds(1)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	139	if	frame-clock		timed	if (timeElapsed % NebulaFrameClock::stepsOfSeconds(1) != 0) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	143	if	frame-clock		timed	if (timeElapsed < mTimerMax - NebulaFrameClock::stepsOfSeconds(10)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	146	if	frame-clock		timed	} else if (timeElapsed < mTimerMax - NebulaFrameClock::stepsOfSeconds(2)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	195	if	velocity			mSpring->mVelocity += -10.0f;
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	203	if	nerve-step			if (MR::isStep(this, 0)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	208	if	nerve-step			if (MR::isGreaterStep(this, 0) && MR::isBckStopped(this)) {
+Game/MapObj	src/Game/MapObj/HipDropTimerSwitch.cpp	222	if	nerve-step			if (MR::isGreaterStep(this, mTimerMax)) {
+Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	23	HitWallTimerSwitch::HitWallTimerSwitch	frame-clock		timed	mTimer = NebulaFrameClock::stepsOfSeconds(5);
+Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	107	if	nerve-step			if (getNerveStep() > mTimer) {
+Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	114	if	frame-clock		timed	} else if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
+Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	115	if	nerve-step		timed	if (getNerveStep() < mTimer - NebulaFrameClock::stepsOfSeconds(2)) {
+Game/MapObj	src/Game/MapObj/HitWallTimerSwitch.cpp	115	if	frame-clock		timed	if (getNerveStep() < mTimer - NebulaFrameClock::stepsOfSeconds(2)) {
 Game/MapObj	src/Game/MapObj/IceStep.cpp	47	if	counter			mTimer--;
 Game/MapObj	src/Game/MapObj/IceStep.cpp	107	if	frame-clock		timed	mTimer = NebulaFrameClock::stepsOfSeconds(20);
 Game/MapObj	src/Game/MapObj/IronCannonShell.cpp	10		frame-clock		timed	const s32 cDefaultShotInterval = NebulaFrameClock::stepsOfSeconds(5);
@@ -4080,35 +4075,33 @@ Game/MapObj	src/Game/MapObj/MiniatureGalaxy.cpp	636	if	nerve-step			if (MR::isSt
 Game/MapObj	src/Game/MapObj/MiniatureGalaxy.cpp	643	if	nerve-step			if (MR::isStep(this, ::cOpenDisappearStep)) {
 Game/MapObj	src/Game/MapObj/MiniatureGalaxy.cpp	663	if	nerve-step			if (MR::isLessStep(this, ::cOpenDisappearStep)) {
 Game/MapObj	src/Game/MapObj/MiniatureGalaxy.cpp	667	if	nerve-step			if (MR::isStep(this, ::cOpenTotalFrame)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	317	if	counter			mAppearFrames--;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	377	if	velocity			NebulaMtxRotAxisRad(rotMtx, mVelocity, mSpiralTime * (TWO_PI / ::cSpiralTurnFrames));
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	471	if	velocity			mVelocity = MR::getSensorPos(pReceiver) - MR::getSensorPos(pSender);
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	472	if	velocity			mVelocity.setLength(50.0f);
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	476	if	velocity			mVelocity += -mGravity * 30.0f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	539	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	623	if	velocity			if (MR::isBindedGround(this) && mVelocity.dot(mGravity) > 0.0f) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	624	if	velocity			if (mVelocity.length() < 2.0f) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	625	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	631	if	velocity			mVelocity = mVelocity * -0.5f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	633	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	636	if	counter			mBoundCount++;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	642	if	velocity			mVelocity += mGravity * 0.75f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	647	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	658	if	velocity			mVelocity = mGravity * -25.0f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	666	if	nerve-step		timed	if (MR::isBckStopped(mContainerBreakModel) && getNerveStep() > NebulaFrameClock::stepsOfMilliseconds(500)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	666	if	frame-clock		timed	if (MR::isBckStopped(mContainerBreakModel) && getNerveStep() > NebulaFrameClock::stepsOfMilliseconds(500)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	670	if	velocity			mVelocity += mGravity * 0.75f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	700	if	velocity			mVelocity = mGravity * -10.0f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	703	if	nerve-step		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(1)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	703	if	frame-clock		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(1)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	719	if	counter			if (mCameraMode != 0 && mAppearFrames != 0 && --mAppearFrames == 0) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	739	if	counter			mSpiralTime--;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	744	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	757	if	velocity			mVelocity.mult(0.999f);
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	757	if	decay			mVelocity.mult(0.999f);
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	761	if	velocity			mVelocity += mGravity * 0.2f;
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	763	if	nerve-step		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(5)) {
-Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	763	if	frame-clock		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(5)) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	318	if	counter			mAppearFrames--;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	378	if	velocity			NebulaMtxRotAxisRad(rotMtx, mVelocity, mSpiralTime * (TWO_PI / ::cSpiralTurnFrames));
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	472	if	velocity			mVelocity = MR::getSensorPos(pReceiver) - MR::getSensorPos(pSender);
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	473	if	velocity			mVelocity.setLength(50.0f);
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	477	if	velocity			mVelocity += -mGravity * 30.0f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	540	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	624	if	velocity			if (MR::isBindedGround(this) && mVelocity.dot(mGravity) > 0.0f) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	625	if	velocity			if (mVelocity.length() < 2.0f) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	626	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	632	if	velocity			mVelocity = mVelocity * -0.5f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	634	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	637	if	counter			mBoundCount++;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	643	if	velocity			mVelocity += mGravity * 0.75f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	648	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	659	if	velocity			mVelocity = mGravity * -25.0f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	667	if	nerve-step		timed	if (MR::isBckStopped(mContainerBreakModel) && getNerveStep() > NebulaFrameClock::stepsOfMilliseconds(500)) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	667	if	frame-clock		timed	if (MR::isBckStopped(mContainerBreakModel) && getNerveStep() > NebulaFrameClock::stepsOfMilliseconds(500)) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	671	if	velocity			mVelocity += mGravity * 0.75f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	701	if	velocity			mVelocity = mGravity * -10.0f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	704	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(1))) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	720	if	counter			if (mCameraMode != 0 && mAppearFrames != 0 && --mAppearFrames == 0) {
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	740	if	counter			mSpiralTime--;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	745	if	velocity			mVelocity.zero();
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	758	if	velocity			mVelocity.mult(0.999f);
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	758	if	decay			mVelocity.mult(0.999f);
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	762	if	velocity			mVelocity += mGravity * 0.2f;
+Game/MapObj	src/Game/MapObj/MorphItemObjNeo.cpp	764	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(5))) {
 Game/MapObj	src/Game/MapObj/Note.cpp	48	if	approach			MR::turnVecToPlane(&mRailDirection, mRailDirection, mGravity);
 Game/MapObj	src/Game/MapObj/Note.cpp	74	if	nerve-step			if (MR::isStep(this, mCounter)) {
 Game/MapObj	src/Game/MapObj/Note.cpp	84	if	velocity			mVelocity.set(mGravity);
@@ -4213,12 +4206,9 @@ Game/MapObj	src/Game/MapObj/PressureBase.cpp	192	if	nerve-step			} else if (MR::
 Game/MapObj	src/Game/MapObj/PressureBase.cpp	217	if	nerve-step			if (MR::isStep(this, ::sStepForChargeToShortShot)) {
 Game/MapObj	src/Game/MapObj/PressureBase.cpp	221	if	nerve-step			if (MR::isStep(this, ::sStepForChargeToShot)) {
 Game/MapObj	src/Game/MapObj/PrizeRing.cpp	89	if	nerve-step			if (MR::isStep(this, mLifeTime)) {
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	54	if	random			mShadowStep = MR::getRandom(0, 31);
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	117	if	counter			mShadowStep++;
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	121	if	counter			mFloorTouchTimer--;
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	146	if	nerve-step			if (getNerveStep() == 0) {
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	150	if	nerve-step			if (getNerveStep() == 5) {
-Game/MapObj	src/Game/MapObj/PunchBox.cpp	154	if	nerve-step			if (getNerveStep() == 15) {
+Game/MapObj	src/Game/MapObj/PunchBox.cpp	55	if	random			mShadowStep = MR::getRandom(0, 31);
+Game/MapObj	src/Game/MapObj/PunchBox.cpp	118	if	counter			mShadowStep++;
+Game/MapObj	src/Game/MapObj/PunchBox.cpp	122	if	counter			mFloorTouchTimer--;
 Game/MapObj	src/Game/MapObj/PunchingKinoko.cpp	132	if	velocity			MR::reboundVelocityFromCollision(mGroundChecker, 0.0f, 0.0f, 1.0f);
 Game/MapObj	src/Game/MapObj/PunchingKinoko.cpp	168	MR::sendMsgEnemyAttackFlipWeakJump	velocity			MR::separateScalarAndDirection(&speed, &dir, mGroundChecker->mVelocity);
 Game/MapObj	src/Game/MapObj/PunchingKinoko.cpp	201	if	velocity			f32 reflect = mGroundChecker->mVelocity.dot(toHead) * 1.6f;
@@ -4599,22 +4589,18 @@ Game/MapObj	src/Game/MapObj/SuperSpinDriver.cpp	772	if	nerve-step			if (MR::isLe
 Game/MapObj	src/Game/MapObj/SuperSpinDriver.cpp	776	if	nerve-step			if (MR::isStep(this, mFlyEndStep)) {
 Game/MapObj	src/Game/MapObj/SuperSpinDriver.cpp	782	if	nerve-step			if (MR::isStep(this, mFallStep)) {
 Game/MapObj	src/Game/MapObj/SuperSpinDriver.cpp	975	SuperSpinDriver::isNerveEnableBind	nerve-step			return isNerve(GET_NERVE(SuperSpinDriver, SuperSpinDriverNrvWait)) && MR::isGreaterStep(this, ::sCanBindTime);
-Game/MapObj	src/Game/MapObj/SwitchBox.cpp	62	if	counter			--mFloorTouchTimer;
-Game/MapObj	src/Game/MapObj/SwitchBox.cpp	78	if	nerve-step			if (getNerveStep() == 0) {
-Game/MapObj	src/Game/MapObj/SwitchBox.cpp	82	if	nerve-step			if (getNerveStep() == 5) {
-Game/MapObj	src/Game/MapObj/SwitchBox.cpp	86	if	nerve-step			if (getNerveStep() == 15) {
+Game/MapObj	src/Game/MapObj/SwitchBox.cpp	63	if	counter			--mFloorTouchTimer;
 Game/MapObj	src/Game/MapObj/TimeAppearObj.cpp	13		frame-clock		timed	const s32 sDefaultTimer = NebulaFrameClock::stepsOfMilliseconds(500);
 Game/MapObj	src/Game/MapObj/TimeAppearObj.cpp	37	if	nerve-step			if (MR::isStep(this, mTimer)) {
 Game/MapObj	src/Game/MapObj/TimerMoveWall.cpp	16		frame-clock		timed	const s32 sDefaultTimer = NebulaFrameClock::stepsOfSeconds(5);
 Game/MapObj	src/Game/MapObj/TimerMoveWall.cpp	58	if	velocity			mVelocity.scale(mTimer > 0 ? mMoveLength / mTimer : mMoveLength, frontVec);
 Game/MapObj	src/Game/MapObj/TimerMoveWall.cpp	64	if	nerve-step			if (MR::isStep(this, mTimer)) {
 Game/MapObj	src/Game/MapObj/TimerMoveWall.cpp	65	if	velocity			mVelocity.zero();
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	381	if	nerve-step			if (getNerveStep() > mCaptureFrames) {
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	412	if	decay			mDeformCoeff[vtx] *= 0.8f;
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	443	if	nerve-step		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(2)) {
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	443	if	frame-clock		timed	if (getNerveStep() == NebulaFrameClock::stepsOfSeconds(2)) {
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	493	if	velocity			mDeformRate = MR::getPlayerVelocity()->length();
-Game/MapObj	src/Game/MapObj/TrampleStar.cpp	512	if	velocity			if (MR::getPlayerVelocity()->dot(mVtxs[mCaptureVtx]) > 0.0f) {
+Game/MapObj	src/Game/MapObj/TrampleStar.cpp	382	if	nerve-step			if (getNerveStep() > mCaptureFrames) {
+Game/MapObj	src/Game/MapObj/TrampleStar.cpp	413	if	decay			mDeformCoeff[vtx] *= 0.8f;
+Game/MapObj	src/Game/MapObj/TrampleStar.cpp	444	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick(), NebulaFrameClock::stepsOfSeconds(2))) {
+Game/MapObj	src/Game/MapObj/TrampleStar.cpp	494	if	velocity			mDeformRate = MR::getPlayerVelocity()->length();
+Game/MapObj	src/Game/MapObj/TrampleStar.cpp	513	if	velocity			if (MR::getPlayerVelocity()->dot(mVtxs[mCaptureVtx]) > 0.0f) {
 Game/MapObj	src/Game/MapObj/TreasureBoxCracked.cpp	154	if	position-step			mItem->mPosition.add(mItemVelocity);
 Game/MapObj	src/Game/MapObj/TreasureBoxCracked.cpp	177	if	nerve-step			if (MR::isStep(this, ::sBoundTime)) {
 Game/MapObj	src/Game/MapObj/TreasureBoxCracked.cpp	186	if	nerve-step			if (mItemType == 0 && MR::isStep(this, mWaitForSwitchOn)) {
@@ -4667,9 +4653,7 @@ Game/MapObj	src/Game/MapObj/WaveFloatingForce.cpp	29	if	counter			mStep += stepS
 Game/MapObj	src/Game/MapObj/WaveFloatingForce.cpp	31	if	counter			mStep -= stepSize;
 Game/MapObj	src/Game/MapObj/WhirlPool.cpp	72	if	approach			f32 rate = MR::getEaseInValue(static_cast< f32 >(mPointCount - i) / mPointCount, 0.0f, 1.0f, 1.0f);
 Game/MapObj	src/Game/MapObj/WhirlPool.cpp	73	if	approach			rate = MR::getEaseInValue(rate, 0.0f, 1.0f, 1.0f);
-Game/MapObj	src/Game/MapObj/WoodBox.cpp	111	if	counter			mFloorTouchTimer--;
-Game/MapObj	src/Game/MapObj/WoodBox.cpp	220	if	nerve-step			if (LiveActor::getNerveStep() == 0) {
-Game/MapObj	src/Game/MapObj/WoodBox.cpp	228	if	nerve-step			if (LiveActor::getNerveStep() == 15) {
+Game/MapObj	src/Game/MapObj/WoodBox.cpp	112	if	counter			mFloorTouchTimer--;
 Game/NPC	src/Game/NPC/Butler.cpp	257	if	counter			mStarPieceHitCount++;
 Game/NPC	src/Game/NPC/Butler.cpp	383	if	counter			mReplaceStep++;
 Game/NPC	src/Game/NPC/Butler.cpp	385	if	frame-clock		timed	if (mReplaceStep != NebulaFrameClock::stepsOfSeconds(2)) {
@@ -4677,20 +4661,20 @@ Game/NPC	src/Game/NPC/Butler.cpp	454	if	nerve-step			if (MR::isStep(this, 1)) {
 Game/NPC	src/Game/NPC/Butler.cpp	473	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
 Game/NPC	src/Game/NPC/Butler.cpp	473	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
 Game/NPC	src/Game/NPC/Butler.cpp	477	if	nerve-step			if (MR::isStep(this, 70)) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	13		frame-clock		timed	static const s32 sTidyTimeLimit = NebulaFrameClock::stepsOfSeconds(30);
-Game/NPC	src/Game/NPC/CareTaker.cpp	118	if	frame-clock		timed	mBombTimerLayout->setTimeLimit(NebulaFrameClock::stepsOfSeconds(mTidyTimeLimit));
-Game/NPC	src/Game/NPC/CareTaker.cpp	274	if	frame-clock		timed	} else if (restTime <= NebulaFrameClock::stepsOfSeconds(2)) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	275	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	278	if	frame-clock		timed	} else if (restTime <= NebulaFrameClock::stepsOfSeconds(6)) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	279	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	283	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	370	if	frame-clock		timed	mBombTimerLayout->setTimeLimit(NebulaFrameClock::stepsOfSeconds(mTidyTimeLimit));
-Game/NPC	src/Game/NPC/CareTaker.cpp	394	if	nerve-step			if (MR::isGreaterStep(this, ::sPreRaceWait)) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	400	if	frame-clock		timed	if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == 0) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	404	if	nerve-step			if (MR::isStep(this, ::sBgmStartStep)) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	408	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(3))) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	408	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(3))) {
-Game/NPC	src/Game/NPC/CareTaker.cpp	497	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sPstRaceWait)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	14		frame-clock		timed	static const s32 sTidyTimeLimit = NebulaFrameClock::stepsOfSeconds(30);
+Game/NPC	src/Game/NPC/CareTaker.cpp	119	if	frame-clock		timed	mBombTimerLayout->setTimeLimit(NebulaFrameClock::stepsOfSeconds(mTidyTimeLimit));
+Game/NPC	src/Game/NPC/CareTaker.cpp	275	if	frame-clock		timed	} else if (restTime <= NebulaFrameClock::stepsOfSeconds(2)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	276	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	279	if	frame-clock		timed	} else if (restTime <= NebulaFrameClock::stepsOfSeconds(6)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	280	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	284	if	frame-clock		timed	if (restTime % NebulaFrameClock::stepsOfSeconds(1) == 0) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	371	if	frame-clock		timed	mBombTimerLayout->setTimeLimit(NebulaFrameClock::stepsOfSeconds(mTidyTimeLimit));
+Game/NPC	src/Game/NPC/CareTaker.cpp	395	if	nerve-step			if (MR::isGreaterStep(this, ::sPreRaceWait)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	401	if	frame-clock		timed	if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	405	if	nerve-step			if (MR::isStep(this, ::sBgmStartStep)) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	409	if	nerve-step		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(3))) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	409	if	frame-clock		timed	if (MR::isGreaterEqualStep(this, NebulaFrameClock::stepsOfSeconds(3))) {
+Game/NPC	src/Game/NPC/CareTaker.cpp	498	if	nerve-step			if (MR::isGreaterEqualStep(this, ::sPstRaceWait)) {
 Game/NPC	src/Game/NPC/CollectTico.cpp	103	if	nerve-step			if (MR::isStep(this, 10)) {
 Game/NPC	src/Game/NPC/CollectTico.cpp	109	if	nerve-step		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
 Game/NPC	src/Game/NPC/CollectTico.cpp	109	if	frame-clock		timed	if (MR::isStep(this, NebulaFrameClock::stepsOfSeconds(1))) {
@@ -4877,13 +4861,13 @@ Game/NPC	src/Game/NPC/StrayTico.cpp	324	if	approach			MR::rotateVecDegree(&mPosi
 Game/NPC	src/Game/NPC/StrayTico.cpp	326	if	nerve-rate			MR::repeatDegree(mDemoAngle +MR::calcNerveEaseInValue(this, ::sCompleteRotateStartTime, ::sCompleteDemoTime, 0.0f, 900.0f)));
 Game/NPC	src/Game/NPC/StrayTico.cpp	327	if	position-step			mPosition.add(mDemoCenter);
 Game/NPC	src/Game/NPC/StrayTico.cpp	353	if	nerve-step			if (isNerve(GET_NERVE(StrayTico, StrayTicoNrvCompleteDemo)) && MR::isGreaterStep(this, ::sCompleteDemoTime)) {
-Game/NPC	src/Game/NPC/Syati.cpp	157	if	nerve-step			if (MR::isStep(this, 0x1E)) {
-Game/NPC	src/Game/NPC/Syati.cpp	167	PlayerPoseSetterInWater::update	counter			mStep++;
-Game/NPC	src/Game/NPC/Syati.cpp	326	if	nerve-step			if (MR::isGreaterStep(this, 1) && MR::isStageStatePowerStarAppeared()) {
-Game/NPC	src/Game/NPC/Syati.cpp	528	if	approach			MR::vecBlend(mRailDirBlend, directionOnPlane, &mRailDirBlend, 0.04f);
-Game/NPC	src/Game/NPC/Syati.cpp	567	if	counter			mPrizeRingCount++;
-Game/NPC	src/Game/NPC/Syati.cpp	589	Syati::updateBlink	counter			mBlinkTimer--;
-Game/NPC	src/Game/NPC/Syati.cpp	594	if	random			u32 rand = MR::getRandom(0x78, 0xF0);
+Game/NPC	src/Game/NPC/Syati.cpp	158	if	nerve-step			if (MR::isStep(this, 0x1E)) {
+Game/NPC	src/Game/NPC/Syati.cpp	168	PlayerPoseSetterInWater::update	counter			mStep++;
+Game/NPC	src/Game/NPC/Syati.cpp	327	if	nerve-step			if (MR::isGreaterStep(this, 1) && MR::isStageStatePowerStarAppeared()) {
+Game/NPC	src/Game/NPC/Syati.cpp	529	if	approach			MR::vecBlend(mRailDirBlend, directionOnPlane, &mRailDirBlend, 0.04f);
+Game/NPC	src/Game/NPC/Syati.cpp	568	if	counter			mPrizeRingCount++;
+Game/NPC	src/Game/NPC/Syati.cpp	590	Syati::updateBlink	counter			mBlinkTimer--;
+Game/NPC	src/Game/NPC/Syati.cpp	595	if	random			u32 rand = MR::getRandom(0x78, 0xF0);
 Game/NPC	src/Game/NPC/TalkBalloon.cpp	117	if	decay			halfMax *= 0.5f;
 Game/NPC	src/Game/NPC/TalkBalloon.cpp	335	if	nerve-step			if (MR::isStep(this, mInterval)) {
 Game/NPC	src/Game/NPC/TalkBalloon.cpp	337	if	nerve-step			} else if (MR::isGreaterStep(this, mInterval + 30)) {
@@ -5055,24 +5039,17 @@ Game/Player	src/Game/Player/FireMarioBall.cpp	147	if	velocity			mVelocity += -*v
 Game/Player	src/Game/Player/FireMarioBall.cpp	152	if	velocity			mVelocity += -*v2 * MR::vecKillElement(mVelocity, *v2, &mVelocity) * ::cBoundReduction;
 Game/Player	src/Game/Player/FireMarioBall.cpp	156	if	velocity			mVelocity += grav * ::cGravityAcc;
 Game/Player	src/Game/Player/FireMarioBall.cpp	158	if	nerve-step			if (!tryToKill() && getNerveStep() >= 300) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	177	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/GhostPlayer.cpp	251	while	counter			mFrame += receiveGhostFrame();
-Game/Player	src/Game/Player/GhostPlayer.cpp	300	if	nerve-step			if (getNerveStep() == 1) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	314	if	nerve-step			if (getNerveStep() == 60) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	319	if	nerve-step			if (getNerveStep() == 107) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	322	if	nerve-step			if (getNerveStep() == 111) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	325	if	nerve-step			if (getNerveStep() == 146) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	328	if	nerve-step			if (getNerveStep() == 240) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	339	if	nerve-step			if (getNerveStep() < 60) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	355	if	nerve-step			if (getNerveStep() == 240) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	403	if	approach			if (MR::vecBlendSphere(frontVec, normalizedFrontVec, &frontVec, 0.1f) == false) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	467	if	nerve-step			if (MR::isStep(this, 180)) {
-Game/Player	src/Game/Player/GhostPlayer.cpp	481	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/GhostPlayer.cpp	628	if	velocity			rawVel.x = rFrame.mVelocity[0];
-Game/Player	src/Game/Player/GhostPlayer.cpp	629	if	velocity			rawVel.y = rFrame.mVelocity[1];
-Game/Player	src/Game/Player/GhostPlayer.cpp	630	if	velocity			rawVel.z = rFrame.mVelocity[2];
-Game/Player	src/Game/Player/GhostPlayer.cpp	631	if	velocity			MR::convToFloat(rawVel, 0, &mVelocity);
-Game/Player	src/Game/Player/GhostPlayer.cpp	723	if	anim-rate			MR::getBckCtrl(this)->setFrame(animFrame);
+Game/Player	src/Game/Player/GhostPlayer.cpp	178	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/GhostPlayer.cpp	252	while	counter			mFrame += receiveGhostFrame();
+Game/Player	src/Game/Player/GhostPlayer.cpp	340	if	nerve-step			if (getNerveStep() < 60) {
+Game/Player	src/Game/Player/GhostPlayer.cpp	404	if	approach			if (MR::vecBlendSphere(frontVec, normalizedFrontVec, &frontVec, 0.1f) == false) {
+Game/Player	src/Game/Player/GhostPlayer.cpp	468	if	nerve-step			if (MR::isStep(this, 180)) {
+Game/Player	src/Game/Player/GhostPlayer.cpp	482	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/GhostPlayer.cpp	629	if	velocity			rawVel.x = rFrame.mVelocity[0];
+Game/Player	src/Game/Player/GhostPlayer.cpp	630	if	velocity			rawVel.y = rFrame.mVelocity[1];
+Game/Player	src/Game/Player/GhostPlayer.cpp	631	if	velocity			rawVel.z = rFrame.mVelocity[2];
+Game/Player	src/Game/Player/GhostPlayer.cpp	632	if	velocity			MR::convToFloat(rawVel, 0, &mVelocity);
+Game/Player	src/Game/Player/GhostPlayer.cpp	724	if	anim-rate			MR::getBckCtrl(this)->setFrame(animFrame);
 Game/Player	src/Game/Player/MarineSnow.cpp	35	MarineSnow::MarineSnow	random			f32 z = MR::getRandom() * mCellSize;
 Game/Player	src/Game/Player/MarineSnow.cpp	36	MarineSnow::MarineSnow	random			f32 y = MR::getRandom() * mCellSize;
 Game/Player	src/Game/Player/MarineSnow.cpp	37	MarineSnow::MarineSnow	random			f32 x = MR::getRandom() * mCellSize;
@@ -5183,10 +5160,8 @@ Game/Player	src/Game/Player/MarioActor.cpp	2623	if	literal-60			f32 height = bin
 Game/Player	src/Game/Player/MarioActor.cpp	2635	if	literal-60			f32 height = binderRadius * 100.0f / 60.0f;
 Game/Player	src/Game/Player/MarioActor.cpp	2678	if	velocity			mVelocity.zero();
 Game/Player	src/Game/Player/MarioActor.cpp	2701	if	anim-rate			mMarioAnim->setSpeed(0.0f);
-Game/Player	src/Game/Player/MarioActorBlackHole.cpp	69	if	nerve-step			if (getNerveStep() == 60) {
-Game/Player	src/Game/Player/MarioActorBlackHole.cpp	77	if	nerve-step			if (getNerveStep() == mConst->getTable()->mBlackHoleHideTime) {
-Game/Player	src/Game/Player/MarioActorBlackHole.cpp	103	if	approach			MR::vecBlendSphere(mBlackHoleRotateAxis, -mCamDirZ, &mBlackHoleRotateAxis, 0.01f);
-Game/Player	src/Game/Player/MarioActorBlackHole.cpp	126	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/MarioActorBlackHole.cpp	104	if	approach			MR::vecBlendSphere(mBlackHoleRotateAxis, -mCamDirZ, &mBlackHoleRotateAxis, 0.01f);
+Game/Player	src/Game/Player/MarioActorBlackHole.cpp	127	if	velocity			mVelocity.zero();
 Game/Player	src/Game/Player/MarioActorCamera.cpp	119	if	counter			mCameraLiftTimer++;
 Game/Player	src/Game/Player/MarioActorCamera.cpp	122	if	counter			mCameraLiftTimer--;
 Game/Player	src/Game/Player/MarioActorCamera.cpp	139	if	counter			mCameraUpTimer--;
@@ -5197,17 +5172,12 @@ Game/Player	src/Game/Player/MarioActorEye.cpp	87	if	random			mBlinkTimer = MR::g
 Game/Player	src/Game/Player/MarioActorEye.cpp	92	if	counter			mBlinkFrame--;
 Game/Player	src/Game/Player/MarioActorEye.cpp	94	if	random			mBlinkTimer = MR::getRandom(60, 360);
 Game/Player	src/Game/Player/MarioActorEye.cpp	99	if	counter			mBlinkTimer--;
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	39	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	166	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	170	if	nerve-step			if (getNerveStep() == 32) {
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	219	if	velocity			mVelocity = getLastMove() * 0.99f + mCamDirZ * 35.0f * 0.01f;
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	220	if	velocity			mLastMove = mVelocity;
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	249	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	253	if	nerve-step			if (getNerveStep() == 120) {
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	280	if	velocity			mVelocity.zero();
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	284	if	nerve-step			if (getNerveStep() == 120) {
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	317	if	nerve-step			if (getNerveStep() == 90) {
-Game/Player	src/Game/Player/MarioActorGameOver.cpp	323	if	nerve-step			if (getNerveStep() == 90) {
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	40	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	167	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	220	if	velocity			mVelocity = getLastMove() * 0.99f + mCamDirZ * 35.0f * 0.01f;
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	221	if	velocity			mLastMove = mVelocity;
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	250	if	velocity			mVelocity.zero();
+Game/Player	src/Game/Player/MarioActorGameOver.cpp	281	if	velocity			mVelocity.zero();
 Game/Player	src/Game/Player/MarioActorGravity.cpp	109	if	approach			MR::vecBlendSphere(mGravityVec, rVec, &rVec, 0.1f);
 Game/Player	src/Game/Player/MarioActorGravity.cpp	114	if	approach			MR::vecBlendSphere(mGravityVec, rVec, &rVec, 0.3f);
 Game/Player	src/Game/Player/MarioActorGravity.cpp	201	if	decay			mMario->mJumpVec.mult(0.5f);
@@ -5798,9 +5768,9 @@ Game/Player	src/Game/Player/MarioWarp.cpp	357	if	counter			mEnterTimer--;
 Game/Player	src/Game/Player/MarioWarp.cpp	446	if	counter			mTimer--;
 Game/Player	src/Game/Player/PlayerEvent.cpp	39	if	counter			mSequenceFrame++;
 Game/Player	src/Game/Player/PlayerEvent.cpp	142	if	counter			mFrameInPhase++;
-Game/Render	src/Game/Render/Clip.cpp	337	FrameCtrl::update	counter			mFrame += mRate;
-Game/Render	src/Game/Render/Clip.cpp	375	if	counter			mFrame += mLoop - mStart;
-Game/Render	src/Game/Render/Clip.cpp	384	if	counter			mFrame -= mEnd - mLoop;
+Game/Render	src/Game/Render/Clip.cpp	339	FrameCtrl::update	counter			mFrame += NebulaTick::perTick(mRate);
+Game/Render	src/Game/Render/Clip.cpp	377	if	counter			mFrame += mLoop - mStart;
+Game/Render	src/Game/Render/Clip.cpp	386	if	counter			mFrame -= mEnd - mLoop;
 Game/Render	src/Game/Render/FrameList.cpp	92	switch	approach			k1 = 0.5f * (1.0f - refBrightness) / (refBrightness * refDistance);
 Game/Render	src/Game/Render/FrameList.cpp	93	switch	approach			k2 = 0.5f * (1.0f - refBrightness) / (refBrightness * refDistance * refDistance);
 Game/Render	src/Game/Render/FrameList.cpp	197	if	counter			return mData[mCount++];
@@ -6160,16 +6130,14 @@ Game/Ride	src/Game/Ride/Trapeze.cpp	625	if	velocity			mStickPoint->mVelocity.zer
 Game/Ride	src/Game/Ride/Trapeze.cpp	653	if	nerve-step			if (MR::isGreaterStep(this, ::sStepSlideToRumble)) {
 Game/Scene	src/Game/Scene/GameSceneScenarioOpeningCameraState.cpp	80	if	nerve-step			if (MR::isStep(this, MR::getStartAnimCameraFrame() - 60)) {
 Game/Scene	src/Game/Scene/GameSceneScenarioOpeningCameraState.cpp	85	if	nerve-step			if (MR::isStep(this, MR::getStartAnimCameraFrame() - 20)) {
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	147	setBtpFrameAndStop	anim-rate			pActor->getModelManager()->getBtpCtrl()->setFrame(frame);
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	148	setBtpFrameAndStop	anim-rate			pActor->getModelManager()->getBtpCtrl()->setRate(0.0f);
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	152	setBvaFrameAndStop	anim-rate			pActor->getModelManager()->getBvaCtrl()->setFrame(frame);
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	153	setBvaFrameAndStop	anim-rate			pActor->getModelManager()->getBvaCtrl()->setRate(0.0f);
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	161	isStep	nerve-step			return pActor->getNerveStep() == step;
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	165	isFirstStep	nerve-step			return pActor->getNerveStep() == 0;
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	169	isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	173	isLessStep	nerve-step			return pActor->getNerveStep() < step;
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	177	isLessEqualStep	nerve-step			return pActor->getNerveStep() <= step;
-Game/Scene	src/Game/Scene/MultiSceneActor.cpp	201	calcNerveEaseOutRate	approach			return MR::getEaseOutValue(calcNerveRate(pActor, stepMax), 0.0f, 1.0f, 1.0f);
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	152	setBtpFrameAndStop	anim-rate			pActor->getModelManager()->getBtpCtrl()->setFrame(frame);
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	153	setBtpFrameAndStop	anim-rate			pActor->getModelManager()->getBtpCtrl()->setRate(0.0f);
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	157	setBvaFrameAndStop	anim-rate			pActor->getModelManager()->getBvaCtrl()->setFrame(frame);
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	158	setBvaFrameAndStop	anim-rate			pActor->getModelManager()->getBvaCtrl()->setRate(0.0f);
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	174	isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	178	isLessStep	nerve-step			return pActor->getNerveStep() < step;
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	182	isLessEqualStep	nerve-step			return pActor->getNerveStep() <= step;
+Game/Scene	src/Game/Scene/MultiSceneActor.cpp	206	calcNerveEaseOutRate	approach			return MR::getEaseOutValue(calcNerveRate(pActor, stepMax), 0.0f, 1.0f, 1.0f);
 Game/Scene	src/Game/Scene/PlacementInfoOrdered.cpp	203	PlacementInfoOrdered::createIndex	counter			mIndexCount++;
 Game/Scene	src/Game/Scene/StageDataHolder.cpp	668	if	counter			mStageDataHolderCount++;
 Game/Scene	src/Game/Scene/StopSceneController.cpp	19	if	counter			rRequest.mDelay--;
@@ -6182,9 +6150,8 @@ Game/Screen	src/Game/Screen/BatteryInfo.cpp	135	if	nerve-step			if (MR::isGreate
 Game/Screen	src/Game/Screen/BombTimerLayout.cpp	63	if	counter			mFrame++;
 Game/Screen	src/Game/Screen/BombTimerLayout.cpp	89	BombTimerLayout::updateTextBox	frame-clock			MR::setTextBoxNumberRecursive(this, "Counter", (getRestTime() + NebulaFrameClock::cStepsPerSecond - 1) / NebulaFrameClock::cStepsPerSecond);
 Game/Screen	src/Game/Screen/ButtonPaneController.cpp	101	ButtonPaneController::isTimingForSelectedSe	nerve-step			return isNerve(GET_NERVE(ButtonPaneController, ButtonPaneControllerNrvDecided)) && MR::isStep(this, 1);
-Game/Screen	src/Game/Screen/CameraInfo.cpp	11		frame-clock		timed	static const s32 sLifeTime = NebulaFrameClock::stepsOfSeconds(2);
-Game/Screen	src/Game/Screen/CameraInfo.cpp	224	if	nerve-step			if (isTriggerAnyDir || getNerveStep() == 0) {
-Game/Screen	src/Game/Screen/CameraInfo.cpp	234	if	counter			mStep++;
+Game/Screen	src/Game/Screen/CameraInfo.cpp	12		frame-clock		timed	static const s32 sLifeTime = NebulaFrameClock::stepsOfSeconds(2);
+Game/Screen	src/Game/Screen/CameraInfo.cpp	235	if	counter			mStep++;
 Game/Screen	src/Game/Screen/CenterScreenBlur.cpp	58	CenterScreenBlur::exeFadeIn	nerve-rate			mBlendRate = MR::calcNerveRate(this, mFadeIn);
 Game/Screen	src/Game/Screen/CenterScreenBlur.cpp	68	if	nerve-step			if (MR::isGreaterEqualStep(this, mTime - (mFadeIn + mFadeOut))) {
 Game/Screen	src/Game/Screen/CenterScreenBlur.cpp	74	CenterScreenBlur::exeFadeOut	nerve-rate			mBlendRate = 1.0f - MR::calcNerveRate(this, mFadeOut);
@@ -6252,7 +6219,6 @@ Game/Screen	src/Game/Screen/MoviePlayingSequence.cpp	299	if	nerve-step			if (MR:
 Game/Screen	src/Game/Screen/MoviePlayingSequence.cpp	319	if	nerve-step			if (MR::isStep(this, 3)) {
 Game/Screen	src/Game/Screen/MoviePlayingSequence.cpp	419	if	nerve-step			if (MR::isStep(this, mInfo->mEndWaitTime)) {
 Game/Screen	src/Game/Screen/MovieStream.cpp	162	if	counter			mSoundFrame++;
-Game/Screen	src/Game/Screen/MovieStream.cpp	172	if	frame-clock			mSilentPosition += static_cast< f64 >(mHeader.mFrameRate) / NebulaFrameClock::cStepsPerSecond;
 Game/Screen	src/Game/Screen/MovieStream.cpp	190	if	counter			mFrame++;
 Game/Screen	src/Game/Screen/MovieSubtitles.cpp	47	if	nerve-step			if (MR::isStep(this, mAppearTime)) {
 Game/Screen	src/Game/Screen/NebulaAchievementBoard.cpp	693	place	approach			const f32 barWidth = clamp((right - left) * 0.22f, 90.0f, 220.0f);
@@ -6330,18 +6296,18 @@ Game/Screen	src/Game/Screen/ProloguePictureBook.cpp	75	if	anim-rate			animCtrl->
 Game/Screen	src/Game/Screen/ProloguePictureBook.cpp	85	if	anim-rate			animCtrl->setRate(0.0f);
 Game/Screen	src/Game/Screen/ProloguePictureBook.cpp	93	if	anim-rate			animCtrl->setRate(1.0f);
 Game/Screen	src/Game/Screen/PurpleCoinCounter.cpp	73	if	counter			mInvalidCountUpFrame--;
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	34		frame-clock		timed	const s32 cSelectedAccelStartStep = NebulaFrameClock::stepsOfSeconds(1);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	40		frame-clock		timed	const s32 cSelectedEndAnimStartStep = NebulaFrameClock::stepsOfSeconds(1);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	41		frame-clock		timed	const s32 cSelectedFadeOutStartStep = NebulaFrameClock::stepsOfSeconds(3);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	288	if	nerve-step		timed	return MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(3500));
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	288	if	frame-clock		timed	return MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(3500));
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	306	ScenarioSelectLayout::isEndAnimStartStep	nerve-step			return isNerve(GET_NERVE(ScenarioSelectLayout, ScenarioSelectLayoutNrvAfterScenarioSelected)) && MR::isStep(this, ::cSelectedEndAnimStartStep);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	345	ScenarioSelectLayout::updateScenarioText	nerve-step			MR::isGreaterEqualStep(this, ::cSelectedEndAnimStartStep);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	813	ScenarioSelectLayout::exeAfterScenarioSelected	nerve-rate			f32 rate = MR::calcNerveEaseInValue(this, ::cSelectedAccelStartStep, ::cSelectedAccelFrame, ::cSelectedEffectRateMin, ::cSelectedEffectRateMax);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	815	ScenarioSelectLayout::exeAfterScenarioSelected	nerve-rate			MR::calcNerveEaseInValue(this, ::cSelectedAccelStartStep, ::cSelectedAccelFrame, ::cSelectedEffectSpeedMin, ::cSelectedEffectSpeedMax);
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	820	if	nerve-step			if (MR::isStep(this, ::cSelectedFadeOutStartStep)) {
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	865	if	nerve-step			if (MR::isStep(this, ::cCometWarningWaitFrame)) {
-Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	878	if	nerve-step			if (MR::isGreaterStep(this, ::cCometWarningWaitFrame)) {
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	35		frame-clock		timed	const s32 cSelectedAccelStartStep = NebulaFrameClock::stepsOfSeconds(1);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	41		frame-clock		timed	const s32 cSelectedEndAnimStartStep = NebulaFrameClock::stepsOfSeconds(1);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	42		frame-clock		timed	const s32 cSelectedFadeOutStartStep = NebulaFrameClock::stepsOfSeconds(3);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	289	if	nerve-step		timed	return MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(3500));
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	289	if	frame-clock		timed	return MR::isGreaterStep(this, NebulaFrameClock::stepsOfMilliseconds(3500));
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	307	ScenarioSelectLayout::isEndAnimStartStep	nerve-step			return isNerve(GET_NERVE(ScenarioSelectLayout, ScenarioSelectLayoutNrvAfterScenarioSelected)) && MR::isStep(this, ::cSelectedEndAnimStartStep);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	346	ScenarioSelectLayout::updateScenarioText	nerve-step			MR::isGreaterEqualStep(this, ::cSelectedEndAnimStartStep);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	814	ScenarioSelectLayout::exeAfterScenarioSelected	nerve-rate			f32 rate = MR::calcNerveEaseInValue(this, ::cSelectedAccelStartStep, ::cSelectedAccelFrame, ::cSelectedEffectRateMin, ::cSelectedEffectRateMax);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	816	ScenarioSelectLayout::exeAfterScenarioSelected	nerve-rate			MR::calcNerveEaseInValue(this, ::cSelectedAccelStartStep, ::cSelectedAccelFrame, ::cSelectedEffectSpeedMin, ::cSelectedEffectSpeedMax);
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	821	if	nerve-step			if (MR::isStep(this, ::cSelectedFadeOutStartStep)) {
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	866	if	nerve-step			if (MR::isStep(this, ::cCometWarningWaitFrame)) {
+Game/Screen	src/Game/Screen/ScenarioSelectLayout.cpp	879	if	nerve-step			if (MR::isGreaterStep(this, ::cCometWarningWaitFrame)) {
 Game/Screen	src/Game/Screen/StaffRoll.cpp	94	if	frame-clock		timed	static const s32 sStepForTitleLogoAppear = NebulaFrameClock::stepsOfSeconds(1);
 Game/Screen	src/Game/Screen/StaffRoll.cpp	182	if	nerve-step			if (MR::isStep(this, pPictureTiming->mAppearStep)) {
 Game/Screen	src/Game/Screen/StaffRoll.cpp	354	if	nerve-step			if (MR::isGreaterStep(this, ::sStepForTitleLogoAppear)) {
@@ -6398,7 +6364,7 @@ Game/Screen	src/Game/Screen/TimeLimitLayout.cpp	250	if	frame-clock		timed	if (ti
 Game/Screen	src/Game/Screen/TimeLimitLayout.cpp	253	if	frame-clock		timed	} else if (timeLeft <= NebulaFrameClock::stepsOfSeconds(10)) {
 Game/Screen	src/Game/Screen/TimeLimitLayout.cpp	254	if	frame-clock		timed	if (timeLeft % NebulaFrameClock::stepsOfSeconds(1) == 0) {
 Game/Screen	src/Game/Screen/TimeLimitLayout.cpp	259	if	frame-clock		timed	if (mTimeLimit - mTime == NebulaFrameClock::stepsOfSeconds(10)) {
-Game/Screen	src/Game/Screen/TitleSequenceProduct.cpp	215	if	nerve-step			if (MR::isStep(this, ::sPressABAppearFrame)) {
+Game/Screen	src/Game/Screen/TitleSequenceProduct.cpp	221	if	nerve-step			if (MR::isStep(this, ::sPressABAppearFrame)) {
 Game/Screen	src/Game/Screen/WaterCameraFilter.cpp	116	if	approach			Color8 color(MR::lerp(::sDefaultColor, ::sWaterColor, depth / 3000.0f));
 Game/Screen	src/Game/Screen/WipeFade.cpp	22	WipeFade::control	counter			mStep++;
 Game/Screen	src/Game/Screen/WipeHolderBase.cpp	72	if	counter			mWipeLayoutCount++;
@@ -6476,60 +6442,61 @@ Game/System	src/Game/System/NebulaAchievements.cpp	498	if	frame-clock		timed	if 
 Game/System	src/Game/System/NebulaAchievements.cpp	505	if	frame-clock		timed	if (++sUpdateFrames < NebulaFrameClock::stepsOfSeconds(1)) {
 Game/System	src/Game/System/NebulaCalendar.cpp	36	if	literal-60			date.mMinute = static_cast< int32_t >(secondOfDay / 60 % 60);
 Game/System	src/Game/System/NebulaCutsceneSkip.cpp	48		frame-clock		timed	const s32 cStallSteps = NebulaFrameClock::stepsOfSeconds(10);
+Game/System	src/Game/System/NebulaFrameClock.cpp	66	ticksPerSecond	frame-clock	central		return cStepsPerSecond * tickMultiplier();
 Game/System	src/Game/System/NebulaMods.cpp	99	if	counter			mItems[mCount++] = rItem;
 Game/System	src/Game/System/NebulaMods.cpp	616	if	frame-clock		timed	return NebulaFrameClock::stepsOfSeconds(rLimit.mSeconds);
 Game/System	src/Game/System/PauseButtonCheckerInGame.cpp	13	if	counter			mPlusHoldFrame++;
 Game/System	src/Game/System/PauseButtonCheckerInGame.cpp	20	if	counter			mMinusHoldFrame++;
 Game/System	src/Game/System/ResourceInfo.cpp	27	ResTable::add	counter			mCount++;
 Game/System	src/Game/System/SaveDataHandleSequence.cpp	534	if	nerve-step			if (MR::isGreaterStep(this, 20)) {
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	653	if	velocity	central		pActor->mVelocity.add(accel);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	678	if	velocity	central		f32 along = dir.dot(pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	684	if	velocity	central		pActor->mVelocity.add(dir * (limit - along));
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	699	if	velocity	central		pActor->mVelocity.scaleAdd(-speed, *getGroundNormal(pActor), pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	717	if	velocity	central		pActor->mVelocity.add(normal * speed);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	801	attenuateVelocity	velocity	central		pActor->mVelocity.scale(friction);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	806	attenuateVelocityExceptDirection	velocity	central		across.killElement(pActor->mVelocity, rDir);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	808	attenuateVelocityExceptDirection	velocity	central		f32 along = rDir.dot(pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	809	attenuateVelocityExceptDirection	velocity	central		pActor->mVelocity.scale(along, rDir);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	810	attenuateVelocityExceptDirection	velocity	central		pActor->mVelocity.add(across);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	814	if	velocity	central		if (pActor->mVelocity.squared() > speed * speed) {
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	815	if	velocity	central		pActor->mVelocity.setLength(speed);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	822	if	velocity	central		pActor->mVelocity.scale(pNormal->dot(pActor->mVelocity), *pNormal);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	829	if	velocity	central		pActor->mVelocity.scale(pNormal->dot(pActor->mVelocity), *pNormal);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	837	if	velocity	central		if (pActor->mVelocity.dot(toTarget) > 0.0f) {
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	838	if	velocity	central		pActor->mVelocity.killElement(pActor->mVelocity, toTarget);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	877	if	velocity	central		f32 into = normal.dot(pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	879	if	velocity	central		pActor->mVelocity.sub(normal * into * (1.0f + rebound));
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	884	if	velocity	central		pActor->mVelocity.sub(normal * into);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	902	if	velocity	central		f32 into = normal.dot(pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	904	if	velocity	central		pActor->mVelocity.sub(normal * into);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	905	if	velocity	central		pActor->mVelocity.scale(keepRate);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	906	if	velocity	central		pActor->mVelocity.sub(normal * into * rebound);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	911	if	velocity	central		pActor->mVelocity.sub(normal * into);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	918	zeroVelocity	velocity	central		pActor->mVelocity.zero();
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	922	setVelocity	velocity	central		pActor->mVelocity.set(rVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	926	addVelocity	velocity	central		pActor->mVelocity.add(rVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	930	scaleVelocity	velocity	central		pActor->mVelocity.scale(scale);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	934	calcVelocityLength	velocity	central		return pActor->mVelocity.length();
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	938	calcGravitySpeed	velocity	central		return pActor->mVelocity.dot(pActor->mGravity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	946	if	velocity	central		pActor->mVelocity.add(pActor->mGravity * gravity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	949	if	velocity	central		horizontal.killElement(pActor->mVelocity, pActor->mGravity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	950	if	velocity	central		f32 along = pActor->mGravity.dot(pActor->mVelocity);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	962	if	velocity	central		pActor->mVelocity.set(horizontal + vertical);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	965	if	velocity	central		horizontal.killElement(pActor->mVelocity, normal);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	967	if	velocity	central		pActor->mVelocity.scale(normal.dot(pActor->mVelocity), normal);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	973	setVelocityJumpAwayFromPlayer	velocity	central		Vec3f* pVelocity = &pActor->mVelocity;
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	983	if	velocity	central		if (pActor->mVelocity.dot(toReceiver) < 0.0f) {
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	984	if	velocity	central		pActor->mVelocity.killElement(pActor->mVelocity, toReceiver);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	996	if	velocity	central		if (speed < pActor->mVelocity.dot(-pActor->mGravity)) {
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1008	addVelocityFromPushHorizon	velocity	central		pActor->mVelocity.add(push);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1030	reflectVelocityH	velocity	central		f32 push = (1.0f + rebound) * pActor->mVelocity.dot(normal);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1035	if	velocity	central		pActor->mVelocity.sub(normal * push);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1173	moveAndTurnToDirection	velocity	central		pActor->mVelocity.add(move);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1174	moveAndTurnToDirection	velocity	central		pActor->mVelocity.scale(rParam.mDamp);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1192	flyAndTurnAlongRailSearchingPlayer	velocity	central		pActor->mVelocity.add(*pFront * rParam.mMoveSpeed);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1193	flyAndTurnAlongRailSearchingPlayer	velocity	central		pActor->mVelocity.scale(rParam.mDamp);
-Game/Util	src/Game/Util/ActorMovementUtil.cpp	1219	if	approach	central		MR::vecBlend(up, targetUp, &blendUp, 0.1f);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	660	if	velocity	central		pActor->mVelocity.add(accel);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	685	if	velocity	central		f32 along = dir.dot(pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	691	if	velocity	central		pActor->mVelocity.add(dir * (limit - along));
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	707	if	velocity	central		pActor->mVelocity.scaleAdd(-NebulaTick::perTick(speed), *getGroundNormal(pActor), pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	725	if	velocity	central		pActor->mVelocity.add(normal * NebulaTick::perTick(speed));
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	810	attenuateVelocity	velocity	central		pActor->mVelocity.scale(NebulaTick::decayPerTick(friction));
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	815	attenuateVelocityExceptDirection	velocity	central		across.killElement(pActor->mVelocity, rDir);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	817	attenuateVelocityExceptDirection	velocity	central		f32 along = rDir.dot(pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	818	attenuateVelocityExceptDirection	velocity	central		pActor->mVelocity.scale(along, rDir);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	819	attenuateVelocityExceptDirection	velocity	central		pActor->mVelocity.add(across);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	823	if	velocity	central		if (pActor->mVelocity.squared() > speed * speed) {
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	824	if	velocity	central		pActor->mVelocity.setLength(speed);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	831	if	velocity	central		pActor->mVelocity.scale(pNormal->dot(pActor->mVelocity), *pNormal);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	838	if	velocity	central		pActor->mVelocity.scale(pNormal->dot(pActor->mVelocity), *pNormal);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	846	if	velocity	central		if (pActor->mVelocity.dot(toTarget) > 0.0f) {
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	847	if	velocity	central		pActor->mVelocity.killElement(pActor->mVelocity, toTarget);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	886	if	velocity	central		f32 into = normal.dot(pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	888	if	velocity	central		pActor->mVelocity.sub(normal * into * (1.0f + rebound));
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	893	if	velocity	central		pActor->mVelocity.sub(normal * into);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	911	if	velocity	central		f32 into = normal.dot(pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	913	if	velocity	central		pActor->mVelocity.sub(normal * into);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	914	if	velocity	central		pActor->mVelocity.scale(keepRate);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	915	if	velocity	central		pActor->mVelocity.sub(normal * into * rebound);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	920	if	velocity	central		pActor->mVelocity.sub(normal * into);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	927	zeroVelocity	velocity	central		pActor->mVelocity.zero();
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	931	setVelocity	velocity	central		pActor->mVelocity.set(rVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	935	addVelocity	velocity	central		pActor->mVelocity.add(rVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	939	scaleVelocity	velocity	central		pActor->mVelocity.scale(scale);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	943	calcVelocityLength	velocity	central		return pActor->mVelocity.length();
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	947	calcGravitySpeed	velocity	central		return pActor->mVelocity.dot(pActor->mGravity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	955	if	velocity	central		pActor->mVelocity.add(pActor->mGravity * gravity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	958	if	velocity	central		horizontal.killElement(pActor->mVelocity, pActor->mGravity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	959	if	velocity	central		f32 along = pActor->mGravity.dot(pActor->mVelocity);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	971	if	velocity	central		pActor->mVelocity.set(horizontal + vertical);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	974	if	velocity	central		horizontal.killElement(pActor->mVelocity, normal);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	976	if	velocity	central		pActor->mVelocity.scale(normal.dot(pActor->mVelocity), normal);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	982	setVelocityJumpAwayFromPlayer	velocity	central		Vec3f* pVelocity = &pActor->mVelocity;
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	992	if	velocity	central		if (pActor->mVelocity.dot(toReceiver) < 0.0f) {
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	993	if	velocity	central		pActor->mVelocity.killElement(pActor->mVelocity, toReceiver);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1005	if	velocity	central		if (speed < pActor->mVelocity.dot(-pActor->mGravity)) {
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1017	addVelocityFromPushHorizon	velocity	central		pActor->mVelocity.add(push);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1039	reflectVelocityH	velocity	central		f32 push = (1.0f + rebound) * pActor->mVelocity.dot(normal);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1044	if	velocity	central		pActor->mVelocity.sub(normal * push);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1182	moveAndTurnToDirection	velocity	central		pActor->mVelocity.add(move);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1183	moveAndTurnToDirection	velocity	central		pActor->mVelocity.scale(rParam.mDamp);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1201	flyAndTurnAlongRailSearchingPlayer	velocity	central		pActor->mVelocity.add(*pFront * rParam.mMoveSpeed);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1202	flyAndTurnAlongRailSearchingPlayer	velocity	central		pActor->mVelocity.scale(rParam.mDamp);
+Game/Util	src/Game/Util/ActorMovementUtil.cpp	1228	if	approach	central		MR::vecBlend(up, targetUp, &blendUp, 0.1f);
 Game/Util	src/Game/Util/ActorSensorUtil.cpp	476	sendMsgEnemyAttackMsgToDir	position-step			pSender->mPosition.sub(pReceiver->mPosition, rDir);
 Game/Util	src/Game/Util/ActorShadowUtil.cpp	439	if	approach			*pRadius = projectionPos.distance(pActor->mPosition) * 0.5f + radius;
 Game/Util	src/Game/Util/AreaObjUtil.cpp	115	if	decay			theta *= 0.5f;
@@ -6539,82 +6506,78 @@ Game/Util	src/Game/Util/FootPrint.cpp	71	if	counter			mPrints[i].mTimeLeft--;
 Game/Util	src/Game/Util/FootPrint.cpp	91	if	counter			mPrints[rotatedIndex].mTimeLeft--;
 Game/Util	src/Game/Util/FurMulti.cpp	186	FurBank::regist	counter			mCount++;
 Game/Util	src/Game/Util/JointRumbler.cpp	33	if	counter			mDelayLeft--;
-Game/Util	src/Game/Util/LayoutUtil.cpp	40	initFrameCtrlReverse	anim-rate			pFrameCtrl->setRate(-pFrameCtrl->mRate);
-Game/Util	src/Game/Util/LayoutUtil.cpp	41	initFrameCtrlReverse	anim-rate			pFrameCtrl->setFrame(pFrameCtrl->mEnd);
-Game/Util	src/Game/Util/LayoutUtil.cpp	503	MR::setAnimFrameAndStop	anim-rate			pFrameCtrl->setFrame(animFrame);
-Game/Util	src/Game/Util/LayoutUtil.cpp	504	MR::setAnimFrameAndStop	anim-rate			pFrameCtrl->setRate(0.0f);
-Game/Util	src/Game/Util/LayoutUtil.cpp	536	MR::setPaneAnimFrameAndStop	anim-rate			pFrameCtrl->setFrame(animFrame);
-Game/Util	src/Game/Util/LayoutUtil.cpp	537	MR::setPaneAnimFrameAndStop	anim-rate			pFrameCtrl->setRate(0.0f);
-Game/Util	src/Game/Util/LayoutUtil.cpp	545	MR::setAnimFrame	anim-rate			getAnimCtrl(pActor, animLayer)->setFrame(animFrame);
-Game/Util	src/Game/Util/LayoutUtil.cpp	549	MR::setPaneAnimFrame	anim-rate			getPaneAnimCtrl(pActor, pPaneName, animLayer)->setFrame(animFrame);
-Game/Util	src/Game/Util/LayoutUtil.cpp	553	MR::setAnimRate	anim-rate			getAnimCtrl(pActor, animLayer)->setRate(animRate);
-Game/Util	src/Game/Util/LayoutUtil.cpp	557	MR::setPaneAnimRate	anim-rate			getPaneAnimCtrl(pActor, pPaneName, animLayer)->setRate(animRate);
-Game/Util	src/Game/Util/LayoutUtil.cpp	577	MR::getAnimFrame	anim-rate			return getAnimCtrl(pActor, animLayer)->getFrame();
-Game/Util	src/Game/Util/LayoutUtil.cpp	581	MR::getPaneAnimFrame	anim-rate			return getPaneAnimCtrl(pActor, pPaneName, animLayer)->getFrame();
-Game/Util	src/Game/Util/LayoutUtil.cpp	637	if	anim-rate			pEmitter->setRate(rate, -1);
-Game/Util	src/Game/Util/LayoutUtil.cpp	693	MR::isStep	nerve-step			bool MR::isStep(const LayoutActor* pActor, s32 step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	694	MR::isStep	nerve-step			return pActor->getNerveStep() == step;
-Game/Util	src/Game/Util/LayoutUtil.cpp	701	MR::isLessStep	nerve-step			bool MR::isLessStep(const LayoutActor* pActor, s32 step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	702	if	nerve-step			if (!isNewNerve(pActor) && pActor->getNerveStep() < step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	709	MR::isGreaterStep	nerve-step			bool MR::isGreaterStep(const LayoutActor* pActor, s32 step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	710	MR::isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
-Game/Util	src/Game/Util/LayoutUtil.cpp	713	MR::isGreaterEqualStep	nerve-step			bool MR::isGreaterEqualStep(const LayoutActor* pActor, s32 step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	714	MR::isGreaterEqualStep	nerve-step			return pActor->getNerveStep() >= step;
-Game/Util	src/Game/Util/LayoutUtil.cpp	717	MR::isIntervalStep	nerve-step			bool MR::isIntervalStep(const LayoutActor* pActor, s32 step) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	722	MR::isNewNerve	nerve-step			return pActor->getNerveStep() < 0;
-Game/Util	src/Game/Util/LayoutUtil.cpp	725	MR::calcNerveRate	nerve-rate			f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMax) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	729	MR::calcNerveRate	nerve-rate			f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMin, s32 stepMax) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	733	MR::calcNerveEaseInRate	nerve-rate			f32 MR::calcNerveEaseInRate(const LayoutActor* pActor, s32 stepMax) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	737	MR::calcNerveEaseInValue	nerve-rate			f32 MR::calcNerveEaseInValue(const LayoutActor* pActor, s32 stepMin, s32 stepMax, f32 valueMin, f32 valueMax) {
-Game/Util	src/Game/Util/LayoutUtil.cpp	742	if	nerve-step			if (pActor->getNerveStep() == step) {
-Game/Util	src/Game/Util/LiveActorUtil.cpp	358	if	velocity			return !(0.0f < pActor->mVelocity.dot(*normal));
-Game/Util	src/Game/Util/LiveActorUtil.cpp	993	if	anim-rate			getBckCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	997	if	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1001	if	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1005	if	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1009	if	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1013	if	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1278	setBckFrameAtRandom	random			s32 randomFrame = getBckCtrl(pActor)->getEnd() * MR::getRandom();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1284	setBtkFrameAtRandom	random			s32 randomFrame = getBtkCtrl(pActor)->getEnd() * MR::getRandom();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1290	setBckFrameAndStop	anim-rate			getBckCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1291	setBckFrameAndStop	anim-rate			getBckCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1295	setBtkFrameAndStop	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1296	setBtkFrameAndStop	anim-rate			getBtkCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1300	setBrkFrameAndStop	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1301	setBrkFrameAndStop	anim-rate			getBrkCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1305	setBtpFrameAndStop	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1306	setBtpFrameAndStop	anim-rate			getBtpCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1310	setBpkFrameAndStop	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1311	setBpkFrameAndStop	anim-rate			getBpkCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1315	setBvaFrameAndStop	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1316	setBvaFrameAndStop	anim-rate			getBvaCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1320	setBrkFrameEndAndStop	anim-rate			getBrkCtrl(pActor)->setFrame(getBrkCtrl(pActor)->getEnd());
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1321	setBrkFrameEndAndStop	anim-rate			getBrkCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1508	stopBck	anim-rate			getBckCtrl(pActor)->setRate(0.0f);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1530	setBckRate	anim-rate			pCtrl->setRate(rate * scale);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1536	setBtkRate	anim-rate			pCtrl->setRate(rate * scale);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1542	setBrkRate	anim-rate			pCtrl->setRate(rate * scale);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1548	setBvaRate	anim-rate			pCtrl->setRate(rate * scale);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1552	setBckFrame	anim-rate			getBckCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1556	setBtkFrame	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1560	setBrkFrame	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1564	setBtpFrame	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1568	setBpkFrame	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1572	setBvaFrame	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1648	getBckFrame	anim-rate			return getBckCtrl(pActor)->getFrame();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1652	getBrkFrame	anim-rate			return getBrkCtrl(pActor)->getFrame();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1656	getBtpFrame	anim-rate			return getBtpCtrl(pActor)->getFrame();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1660	getBvaFrame	anim-rate			return getBvaCtrl(pActor)->getFrame();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1664	getBckRate	anim-rate			return getBckCtrl(pActor)->getRate();
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1745	isStep	nerve-step			return pActor->getNerveStep() == step;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1753	isLessStep	nerve-step			return pActor->getNerveStep() < step;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1757	isLessEqualStep	nerve-step			return pActor->getNerveStep() <= step;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1761	isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1765	isGreaterEqualStep	nerve-step			return pActor->getNerveStep() >= step;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1773	isNewNerve	nerve-step			return pActor->getNerveStep() < 0;
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1833	if	nerve-step			if (pActor->getNerveStep() == step) {
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1921	if	velocity			f32 dot = pActor->mVelocity.dot(*getGroundNormal(pActor));
-Game/Util	src/Game/Util/LiveActorUtil.cpp	1935	if	velocity			f32 dot = pActor->mVelocity.dot(*getWallNormal(pActor));
+Game/Util	src/Game/Util/LayoutUtil.cpp	41	initFrameCtrlReverse	anim-rate			pFrameCtrl->setRate(-pFrameCtrl->mRate);
+Game/Util	src/Game/Util/LayoutUtil.cpp	42	initFrameCtrlReverse	anim-rate			pFrameCtrl->setFrame(pFrameCtrl->mEnd);
+Game/Util	src/Game/Util/LayoutUtil.cpp	504	MR::setAnimFrameAndStop	anim-rate			pFrameCtrl->setFrame(animFrame);
+Game/Util	src/Game/Util/LayoutUtil.cpp	505	MR::setAnimFrameAndStop	anim-rate			pFrameCtrl->setRate(0.0f);
+Game/Util	src/Game/Util/LayoutUtil.cpp	537	MR::setPaneAnimFrameAndStop	anim-rate			pFrameCtrl->setFrame(animFrame);
+Game/Util	src/Game/Util/LayoutUtil.cpp	538	MR::setPaneAnimFrameAndStop	anim-rate			pFrameCtrl->setRate(0.0f);
+Game/Util	src/Game/Util/LayoutUtil.cpp	546	MR::setAnimFrame	anim-rate			getAnimCtrl(pActor, animLayer)->setFrame(animFrame);
+Game/Util	src/Game/Util/LayoutUtil.cpp	550	MR::setPaneAnimFrame	anim-rate			getPaneAnimCtrl(pActor, pPaneName, animLayer)->setFrame(animFrame);
+Game/Util	src/Game/Util/LayoutUtil.cpp	554	MR::setAnimRate	anim-rate			getAnimCtrl(pActor, animLayer)->setRate(animRate);
+Game/Util	src/Game/Util/LayoutUtil.cpp	558	MR::setPaneAnimRate	anim-rate			getPaneAnimCtrl(pActor, pPaneName, animLayer)->setRate(animRate);
+Game/Util	src/Game/Util/LayoutUtil.cpp	578	MR::getAnimFrame	anim-rate			return getAnimCtrl(pActor, animLayer)->getFrame();
+Game/Util	src/Game/Util/LayoutUtil.cpp	582	MR::getPaneAnimFrame	anim-rate			return getPaneAnimCtrl(pActor, pPaneName, animLayer)->getFrame();
+Game/Util	src/Game/Util/LayoutUtil.cpp	638	if	anim-rate			pEmitter->setRate(rate, -1);
+Game/Util	src/Game/Util/LayoutUtil.cpp	694	MR::isStep	nerve-step			bool MR::isStep(const LayoutActor* pActor, s32 step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	702	MR::isLessStep	nerve-step			bool MR::isLessStep(const LayoutActor* pActor, s32 step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	703	if	nerve-step			if (!isNewNerve(pActor) && pActor->getNerveStep() < step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	710	MR::isGreaterStep	nerve-step			bool MR::isGreaterStep(const LayoutActor* pActor, s32 step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	711	MR::isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
+Game/Util	src/Game/Util/LayoutUtil.cpp	714	MR::isGreaterEqualStep	nerve-step			bool MR::isGreaterEqualStep(const LayoutActor* pActor, s32 step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	715	MR::isGreaterEqualStep	nerve-step			return pActor->getNerveStep() >= step;
+Game/Util	src/Game/Util/LayoutUtil.cpp	718	MR::isIntervalStep	nerve-step			bool MR::isIntervalStep(const LayoutActor* pActor, s32 step) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	723	MR::isNewNerve	nerve-step			return pActor->getNerveStep() < 0;
+Game/Util	src/Game/Util/LayoutUtil.cpp	726	MR::calcNerveRate	nerve-rate			f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMax) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	730	MR::calcNerveRate	nerve-rate			f32 MR::calcNerveRate(const LayoutActor* pActor, s32 stepMin, s32 stepMax) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	734	MR::calcNerveEaseInRate	nerve-rate			f32 MR::calcNerveEaseInRate(const LayoutActor* pActor, s32 stepMax) {
+Game/Util	src/Game/Util/LayoutUtil.cpp	738	MR::calcNerveEaseInValue	nerve-rate			f32 MR::calcNerveEaseInValue(const LayoutActor* pActor, s32 stepMin, s32 stepMax, f32 valueMin, f32 valueMax) {
+Game/Util	src/Game/Util/LiveActorUtil.cpp	359	if	velocity			return !(0.0f < pActor->mVelocity.dot(*normal));
+Game/Util	src/Game/Util/LiveActorUtil.cpp	994	if	anim-rate			getBckCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	998	if	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1002	if	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1006	if	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1010	if	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1014	if	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1279	setBckFrameAtRandom	random			s32 randomFrame = getBckCtrl(pActor)->getEnd() * MR::getRandom();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1285	setBtkFrameAtRandom	random			s32 randomFrame = getBtkCtrl(pActor)->getEnd() * MR::getRandom();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1291	setBckFrameAndStop	anim-rate			getBckCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1292	setBckFrameAndStop	anim-rate			getBckCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1296	setBtkFrameAndStop	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1297	setBtkFrameAndStop	anim-rate			getBtkCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1301	setBrkFrameAndStop	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1302	setBrkFrameAndStop	anim-rate			getBrkCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1306	setBtpFrameAndStop	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1307	setBtpFrameAndStop	anim-rate			getBtpCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1311	setBpkFrameAndStop	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1312	setBpkFrameAndStop	anim-rate			getBpkCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1316	setBvaFrameAndStop	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1317	setBvaFrameAndStop	anim-rate			getBvaCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1321	setBrkFrameEndAndStop	anim-rate			getBrkCtrl(pActor)->setFrame(getBrkCtrl(pActor)->getEnd());
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1322	setBrkFrameEndAndStop	anim-rate			getBrkCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1509	stopBck	anim-rate			getBckCtrl(pActor)->setRate(0.0f);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1531	setBckRate	anim-rate			pCtrl->setRate(rate * scale);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1537	setBtkRate	anim-rate			pCtrl->setRate(rate * scale);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1543	setBrkRate	anim-rate			pCtrl->setRate(rate * scale);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1549	setBvaRate	anim-rate			pCtrl->setRate(rate * scale);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1553	setBckFrame	anim-rate			getBckCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1557	setBtkFrame	anim-rate			getBtkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1561	setBrkFrame	anim-rate			getBrkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1565	setBtpFrame	anim-rate			getBtpCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1569	setBpkFrame	anim-rate			getBpkCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1573	setBvaFrame	anim-rate			getBvaCtrl(pActor)->setFrame(frame);
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1649	getBckFrame	anim-rate			return getBckCtrl(pActor)->getFrame();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1653	getBrkFrame	anim-rate			return getBrkCtrl(pActor)->getFrame();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1657	getBtpFrame	anim-rate			return getBtpCtrl(pActor)->getFrame();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1661	getBvaFrame	anim-rate			return getBvaCtrl(pActor)->getFrame();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1665	getBckRate	anim-rate			return getBckCtrl(pActor)->getRate();
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1754	isLessStep	nerve-step			return pActor->getNerveStep() < step;
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1758	isLessEqualStep	nerve-step			return pActor->getNerveStep() <= step;
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1762	isGreaterStep	nerve-step			return pActor->getNerveStep() > step;
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1766	isGreaterEqualStep	nerve-step			return pActor->getNerveStep() >= step;
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1774	isNewNerve	nerve-step			return pActor->getNerveStep() < 0;
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1922	if	velocity			f32 dot = pActor->mVelocity.dot(*getGroundNormal(pActor));
+Game/Util	src/Game/Util/LiveActorUtil.cpp	1936	if	velocity			f32 dot = pActor->mVelocity.dot(*getWallNormal(pActor));
 Game/Util	src/Game/Util/MapUtil.cpp	328	isFallNextMove	velocity			return isFallNextMove(pActor->mPosition, pActor->mVelocity, pActor->mGravity, forwardDistance, upperDistance, lowerDistance, pTriangleFilter);
 Game/Util	src/Game/Util/ModelUtil.cpp	91	isBckPlaying	anim-rate			return pAnimePlayer != nullptr && !pAnimePlayer->isTerminate() && pAnimePlayer->isRun(pBckName) && pAnimePlayer->getRate() != 0.0f;
 Game/Util	src/Game/Util/MultiEventCamera.cpp	62	if	counter			mFrame++;
@@ -6622,13 +6585,11 @@ Game/Util	src/Game/Util/NPCUtil.cpp	613	calcAndSetFloatBaseMtx	position-step			p
 Game/Util	src/Game/Util/NPCUtil.cpp	671	if	nerve-step			if (MR::isGreaterStep(this, mAppearSeStep)) {
 Game/Util	src/Game/Util/NPCUtil.cpp	778	if	nerve-step		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
 Game/Util	src/Game/Util/NPCUtil.cpp	778	if	frame-clock		timed	if (MR::isLessStep(this, NebulaFrameClock::stepsOfMilliseconds(500))) {
-Game/Util	src/Game/Util/NerveUtil.cpp	7	isStep	nerve-step	central		return pExecutor->getNerveStep() == step;
-Game/Util	src/Game/Util/NerveUtil.cpp	15	isLessStep	nerve-step	central		return pExecutor->getNerveStep() < step;
-Game/Util	src/Game/Util/NerveUtil.cpp	19	isLessEqualStep	nerve-step	central		return pExecutor->getNerveStep() <= step;
-Game/Util	src/Game/Util/NerveUtil.cpp	23	isGreaterStep	nerve-step	central		return pExecutor->getNerveStep() > step;
-Game/Util	src/Game/Util/NerveUtil.cpp	27	isGreaterEqualStep	nerve-step	central		return pExecutor->getNerveStep() >= step;
-Game/Util	src/Game/Util/NerveUtil.cpp	35	isNewNerve	nerve-step	central		return pExecutor->getNerveStep() < 0;
-Game/Util	src/Game/Util/NerveUtil.cpp	65	if	nerve-step	central		if (pExecutor->getNerveStep() == step) {
+Game/Util	src/Game/Util/NerveUtil.cpp	16	isLessStep	nerve-step	central		return pExecutor->getNerveStep() < step;
+Game/Util	src/Game/Util/NerveUtil.cpp	20	isLessEqualStep	nerve-step	central		return pExecutor->getNerveStep() <= step;
+Game/Util	src/Game/Util/NerveUtil.cpp	24	isGreaterStep	nerve-step	central		return pExecutor->getNerveStep() > step;
+Game/Util	src/Game/Util/NerveUtil.cpp	28	isGreaterEqualStep	nerve-step	central		return pExecutor->getNerveStep() >= step;
+Game/Util	src/Game/Util/NerveUtil.cpp	36	isNewNerve	nerve-step	central		return pExecutor->getNerveStep() < 0;
 Game/Util	src/Game/Util/ObjUtil.cpp	732	MR::appearCoinToVelocity	velocity			void MR::appearCoinToVelocity(const NameObj* pObj, const Vec3f& rPosition, const Vec3f& rVelocity, s32 count) {
 Game/Util	src/Game/Util/RailUtil.cpp	503	setRailCoordSpeed	anim-rate			pActor->mRailRider->setSpeed(MR::abs(speed));
 Game/Util	src/Game/Util/RailUtil.cpp	513	if	anim-rate			pActor->mRailRider->setSpeed(speed);

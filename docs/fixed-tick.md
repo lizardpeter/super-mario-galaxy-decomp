@@ -42,13 +42,16 @@ steps. Nebula's audit measured 38-42 ms from input to display with VSync on, 30-
 
 ## How each kind of code converts
 
-`tools/tick/inventory.py` finds the sites (`analysis/tick/summary.md`): 6,643 lines in 787 files, 1,120 of them already
-written in seconds (Nebula's `stepsOfSeconds`), which convert by themselves.
+`tools/tick/inventory.py` finds the sites (`analysis/tick/summary.md`): 6,643 lines in 787 files. About 1,120 are
+written with Nebula's `stepsOfSeconds`/`stepsOfMilliseconds`: those give 60 Hz steps (authored units, rule 3), so they
+convert where they are compared (a nerve's `isStep` through `NerveUtil.cpp` centrally, a hand-kept counter at its
+site), never in the helper itself: scaling both would count twice. They stay `constexpr` (many are namespace-scope
+constants, fixed before the game knows k).
 
 | Kind | Per 60 Hz step today | Per tick (k ticks per 60 Hz step) |
 |---|---|---|
 | Nerve timers (`MR::isStep(this, n)`, `isGreaterStep`, `calcNerveRate`...) | the nerve's step count vs n | the count counts ticks; n is compared as n x k, in `NerveUtil.cpp` for every caller. Code reading `getNerveStep()` as a number divides by k |
-| Durations in seconds (`stepsOfSeconds`) | seconds x 60 | seconds x T (NebulaFrameClock's steps per second becomes T) |
+| Durations in seconds (`stepsOfSeconds`) | seconds x 60 | unchanged (60 Hz steps); converted where compared, as the rows above and below |
 | Position from velocity (`LiveActor::movement`) | p += v | p += v / k |
 | Acceleration, gravity, impulses added to a velocity | v += a | v += a / k (an impulse, a one-off change, stays whole) |
 | Decay, friction (`v *= 0.9`) | x f | x f^(1/k), worked out once per value |
@@ -86,3 +89,15 @@ additions), is recorded in `records/bugs.tsv` (`precision`, `limit`) with what i
 6. Sound timing that counts steps (the mixer itself already runs on its own real-time clock).
 7. Rendering: interpolation between ticks (on/off), the per-frame camera, present modes and the GPU wait.
 8. Later: the speculative step, if measurement says the remaining tick of delay matters.
+
+## Status
+
+| Part | State |
+|---|---|
+| Tick rate setting | `config.ini tick_rate` (60, 120, 240, 480), read once at start: `galaxy/game_step.h` (`game_steps_per_second()`, `game_step_ns()`), every former 60-a-second constant in the host and renderer reads it; the game gets k in `NebulaHostServices.tick_multiplier` (`NebulaFrameClock::tickMultiplier()`). Default 60 |
+| Nerve timers | `Spine` counts ticks; `getNerveStep()` is the authored step (ticks / k, rounded down), `getNerveTick()` the count. `isStep`, `isIntervalStep`, `setNerveAtStep`, `calcNerveRate` and the eased values compare ticks with steps x k (`Game/System/NebulaTick.hpp`) in all four families (NerveExecutor, LiveActor, LayoutActor, MultiSceneActor) and `MapPartsFunction`; the 60 sites that tested `getNerveStep() == n` or `% n == m` themselves test the tick |
+| Position from velocity | `LiveActor::updateBinder`: a tick moves velocity / k |
+| Steering, gravity, friction | `ActorMovementUtil.cpp`: the accelerations added every step (`addVelocityToGravity`, the move-to/away/clockwise/keep-height helpers, the collision normal) add / k; `attenuateVelocity` and `attenuateVelocityExceptDirection` apply f^(1/k). Impulses (`addVelocityJump`, `setVelocity*`, pushes) stay whole |
+| Animation | `FrameCtrl::update` (models, skeletal animation, layouts): frame += rate / k |
+| Catch-up | not yet: a late wake-up still skips ticks (the host's frame wait), so a machine too slow for T plays slower; an accumulator that runs the due ticks without drawing comes with the rendering step (7) |
+| Everything else | runs k times too fast at k > 1: Mario's own physics, hand-kept counters, the camera, effects, sound timing (order above) |

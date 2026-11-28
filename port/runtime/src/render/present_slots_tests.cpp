@@ -147,7 +147,7 @@ void check_rate(double hz, unsigned slot_vsyncs) {
         if (r.uneven != r.uneven_hitch) fail("a picture shown unevenly away from a hitch");
         if (load != Load::Spikes && r.uneven != 0u) fail("a picture shown unevenly under a load the GPU keeps up with");
         if (load != Load::Spikes && r.changes_late != 0u) fail("the depth still changing after 30 s");
-        if (r.depth_most > 4 * galaxy::kGameStepNs + vsync) fail("a depth over four frames");
+        if (r.depth_most > 4 * galaxy::game_step_ns() + vsync) fail("a depth over four frames");
         if (load == Load::Steady) {
             // As low as the GPU's work allows: a calm stretch steps down while each picture is ready a present period
             // and 2 ms before the latch.
@@ -162,7 +162,7 @@ void check_rate(double hz, unsigned slot_vsyncs) {
 // The game's own frames on a display whose rate is a multiple of 60: each a frame period after the one before.
 void check_frames(double hz) {
     const std::int64_t vsync = std::llround(1e9 / hz);
-    const std::int64_t period = galaxy::kGameStepNs / vsync * vsync;
+    const std::int64_t period = galaxy::game_step_ns() / vsync * vsync;
     PresentSlots slots;
     std::int64_t last = 0;
     unsigned uneven = 0;

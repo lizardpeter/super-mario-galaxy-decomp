@@ -1,4 +1,5 @@
 #include "Game/Util/Color.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Util/LiveActorUtil.hpp"
 #include "Game/Animation/BckCtrl.hpp"
 #include "Game/Animation/XanimeCore.hpp"
@@ -1742,7 +1743,7 @@ namespace MR {
     }
 
     bool isStep(const LiveActor* pActor, s32 step) {
-        return pActor->getNerveStep() == step;
+        return NebulaTick::isStep(pActor->getNerveTick(), step);
     }
 
     bool isFirstStep(const LiveActor* pActor) {
@@ -1766,7 +1767,7 @@ namespace MR {
     }
 
     bool isIntervalStep(const LiveActor* pActor, s32 step) {
-        return (step != 0 ? pActor->getNerveStep() % step : pActor->getNerveStep()) == 0;
+        return NebulaTick::isIntervalStep(pActor->getNerveTick(), step);
     }
 
     bool isNewNerve(const LiveActor* pActor) {
@@ -1774,11 +1775,11 @@ namespace MR {
     }
 
     f32 calcNerveRate(const LiveActor* pActor, s32 stepMax) {
-        return stepMax <= 0 ? 1.0f : clamp(static_cast< f32 >(pActor->getNerveStep()) / stepMax, 0.0f, 1.0f);
+        return stepMax <= 0 ? 1.0f : clamp(NebulaTick::rateOfSteps(pActor->getNerveTick(), stepMax), 0.0f, 1.0f);
     }
 
     f32 calcNerveRate(const LiveActor* pActor, s32 stepMin, s32 stepMax) {
-        return clamp(normalize(pActor->getNerveStep(), stepMin, stepMax), 0.0f, 1.0f);
+        return clamp(normalize(pActor->getNerveTick(), NebulaTick::ticksOfSteps(stepMin), NebulaTick::ticksOfSteps(stepMax)), 0.0f, 1.0f);
     }
 
     f32 calcNerveEaseInRate(const LiveActor* pActor, s32 stepMax) {
@@ -1830,7 +1831,7 @@ namespace MR {
     }
 
     void setNerveAtStep(LiveActor* pActor, const Nerve* pNerve, s32 step) {
-        if (pActor->getNerveStep() == step) {
+        if (NebulaTick::isStep(pActor->getNerveTick(), step)) {
             pActor->setNerve(pNerve);
         }
     }

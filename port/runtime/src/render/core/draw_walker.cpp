@@ -1687,7 +1687,7 @@ void RenderCore::walk_post(const NebulaFrameList& list, const NebulaFramePass& p
     // The game's time at this picture: between the frame before (t = 0) and this one (t = 1) in a generated picture,
     // so the program's animation moves at the display's rate.
     constants.time = static_cast<float>((static_cast<double>(list.game_frame) - 1.0 + static_cast<double>(walk_.time.t)) /
-                                        kGameStepRate);
+                                        game_step_rate());
     constants.frame = list.game_frame;
     std::memcpy(constants.params, list.instance_rows + pass.first_item, sizeof(constants.params));
     // Distance along the view axis from the depth target's value D (scene_depth_view: the host's clip z is

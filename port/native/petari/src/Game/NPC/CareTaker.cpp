@@ -1,4 +1,5 @@
 #include "Game/NPC/CareTaker.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaFrameClock.hpp"
 #include "Game/Effect/EffectSystem.hpp"
 #include "Game/Effect/EffectSystemUtil.hpp"
@@ -397,7 +398,7 @@ void Caretaker::exePreWait() {
 }
 
 void Caretaker::exeCountDown() {
-    if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == 0) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
         MR::startSystemSE("SE_SY_RACE_COUNT_DOWN");
     }
 

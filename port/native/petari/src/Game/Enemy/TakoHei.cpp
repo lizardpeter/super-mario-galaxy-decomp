@@ -1,4 +1,5 @@
 #include "Game/Enemy/TakoHei.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/Enemy/AnimScaleController.hpp"
 #include "Game/Enemy/TakoHeiInkHolder.hpp"
 #include "Game/Enemy/WalkerStateBindStarPointer.hpp"
@@ -517,7 +518,7 @@ void TakoHei::exeWait() {
         MR::startBtp(this, "Open");
     }
 
-    if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == NebulaFrameClock::stepsOfSeconds(1) - 1) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), NebulaFrameClock::stepsOfSeconds(1) - 1)) {
         MR::startBtp(this, "Blink");
     }
 
@@ -540,7 +541,7 @@ void TakoHei::exeWalk() {
         MR::startBtp(this, "Open");
     }
 
-    if (getNerveStep() % NebulaFrameClock::stepsOfSeconds(1) == NebulaFrameClock::stepsOfSeconds(1) - 1) {
+    if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), NebulaFrameClock::stepsOfSeconds(1) - 1)) {
         MR::startBtp(this, "Blink");
     }
 

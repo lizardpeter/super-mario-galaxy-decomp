@@ -1,4 +1,5 @@
 #include "Game/Screen/LayoutActor.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/System/NebulaMods.hpp"
 #include "Game/Util/MotionSignal.hpp"
 #include "Game/LiveActor/Spine.hpp"
@@ -78,6 +79,10 @@ bool LayoutActor::isNerve(const Nerve* pNerve) const {
 }
 
 s32 LayoutActor::getNerveStep() const {
+    return NebulaTick::stepOfTick(mSpine->mStep);
+}
+
+s32 LayoutActor::getNerveTick() const {
     return mSpine->mStep;
 }
 

@@ -13,9 +13,10 @@
 
 namespace galaxy::ui {
 using render::RenderConfig;
-// The game's steps a second, and the half rate a frame-rate limit also offers. A display rate of 0 is unknown.
-inline constexpr unsigned kStepRate = static_cast<unsigned>(kGameStepsPerSecond);
-inline constexpr unsigned kHalfStepRate = kStepRate / 2u;
+// The game's ticks a second (game_step.h, chosen at start), and the half rate a frame-rate limit also offers. A display
+// rate of 0 is unknown.
+[[nodiscard]] inline unsigned step_rate() noexcept { return static_cast<unsigned>(game_steps_per_second()); }
+[[nodiscard]] inline unsigned half_step_rate() noexcept { return step_rate() / 2u; }
 struct SettingsRow {
     std::string label;
     std::string value;

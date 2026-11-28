@@ -1,4 +1,5 @@
 #include "Game/MapObj/PunchBox.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Util/ActorMovementUtil.hpp"
@@ -143,15 +144,15 @@ void PunchBox::exeWait() {
 }
 
 void PunchBox::exeHit() {
-    if (getNerveStep() == 0) {
+    if (NebulaTick::isStep(getNerveTick(), 0)) {
         getSensor("body")->invalidate();
     }
 
-    if (getNerveStep() == 5) {
+    if (NebulaTick::isStep(getNerveTick(), 5)) {
         MR::hideModel(this);
     }
 
-    if (getNerveStep() == 15) {
+    if (NebulaTick::isStep(getNerveTick(), 15)) {
         if (mCoinCount != 0) {
             MR::appearCoinPop(this, mPosition, mCoinCount);
         }

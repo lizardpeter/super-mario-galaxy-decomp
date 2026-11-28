@@ -1,4 +1,5 @@
 #include "Game/MapObj/HitWallTimerSwitch.hpp"
+#include "Game/System/NebulaTick.hpp"
 #include "Game/LiveActor/HitSensor.hpp"
 #include "Game/LiveActor/Nerve.hpp"
 #include "Game/Map/CollisionParts.hpp"
@@ -108,9 +109,9 @@ bool HitWallTimerSwitch::trySwitchUp() {
         return true;
     } else {
         if (!MR::isPlayerDead() && !MR::isPowerStarGetDemoActive()) {
-            if (mTimer == getNerveStep()) {
+            if (NebulaTick::isStep(getNerveTick(), mTimer)) {
                 MR::startSystemSE("SE_SY_TIMER_A_0");
-            } else if (!(getNerveStep() % NebulaFrameClock::stepsOfSeconds(1))) {
+            } else if (NebulaTick::isStep(getNerveTick() % NebulaTick::ticksOfSteps(NebulaFrameClock::stepsOfSeconds(1)), 0)) {
                 if (getNerveStep() < mTimer - NebulaFrameClock::stepsOfSeconds(2)) {
                     MR::startSystemSE("SE_SY_TIMER_A_2");
                 } else {
