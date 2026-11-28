@@ -22,3 +22,16 @@ Each item says what must exist first.
 8. **Discord rich presence** (branding/README.md): the status already names the galaxy, the star and the Power Star
    count. To add, over the same local pipe: art for each galaxy (images uploaded to the application, named by key),
    elapsed time, the current mission's icon. No SDK.
+9. **Smaller exe, faster loading, web-ready data.** The Linux exe is 206 MB, of which about 168 MB is shader SPIR-V
+   built in (`.rodata` 171 MB; code `.text` 24 MB).
+   - Shaders move into `game.pak`: compressed, debug info stripped, duplicates merged, loaded on first use. The
+     startup pipeline build and the driver cache are unchanged, so no new stutter. Expected exe: about 35-40 MB.
+   - Linker trimming: `--gc-sections`, identical-code folding (`/OPT:ICF`, `--icf=all`), and no unused Nebula
+     extras linked (crypto remnants, unused upscalers), each measured before it is cut. Smaller relocation tables
+     on Linux.
+   - Static C++ runtime on Windows (`/MT` for the host and the game object): no Visual C++ Redistributable
+     needed (VCRUNTIME140/MSVCP140), about 1 MB more.
+   - Web: the importer writes WGSL beside SPIR-V, so the exe carries neither. The pak is split into chunks a browser
+     fetches separately (title and first galaxy first, the rest in the background), kept in browser storage after
+     the first visit, and ordered by first use (recorded once from a play-through), which also helps native loads.
+     The wasm module is compiled while it streams in and served compressed.
