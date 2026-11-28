@@ -1,19 +1,34 @@
-# Fixed tick: the game simulated at the display's rate
+# Fixed tick: the game simulated at a fixed rate, independent of the display
 
-Goal: every frame the player sees is a real simulation step. The game's logic and physics run at a fixed tick rate
-the player chooses (or that follows the display), with the game's speed in real time the same at every rate. No
-in-between pictures blended or predicted; nothing above the tick rate is wasted. Late input and the camera's late
-latch come after, on top of this.
+Goal: the game's logic and physics run at a fixed tick rate T, chosen in the settings (120, 240 or 480 a second; 60 is
+the original game), on the real-time clock. The display, the GPU and the frame rate never change what the simulation
+does: the game's speed, jump heights and timings are the same at 30 fps or 1,000. Rendering is uncapped and separate.
 
 Today (Nebula): the game steps 60 times a second; at higher refresh rates the renderer blends between the last two
-steps, which costs one step of delay plus a wait Nebula's own audit calls unnecessary (about 40 ms input to display at
-240 Hz; port/docs/audit-2026-11-17/F-interpolation-and-frame-unlock.md).
+steps. Nebula's audit measured 38-42 ms from input to display with VSync on, 30-34 ms off, on a 240 Hz display
+(port/docs/audit-2026-11-17/F-interpolation-and-frame-unlock.md), and a game step costing about 0.65 ms of CPU.
+
+## The loop
+
+- **Simulation:** an accumulator on the real-time clock runs as many ticks as are due (none, one, or several after a
+  slow frame, up to a cap), each advancing the game by exactly 1/T second. Input is read once per tick.
+- **Rendering:** every frame is drawn at the current real time, as fast as the display and GPU allow.
+  - Objects: drawn between the last two ticks at the frame's moment (interpolation, a setting: on by default). Off,
+    objects show the newest tick: no extra delay, but they move in T Hz steps between frames when fps > T.
+  - Camera: rotation from the newest mouse and stick input every frame (late latch), so turning shows on the next
+    frame and never waits for a tick. The simulation keeps its own camera, updated each tick from the same input,
+    because Mario's movement is relative to the camera: the per-frame view is the tick's camera plus the rotation
+    input has added since that tick, which the next tick then takes in. The simulation never reads the per-frame view.
+- **Present:** immediate flip with VSync off (tearing), mailbox as the no-tearing choice, FIFO with VSync on; the CPU
+  waits for the GPU before reading input for a frame, so no frame queue builds up.
+- **Later upgrade, speculative step:** each frame, copy the game state, run one tick ahead with the current input, draw
+  between the real state and that tick, restore. Shows the present instead of one tick behind, using the real
+  simulation; needs a whole-state snapshot, so only if the remaining tick of delay matters after measurement.
 
 ## Rules
 
-1. **The tick is T = 60 x k steps a second, k a whole number** (60, 120, 180, 240, 300, 360, 480, 600...). Then every
-   duration the game was authored with ("after 30 steps") is exactly 30 x k ticks: no rounding anywhere. A display
-   whose rate is not a multiple of 60 (144, 165 Hz) takes the next multiple above it with VSync off, or the one below.
+1. **T = 60 x k, k a whole number** (120, 240, 480). Then every duration the game was authored with ("after 30 steps")
+   is exactly 30 x k ticks: no rounding anywhere. T is chosen for latency and CPU cost, not to match the display.
 2. **k = 1 is the original game, bit for bit.** Every converted code path reduces to the original arithmetic at k = 1
    (where a formula would not be bit-identical, e.g. `powf(f, 1.0f)`, the k = 1 path is the original expression). The
    proof is Nebula's step-hash recordings (`port/tests/replays`: the hash of every live actor after every step, 20
@@ -23,8 +38,7 @@ steps, which costs one step of delay plus a wait Nebula's own audit calls unnece
    applied, once per tick: data and most code stay as written.
 4. **The simulation is deterministic and reads no real-world clock.** Time inside the game is the tick count. That
    keeps replays exact at every k, and is what netcode needs later (rollback or server-authoritative).
-5. **The clock is real time.** The tick runs on the host's clock, not the display's: Nebula's rule that lets the game's
-   speed follow a display within 1 % of a multiple of 60 does not apply.
+5. **The clock is real time.** The tick runs on the host's clock, never the display's.
 
 ## How each kind of code converts
 
@@ -60,8 +74,9 @@ additions), is recorded in `records/bugs.tsv` (`precision`, `limit`) with what i
 
 ## Order
 
-0. The loop: the host runs the game at T with k passed to the game; renders each tick as it is made (no in-between
-   pictures); input read once per tick. Everything unconverted runs k times too fast: the visible to-do list.
+0. The loop: the host steps the game at T on the real-time clock (accumulator) with k passed to the game, input read
+   per tick, rendering per frame from the newest tick (interpolation and the per-frame camera come in step 7).
+   Everything unconverted runs k times too fast: the visible to-do list. k = 1 stays the default.
 1. Central helpers: `NerveUtil.cpp`, `LiveActor::movement`, the velocity helpers (`ActorMovementUtil.cpp`), animation
    frame control, NebulaFrameClock. Converts a large share of every subsystem's sites at once.
 2. Player (Mario): the most hand-written physics (224 counters, 71 decays, 291 velocity sites).
@@ -69,3 +84,5 @@ additions), is recorded in `records/bugs.tsv` (`precision`, `limit`) with what i
 4. Enemy, MapObj, Boss, NPC, Ride, Map.
 5. Screen and layouts (2D timers and animations), effects and particles, demos.
 6. Sound timing that counts steps (the mixer itself already runs on its own real-time clock).
+7. Rendering: interpolation between ticks (on/off), the per-frame camera, present modes and the GPU wait.
+8. Later: the speculative step, if measurement says the remaining tick of delay matters.
